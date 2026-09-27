@@ -50,7 +50,7 @@ serve: ## Serve an unsigned local release on 127.0.0.1:8000: RELEASE=<release di
 
 inspect: ## Check MCP tool schemas with the MCP Inspector (operator, npx downloads it): RELEASE=<release dir>
 	$(if $(RELEASE),,$(error RELEASE is required))
-	npx --yes @modelcontextprotocol/inspector@2.8.0 --cli $(CURDIR)/.venv/bin/mimir mcp --generic-tools --model $(RELEASE) --allow-unsigned --device cpu --method tools/list --strict
+	npx --yes @modelcontextprotocol/inspector@2.8.0 --cli $(CURDIR)/.venv/bin/mimir mcp --generic-tools --model $(RELEASE) --allow-unsigned --device cpu -- --method tools/list --strict
 
 load: ## Load-test a running server: URL=http://host:port RELEASE=<release dir> [OUT=file.json]
 	$(if $(URL),,$(error URL is required))
