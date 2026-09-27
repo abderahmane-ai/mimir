@@ -8,9 +8,9 @@ engine.
 import asyncio
 import logging
 import time
-from collections.abc import AsyncIterator, Callable, Sequence
+from collections.abc import AsyncIterator, Callable, Mapping, Sequence
 from contextlib import asynccontextmanager, suppress
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Final, Literal
 
 from mimir.core.context import Context
 from mimir.core.decider import Decider
@@ -24,6 +24,9 @@ if TYPE_CHECKING:
     from mimir.runtime.engine import Mimir
 
 LoadState = Literal["loading", "ready", "failed"]
+# On CPU, requests sharing a graph run carried 1.26-1.40 times their tokens in padding and
+# cut throughput from 1.66 to 1.30 requests/s (fp32, Apple M4, 2026-09-27), so each runs alone.
+GRAPH_BATCH_SIZE: Final[Mapping[str, int]] = {"cpu": 1}
 
 logger = logging.getLogger(__name__)
 
@@ -102,20 +105,28 @@ class ServedModel(Decider):
             self._state, self._error = "failed", f"{type(error).__name__}: {error}"
             logger.exception("model load failed error=%r", self._error)
             return
+        info = engine.info()
         budget = self._batch_tokens or engine.snapshot.config.layout.crossing_tokens
-        batcher = Batcher(engine, token_budget=budget, wait_s=self._wait_s, observer=self._observer)
+        graph_batch_size = GRAPH_BATCH_SIZE.get(info.device)
+        batcher = Batcher(
+            engine,
+            token_budget=budget,
+            wait_s=self._wait_s,
+            graph_batch_size=graph_batch_size,
+            observer=self._observer,
+        )
         tasks.append(asyncio.create_task(batcher.run()))
         self._engine, self._batcher, self._state = engine, batcher, "ready"
-        info = engine.info()
         logger.info(
             "model ready model=%s revision=%s variant=%s device=%s certification=%s "
-            "batch_tokens=%d seconds=%.1f",
+            "batch_tokens=%d graph_batch_size=%s seconds=%.1f",
             info.model,
             info.revision,
             info.variant,
             info.device,
             info.certification,
             budget,
+            graph_batch_size,
             time.perf_counter() - started,
         )
 

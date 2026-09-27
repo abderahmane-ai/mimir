@@ -12,7 +12,7 @@ from mimir.core.errors import InputLimitError, RiskLevelError
 from mimir.core.results import DecisionResult
 from mimir.runtime.engine import Mimir
 from mimir.server.batcher import Batcher
-from tests.conftest import BatchRecorder
+from tests.conftest import BatchRecorder, count_graph_runs
 
 T = TypeVar("T")
 TEXT = Context.coerce("my card was charged twice")
@@ -132,6 +132,31 @@ def test_stopping_cancels_queued_requests(engine: Mimir) -> None:
             await pending
 
     asyncio.run(main())
+
+
+@pytest.mark.parametrize(("size", "expected_runs"), [(None, 1), (1, 3)])
+def test_the_graph_batch_size_caps_requests_per_graph_run(
+    engine: Mimir, monkeypatch: pytest.MonkeyPatch, size: int | None, expected_runs: int
+) -> None:
+    recorder = BatchRecorder()
+    batcher = Batcher(
+        engine, token_budget=100_000, wait_s=0.05, graph_batch_size=size, observer=recorder
+    )
+    runs = count_graph_runs(engine, monkeypatch)
+
+    async def work() -> list[list[DecisionResult]]:
+        return list(
+            await asyncio.gather(
+                *(batcher.submit([request], risk=0.01, alpha=None) for request in REQUESTS)
+            )
+        )
+
+    found = _running(batcher, work)
+    assert [len(batch) for batch in recorder.batches] == [3]
+    assert len(runs) == expected_runs
+    assert _values([results[0] for results in found]) == _values(
+        engine.decide_many(REQUESTS, risk=0.01)
+    )
 
 
 @pytest.mark.parametrize(("budget", "wait"), [(0, 0.0), (1, -0.1)])

@@ -9,7 +9,7 @@ from mimir.core.errors import ArtifactError
 from mimir.core.results import ChoiceResult
 from mimir.runtime.engine import Mimir
 from mimir.server.model import NotReadyError, ServedModel
-from tests.conftest import BatchRecorder, load_engine
+from tests.conftest import BatchRecorder, count_graph_runs, load_engine
 
 TEXT = "my card was charged twice"
 TEAM = Choice("which team", ["billing", "security", "shipping"])
@@ -49,6 +49,25 @@ def test_decisions_wait_for_the_load_and_then_run_in_batches(release: Path) -> N
     assert served.error is None
     assert [len(batch) for batch in recorder.batches] == [4]
     assert {result.answer for result in results} == {results[0].answer}
+
+
+def test_on_cpu_each_request_runs_the_graph_alone(
+    release: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    engine = load_engine(release)
+    runs = count_graph_runs(engine, monkeypatch)
+    recorder = BatchRecorder()
+    served = ServedModel(lambda: engine, wait_s=0.05, observer=recorder)
+
+    async def main() -> None:
+        async with served.running():
+            await _until_settled(served)
+            await asyncio.gather(*(served.adecide(TEXT, TEAM) for _ in range(4)))
+
+    asyncio.run(main())
+    assert engine.info().device == "cpu"
+    assert [len(batch) for batch in recorder.batches] == [4]
+    assert len(runs) == 4
 
 
 def test_the_ready_model_answers_sync_calls_and_reports_its_engine(release: Path) -> None:

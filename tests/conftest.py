@@ -3,7 +3,7 @@ a complete release directory with a policy bound to this machine, and the engine
 
 import hashlib
 import zipfile
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Final, Literal
@@ -60,7 +60,7 @@ from mimir.runtime.release import (
     TensorSpec,
     Variant,
 )
-from mimir.runtime.session import CPU, options_sha256, runtime_version
+from mimir.runtime.session import CPU, Array, options_sha256, runtime_version
 
 SPECIAL: Final = SpecialTokens(cls=0, sep=1, pad=2, mask=3, newline=4)
 UNKNOWN: Final = "[UNK]"
@@ -531,6 +531,20 @@ class BatchRecorder:
 
     def observe_batch(self, results: Sequence[DecisionResult]) -> None:
         self.batches.append(list(results))
+
+
+def count_graph_runs(engine: Mimir, monkeypatch: pytest.MonkeyPatch) -> list[int]:
+    """A list that grows by one entry per graph run of `engine`."""
+    runs: list[int] = []
+    session = engine._session
+    original = session.run
+
+    def counted(output_names: Sequence[str] | None, input_feed: Mapping[str, Array]) -> list[Array]:
+        runs.append(1)
+        return original(output_names, input_feed)
+
+    monkeypatch.setattr(session, "run", counted)
+    return runs
 
 
 def load_engine(root: Path) -> Mimir:

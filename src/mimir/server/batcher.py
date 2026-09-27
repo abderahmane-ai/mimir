@@ -2,7 +2,7 @@
 
 Requests are grouped by risk and alpha. A group runs as one engine call when it holds
 `token_budget` encoder tokens or its oldest request has waited `wait_s`. One engine call runs
-at a time.
+at a time, and `graph_batch_size` caps the requests in each graph run within it.
 """
 
 import asyncio
@@ -44,6 +44,7 @@ class Batcher:
         *,
         token_budget: int,
         wait_s: float = BATCH_WAIT_S,
+        graph_batch_size: int | None = None,
         observer: BatchObserver | None = None,
     ) -> None:
         if token_budget < 1 or wait_s < 0:
@@ -55,6 +56,7 @@ class Batcher:
         self._engine = engine
         self._token_budget = token_budget
         self._wait_s = wait_s
+        self._graph_batch_size = graph_batch_size
         self._observer = observer
         self._groups: dict[GroupKey, _Group] = {}
         self._wake = asyncio.Event()
@@ -118,9 +120,10 @@ class Batcher:
     def _call_engine(
         self, group: _Group, risk: float | None, alpha: float | None
     ) -> list[DecisionResult]:
+        size = self._graph_batch_size
         if risk is None:
-            return self._engine.decide_uncertified_many(group.requests)
-        return self._engine.decide_many(group.requests, risk=risk, alpha=alpha)
+            return self._engine.decide_uncertified_many(group.requests, batch_size=size)
+        return self._engine.decide_many(group.requests, risk=risk, alpha=alpha, batch_size=size)
 
     async def _decide(self, key: GroupKey, group: _Group) -> None:
         risk, alpha = key
