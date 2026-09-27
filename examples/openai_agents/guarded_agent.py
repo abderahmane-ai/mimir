@@ -53,7 +53,7 @@ async def run_with_approvals(agent: Agent[None], request: str) -> RunResult:
 
 
 async def main() -> None:
-    agent = build_agent(Mimir.from_pretrained("mythologic/mimir-1"))
+    agent = build_agent(Mimir.from_pretrained("Mythologic/MIMIR-1"))
     result = await run_with_approvals(agent, "Refund 900 dollars on order 4412.")
     print(result.final_output)
 

@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Final
 
 ROOT: Final = Path(__file__).parents[2]
-SERVER_NAME: Final = "io.github.mythologic/mimir"
+SERVER_NAME: Final = "io.github.Mythologic/mimir"
 LABEL: Final = re.compile(r'io\.modelcontextprotocol\.server\.name="([^"]+)"')
 
 

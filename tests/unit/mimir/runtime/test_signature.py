@@ -5,7 +5,7 @@ from mimir.runtime.signature import RELEASE_IDENTITY, RELEASE_ISSUER, SigstoreVe
 
 
 def test_the_release_identity_is_the_public_repository_workflow() -> None:
-    assert RELEASE_IDENTITY.startswith("https://github.com/mythologic/mimir/.github/workflows/")
+    assert RELEASE_IDENTITY.startswith("https://github.com/Mythologic/mimir/.github/workflows/")
     assert RELEASE_ISSUER == "https://token.actions.githubusercontent.com"
     verifier = SigstoreVerifier()
     assert (verifier.identity, verifier.issuer, verifier.offline) == (

@@ -9,7 +9,7 @@ from hub import HubError, attach_signature, check_commit, tag_release
 from mimir.runtime.artifact import DEFAULT_REVISION
 from mimir.runtime.release import SIGNATURE_FILE
 
-MODEL: Final = "mythologic/mimir-1"
+MODEL: Final = "Mythologic/MIMIR-1"
 SIGNED: Final = "a" * 40
 OTHER: Final = "b" * 40
 NEW: Final = "c" * 40

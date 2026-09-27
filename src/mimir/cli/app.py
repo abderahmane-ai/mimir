@@ -35,7 +35,7 @@ if TYPE_CHECKING:
     from mimir.server.batcher import BatchObserver
     from mimir.server.model import ServedModel
 
-DEFAULT_MODEL: Final = "mythologic/mimir-1"
+DEFAULT_MODEL: Final = "Mythologic/MIMIR-1"
 # An MCP host starts `mimir mcp` and calls a tool at once; the call waits this long for the
 # model to load rather than failing.
 MCP_LOAD_WAIT_S: Final = 60.0

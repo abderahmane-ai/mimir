@@ -39,7 +39,7 @@ def build_agent(decider: Decider, model: str | Model | None = None) -> Agent[Non
 
 
 async def main() -> None:
-    agent = build_agent(Mimir.from_pretrained("mythologic/mimir-1"))
+    agent = build_agent(Mimir.from_pretrained("Mythologic/MIMIR-1"))
     result = await Runner.run(agent, "I was charged twice for order 4412.")
     print(result.final_output)
 

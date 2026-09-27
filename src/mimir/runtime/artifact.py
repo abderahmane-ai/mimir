@@ -32,7 +32,7 @@ from mimir.runtime.release import (
 )
 from mimir.runtime.signature import ManifestVerifier, SigstoreVerifier
 
-DEFAULT_MODEL: Final = "mythologic/mimir-1"
+DEFAULT_MODEL: Final = "Mythologic/MIMIR-1"
 DEFAULT_REVISION: Final = "v1.0"
 LOCAL_REVISION: Final = "local"
 EQUIVALENCE_DIR: Final = "equivalence"

@@ -40,7 +40,7 @@ def build_agent(decider: Decider, llm: FunctionCallingLLM) -> FunctionAgent:
 async def main() -> None:
     from llama_index.llms.openai import OpenAI
 
-    agent = build_agent(Mimir.from_pretrained("mythologic/mimir-1"), OpenAI(model=MODEL))
+    agent = build_agent(Mimir.from_pretrained("Mythologic/MIMIR-1"), OpenAI(model=MODEL))
     print(await agent.run(user_msg="I was charged twice for order 4412."))
 
 

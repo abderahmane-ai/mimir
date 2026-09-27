@@ -42,7 +42,7 @@ def build_agent(decider: Decider, model: str | BaseChatModel = MODEL) -> "Agent"
 
 
 def main() -> None:
-    agent = build_agent(Mimir.from_pretrained("mythologic/mimir-1"))
+    agent = build_agent(Mimir.from_pretrained("Mythologic/MIMIR-1"))
     state = agent.invoke({"messages": [{"role": "user", "content": "I was charged twice."}]})
     print(state["messages"][-1].content)
 

@@ -70,7 +70,7 @@ mimir bench held-out.jsonl --policy policy.json --risk 0.01
 ```
 
 ```python
-model = Mimir.from_pretrained("mythologic/mimir-1", policy="policy.json")
+model = Mimir.from_pretrained("Mythologic/MIMIR-1", policy="policy.json")
 ```
 
 A custom policy keeps the release's calibration and replaces its thresholds with ones certified

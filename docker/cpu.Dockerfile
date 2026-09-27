@@ -9,10 +9,10 @@ COPY src ./src
 RUN uv sync --locked --no-dev --no-editable --extra local --extra server --extra mcp
 
 FROM python:3.12.14-slim-trixie
-LABEL io.modelcontextprotocol.server.name="io.github.mythologic/mimir" \
+LABEL io.modelcontextprotocol.server.name="io.github.Mythologic/mimir" \
       org.opencontainers.image.title="mimir" \
       org.opencontainers.image.description="MIMIR decision server, CPU" \
-      org.opencontainers.image.source="https://github.com/mythologic/mimir" \
+      org.opencontainers.image.source="https://github.com/Mythologic/mimir" \
       org.opencontainers.image.licenses="Apache-2.0"
 RUN useradd --create-home --uid 10001 mimir && install -d -o mimir /models
 COPY --from=build /app/.venv /app/.venv

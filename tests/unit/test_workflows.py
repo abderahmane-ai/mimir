@@ -9,7 +9,7 @@ from mimir.runtime.signature import RELEASE_IDENTITY, RELEASE_ISSUER
 
 ROOT: Final = Path(__file__).parents[2]
 WORKFLOWS: Final = ROOT / ".github" / "workflows"
-REPOSITORY: Final = "https://github.com/mythologic/mimir"
+REPOSITORY: Final = "https://github.com/Mythologic/mimir"
 MAIN_ONLY: Final = "github.ref == 'refs/heads/main'"
 PINNED: Final = re.compile(r"[\w.-]+/[\w.-]+@[0-9a-f]{40}|\$/\.github/workflows/[\w-]+\.yml")
 

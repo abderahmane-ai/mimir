@@ -170,9 +170,9 @@ def test_variant_files_select_only_what_the_variant_reads(release: Path) -> None
 
 
 def _cached_hub_release(release: Path, cache: Path, revision: str) -> str:
-    """Lay `release` out as the Hub cache holds `mythologic/mimir-1` at `revision`."""
+    """Lay `release` out as the Hub cache holds `Mythologic/MIMIR-1` at `revision`."""
     commit = "0123456789abcdef0123456789abcdef01234567"
-    repository = cache / "models--mythologic--mimir-1"
+    repository = cache / "models--Mythologic--MIMIR-1"
     shutil.copytree(release, repository / "snapshots" / commit)
     (repository / "snapshots" / commit / "manifest.json.sigstore").write_bytes(b"bundle")
     (repository / "refs").mkdir()
@@ -192,7 +192,7 @@ def test_offline_loads_a_cached_release_without_the_network(
     monkeypatch.setattr(socket.socket, "connect", refuse)
     verifier = AcceptingVerifier()
     snapshot = load_snapshot(
-        "mythologic/mimir-1",
+        "Mythologic/MIMIR-1",
         revision=None,
         cache_dir=tmp_path / "hub",
         variant=None,
@@ -201,7 +201,7 @@ def test_offline_loads_a_cached_release_without_the_network(
         offline=True,
     )
     assert (snapshot.model, snapshot.revision, snapshot.is_signed) == (
-        "mythologic/mimir-1",
+        "Mythologic/MIMIR-1",
         commit,
         True,
     )
@@ -212,7 +212,7 @@ def test_offline_loads_a_cached_release_without_the_network(
 def test_offline_names_the_cache_it_could_not_read(tmp_path: Path) -> None:
     with pytest.raises(ArtifactError, match=rf"@v1\.0: .*\(offline, cache {tmp_path}\)"):
         load_snapshot(
-            "mythologic/mimir-1",
+            "Mythologic/MIMIR-1",
             revision=None,
             cache_dir=tmp_path,
             variant=None,
@@ -226,9 +226,9 @@ def test_hub_errors_are_reported_as_artifact_errors(
 ) -> None:
     monkeypatch.setenv("HF_HUB_OFFLINE", "1")
     monkeypatch.setattr("huggingface_hub.constants.HF_HUB_OFFLINE", True)
-    with pytest.raises(ArtifactError, match=r"mythologic/does-not-exist@v1\.0"):
+    with pytest.raises(ArtifactError, match=r"Mythologic/does-not-exist@v1\.0"):
         load_snapshot(
-            "mythologic/does-not-exist",
+            "Mythologic/does-not-exist",
             revision=None,
             cache_dir=tmp_path,
             variant=None,

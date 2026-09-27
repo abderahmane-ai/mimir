@@ -38,7 +38,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Download the manifest
-        run: $UV hf download mythologic/mimir-1 manifest.json config.json --revision "$REVISION" --local-dir signing
+        run: $UV hf download Mythologic/MIMIR-1 manifest.json config.json --revision "$REVISION" --local-dir signing
       - name: Sign it
         run: $UV sigstore sign --bundle signing/manifest.json.sigstore signing/manifest.json
       - name: Commit the signature on top of the signed revision

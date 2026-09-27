@@ -18,7 +18,7 @@ Python 3.11 or later. Documentation: <https://mythologic.github.io/mimir/>.
 ```python
 from mimir import Mimir
 
-model = Mimir.from_pretrained("mythologic/mimir-1")
+model = Mimir.from_pretrained("Mythologic/MIMIR-1")
 result = model.choose(
     "My card was charged twice for the same order.",
     "Which team should handle this ticket?",
@@ -84,7 +84,7 @@ mimir calibrate labelled.jsonl --risk 0.01 --confidence 0.95 --out policy.json
 ```
 
 ```python
-model = Mimir.from_pretrained("mythologic/mimir-1", policy="policy.json")
+model = Mimir.from_pretrained("Mythologic/MIMIR-1", policy="policy.json")
 ```
 
 ## Remote use
@@ -213,7 +213,7 @@ claude mcp add --transport http mimir https://mimir.internal/mcp --header "Autho
 Claude Desktop, Cursor and VS Code take the same command, or the same URL and header, in their
 MCP server configuration.
 
-<!-- mcp-name: io.github.mythologic/mimir -->
+<!-- mcp-name: io.github.Mythologic/mimir -->
 
 ## Containers
 

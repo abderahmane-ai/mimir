@@ -20,6 +20,6 @@ cache with no network access, end the command with
 
 ```bash
 cosign verify ghcr.io/mythologic/mimir:1.0.0-cpu \
-  --certificate-identity https://github.com/mythologic/mimir/.github/workflows/release.yml@refs/heads/main \
+  --certificate-identity https://github.com/Mythologic/mimir/.github/workflows/release.yml@refs/heads/main \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```

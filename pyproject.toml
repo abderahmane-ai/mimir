@@ -72,9 +72,9 @@ mimir = "mimir.cli.app:main"
 mimirai = "mimir.cli.app:main"
 
 [project.urls]
-Homepage = "https://github.com/mythologic/mimir"
-Source = "https://github.com/mythologic/mimir"
-Model = "https://huggingface.co/mythologic/mimir-1"
+Homepage = "https://github.com/Mythologic/mimir"
+Source = "https://github.com/Mythologic/mimir"
+Model = "https://huggingface.co/Mythologic/MIMIR-1"
 
 [dependency-groups]
 dev = [

@@ -5,7 +5,7 @@
 ```python
 from mimir import Mimir
 
-model = Mimir.from_pretrained("mythologic/mimir-1")
+model = Mimir.from_pretrained("Mythologic/MIMIR-1")
 ```
 
 | Argument | Default | Does |

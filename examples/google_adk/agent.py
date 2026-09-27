@@ -54,7 +54,7 @@ async def ask(agent: LlmAgent, text: str) -> str:
 
 
 async def main() -> None:
-    agent = build_agent(Mimir.from_pretrained("mythologic/mimir-1"))
+    agent = build_agent(Mimir.from_pretrained("Mythologic/MIMIR-1"))
     print(await ask(agent, "I was charged twice for order 4412."))
 
 

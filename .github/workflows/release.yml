@@ -73,7 +73,7 @@ jobs:
           python-version: "3.12"
       - name: Verify every variant of the signed commit as the package loads it
         run: |
-          $UV hf download mythologic/mimir-1 config.json --revision "$MODEL_COMMIT" --local-dir model
+          $UV hf download Mythologic/MIMIR-1 config.json --revision "$MODEL_COMMIT" --local-dir model
           for variant in $(jq -r '.variants | keys[]' model/config.json); do
             $UV mimir download --revision "$MODEL_COMMIT" --variant "$variant" --device cpu
           done
@@ -183,5 +183,5 @@ jobs:
         run: |
           awk -v heading="## $VERSION" '$0 == heading {found = 1; next} /^## / {found = 0} found' CHANGELOG.md > notes.md
           test -s notes.md
-          printf '\nModel: mythologic/mimir-1 at %s.\n' "$MODEL_COMMIT" >> notes.md
+          printf '\nModel: Mythologic/MIMIR-1 at %s.\n' "$MODEL_COMMIT" >> notes.md
           gh release create "v$VERSION" dist/* --target "$GITHUB_SHA" --title "mimirai $VERSION" --notes-file notes.md

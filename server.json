@@ -1,13 +1,13 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.mythologic/mimir",
+  "name": "io.github.Mythologic/mimir",
   "title": "MIMIR",
   "description": "Typed, calibrated and certified decisions over a context, with abstention and evidence.",
   "repository": {
-    "url": "https://github.com/mythologic/mimir",
+    "url": "https://github.com/Mythologic/mimir",
     "source": "github"
   },
-  "websiteUrl": "https://github.com/mythologic/mimir",
+  "websiteUrl": "https://github.com/Mythologic/mimir",
   "version": "1.0.0",
   "packages": [
     {

@@ -2,7 +2,7 @@
 
 ## 1.0.0
 
-The first release, for `mythologic/mimir-1`.
+The first release, for `Mythologic/MIMIR-1`.
 
 - `Mimir`, the local engine on ONNX Runtime: `fp32` on CPU, `fp16` on CUDA, each with its own
   certificate. Seven decision types over passages, tables and JSON fields, with calibrated
