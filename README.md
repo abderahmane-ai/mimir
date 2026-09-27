@@ -11,7 +11,7 @@ pip install "mimirai[local-gpu]"    # CUDA engine
 pip install mimirai                 # data models and the HTTP client only
 ```
 
-Python 3.11 or later.
+Python 3.11 or later. Documentation: <https://vathosai.github.io/mimir/>.
 
 ## Quickstart
 

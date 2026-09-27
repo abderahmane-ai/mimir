@@ -1,0 +1,54 @@
+# Signs the manifest.json of one Hub commit with Sigstore and commits the bundle on top of it.
+# The signing identity is this file on main, the one mimir.runtime.signature pins, so it runs
+# only from main. The Hub token is the `hub` environment's HF_TOKEN.
+name: sign-model
+
+on:
+  workflow_dispatch:
+    inputs:
+      revision:
+        description: Full commit id of the Hub revision whose manifest.json to sign
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sign-model
+  cancel-in-progress: false
+
+jobs:
+  sign:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    environment: hub
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      REVISION: ${{ inputs.revision }}
+      UV: uv run --locked --no-default-groups --extra local
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          python-version: "3.12"
+      - name: Download the manifest
+        run: $UV hf download vathosai/mimir-1 manifest.json config.json --revision "$REVISION" --local-dir signing
+      - name: Sign it
+        run: $UV sigstore sign --bundle signing/manifest.json.sigstore signing/manifest.json
+      - name: Commit the signature on top of the signed revision
+        id: attach
+        run: echo "commit=$($UV python tools/hub.py attach-signature --revision "$REVISION" --bundle signing/manifest.json.sigstore)" >> "$GITHUB_OUTPUT"
+      - name: Verify every variant as the package loads it
+        env:
+          SIGNED: ${{ steps.attach.outputs.commit }}
+        run: |
+          for variant in $(jq -r '.variants | keys[]' signing/config.json); do
+            $UV mimir download --revision "$SIGNED" --variant "$variant" --device cpu
+          done
+          echo "Signed commit $SIGNED; release with it as model_commit." >> "$GITHUB_STEP_SUMMARY"

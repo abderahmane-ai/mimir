@@ -98,7 +98,8 @@ class MimirClient(Decider):
         timeout_s: Timeout for each HTTP request.
         max_retries: Retries after the first attempt for retryable failures.
         backoff_s: Base delay of the exponential backoff.
-        transport, async_transport: Custom httpx transports, e.g. for testing.
+        transport: Custom httpx transport, e.g. for testing.
+        async_transport: Custom httpx async transport, e.g. for testing.
     """
 
     def __init__(

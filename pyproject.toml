@@ -98,6 +98,7 @@ examples = [
     "pydantic-ai-slim[mcp]",
 ]
 examples-mcp1 = ["mcp>=1.28,<2", "smolagents[mcp]"]
+docs = ["mkdocstrings-python==2.0.9", "zensical==0.0.65"]
 
 [build-system]
 requires = ["uv_build>=0.12.19,<0.13"]
@@ -106,8 +107,11 @@ build-backend = "uv_build"
 [tool.uv]
 # `local` and `local-gpu` both install the module `onnxruntime`; an environment holds one of
 # them, and `all` includes `local`. CrewAI pins `mcp~=1.28` and `openai<3`, below the `mcp`
-# extra, the examples' MCP SDK 2 clients and the OpenAI Agents SDK.
+# extra, the examples' MCP SDK 2 clients and the OpenAI Agents SDK, and `tomli<2.1`, below
+# Zensical's.
 conflicts = [
+    [{ extra = "crewai" }, { group = "docs" }],
+    [{ group = "examples-mcp1" }, { group = "docs" }],
     [{ extra = "local" }, { extra = "local-gpu" }],
     [{ extra = "all" }, { extra = "local-gpu" }],
     [{ extra = "crewai" }, { extra = "mcp" }],

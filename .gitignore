@@ -24,3 +24,7 @@ CLAUDE.md
 
 # A shelve file one framework opens as ":memory:" writes into the working directory.
 :memory:*
+
+# The docs site and Zensical's build cache, written by `make docs`.
+site/
+.cache/

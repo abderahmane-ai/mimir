@@ -1,0 +1,109 @@
+[project]
+site_name = "MIMIR"
+site_description = "Typed, calibrated and certified decisions from MIMIR, a non-generative decision model"
+site_url = "https://vathosai.github.io/mimir/"
+repo_url = "https://github.com/vathosai/mimir"
+repo_name = "vathosai/mimir"
+copyright = "Copyright VathosAI"
+docs_dir = "docs"
+site_dir = "site"
+nav = [
+  { "Home" = "index.md" },
+  { "Quickstart" = "quickstart.md" },
+  { "Guide" = [
+    "guide/decisions.md",
+    "guide/certificate.md",
+    "guide/tool-call-checks.md",
+  ] },
+  { "Surfaces" = [
+    "surfaces/python.md",
+    "surfaces/cli.md",
+    "surfaces/http.md",
+    "surfaces/mcp.md",
+    "surfaces/containers.md",
+  ] },
+  { "Frameworks" = [
+    "frameworks/openai-agents.md",
+    "frameworks/langchain.md",
+    "frameworks/pydantic-ai.md",
+    "frameworks/crewai.md",
+    "frameworks/google-adk.md",
+    "frameworks/agent-framework.md",
+    "frameworks/llamaindex.md",
+    "frameworks/smolagents.md",
+    "frameworks/vercel-ai.md",
+  ] },
+  { "Migrating" = [
+    "migrating/jev.md",
+    "migrating/laya.md",
+  ] },
+  { "API reference" = [
+    "reference/core.md",
+    "reference/engine.md",
+    "reference/client.md",
+    "reference/integrations.md",
+    "reference/compat.md",
+    "reference/errors.md",
+  ] },
+]
+
+[project.theme]
+language = "en"
+features = [
+  "content.code.copy",
+  "content.tabs.link",
+  "navigation.footer",
+  "navigation.indexes",
+  "navigation.instant",
+  "navigation.path",
+  "navigation.sections",
+  "navigation.top",
+  "navigation.tracking",
+  "search.highlight",
+]
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme)"
+toggle.icon = "lucide/sun-moon"
+toggle.name = "Switch to light mode"
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme: light)"
+scheme = "default"
+toggle.icon = "lucide/sun"
+toggle.name = "Switch to dark mode"
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme: dark)"
+scheme = "slate"
+toggle.icon = "lucide/moon"
+toggle.name = "Switch to system preference"
+
+[project.markdown_extensions]
+admonition = {}
+attr_list = {}
+md_in_html = {}
+tables = {}
+toc.permalink = true
+pymdownx.details = {}
+pymdownx.highlight.anchor_linenums = true
+pymdownx.inlinehilite = {}
+pymdownx.superfences = {}
+pymdownx.tabbed.alternate_style = true
+# The framework pages include the tested example scripts; a missing one fails the build.
+pymdownx.snippets.base_path = ["."]
+pymdownx.snippets.check_paths = true
+
+[project.plugins.mkdocstrings.handlers.python]
+paths = ["src"]
+
+[project.plugins.mkdocstrings.handlers.python.options]
+docstring_style = "google"
+filters = ["!^_"]
+heading_level = 2
+members_order = "source"
+separate_signature = true
+show_root_heading = true
+show_signature_annotations = true
+show_source = false
+signature_crossrefs = true

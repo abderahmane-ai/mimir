@@ -3,7 +3,7 @@ SHELL := /bin/bash
 
 SRC := src tests tools examples
 FRAMEWORKS := openai-agents langchain pydantic-ai llamaindex adk agent-framework smolagents
-EXTRAS := --extra local --extra server --extra mcp $(foreach framework,$(FRAMEWORKS),--extra $(framework))
+EXTRAS := --extra local --extra server --extra mcp $(foreach framework,$(FRAMEWORKS),--extra $(framework)) --group docs
 UV := uv run --locked $(EXTRAS)
 # CrewAI pins the MCP SDK 1, and the MCP clients of Agent Framework and smolagents still need
 # it, so they have an environment of their own. Its MCP tests start the main environment's
@@ -30,7 +30,7 @@ TASKS := unit integration minimum
 VARIANTS := cpu cuda
 VERSION := $(shell sed -n 's/^version = "\(.*\)"/\1/p' pyproject.toml)
 
-.PHONY: help install format lint typecheck dead test check openapi serve mcp example inspect load image build clean
+.PHONY: help install format lint typecheck dead test docs check openapi serve mcp example inspect load image publish build clean
 
 help: ## List every target
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "} {printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2}'
@@ -71,7 +71,11 @@ else
 	done
 endif
 
-check: lint typecheck dead test ## The gate: lint, typecheck, dead code, unit tests
+# Strict mode fails on links and references but not on griffe's docstring warnings.
+docs: ## Build the docs site into site/, failing on any warning
+	set -o pipefail; $(UV) zensical build --strict --clean 2>&1 | awk '{ print } /^griffe:/ { bad = 1 } END { exit bad }'
+
+check: lint typecheck dead docs test ## The gate: lint, typecheck, dead code, docs build, unit tests
 
 openapi: ## Write the server's OpenAPI document to openapi.json
 	$(UV) python tools/openapi.py openapi.json
@@ -105,9 +109,20 @@ image: ## Build a runtime image (operator, needs Docker): VARIANT=cpu|cuda
 	$(if $(filter $(VARIANT),$(VARIANTS)),,$(error VARIANT must be one of: $(VARIANTS)))
 	docker build -f docker/$(VARIANT).Dockerfile -t ghcr.io/vathosai/mimir:$(VERSION)-$(VARIANT) .
 
+publish: ## Start a publishing workflow on main (operator): ACTION=sign REVISION=<Hub commit> | ACTION=release MODEL_COMMIT=<signed Hub commit>
+ifeq ($(ACTION),sign)
+	$(if $(REVISION),,$(error REVISION is required))
+	gh workflow run sign-model.yml --repo vathosai/mimir --ref main -f revision=$(REVISION)
+else ifeq ($(ACTION),release)
+	$(if $(MODEL_COMMIT),,$(error MODEL_COMMIT is required))
+	gh workflow run release.yml --repo vathosai/mimir --ref main -f model_commit=$(MODEL_COMMIT)
+else
+	$(error ACTION must be one of: sign release)
+endif
+
 build: ## Build the sdist and wheel into dist/
 	uv build
 
 clean: ## Delete every cache and build output
-	find . -type d \( -name __pycache__ -o -name .pytest_cache -o -name .mypy_cache -o -name .ruff_cache -o -name htmlcov -o -name build -o -name dist \) -not -path './.venv*' -not -path '*/node_modules/*' -prune -exec rm -rf {} +
+	find . -type d \( -name __pycache__ -o -name .pytest_cache -o -name .mypy_cache -o -name .ruff_cache -o -name htmlcov -o -name build -o -name dist -o -name site -o -name .cache \) -not -path './.venv*' -not -path '*/node_modules/*' -prune -exec rm -rf {} +
 	find . \( -name '*.pyc' -o -name .coverage \) -not -path './.venv*' -delete
