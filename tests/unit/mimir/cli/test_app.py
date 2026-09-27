@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
 from mimir.cli.app import app
@@ -188,3 +189,33 @@ def test_bench_rejects_a_bad_labels_file(release: Path, tmp_path: Path) -> None:
     code, _, err = run("bench", str(labels), "--model", str(release), "--allow-unsigned")
     assert code == 1
     assert "labels.jsonl:1" in err
+
+
+def test_serve_refuses_an_open_public_address(
+    release: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("MIMIR_API_KEYS", raising=False)
+    code, _, err = run("serve", "--host", "0.0.0.0", "--model", str(release), "--allow-unsigned")
+    assert code == 1
+    assert "error: --host 0.0.0.0 accepts connections from other machines" in err
+
+
+def test_serve_takes_generic_tools_only_with_mcp() -> None:
+    code, _, err = run("serve", "--generic-tools")
+    assert code == 1
+    assert "error: --generic-tools adds MCP tools; pass --mcp as well" in err
+
+
+def test_serve_and_mcp_report_a_bad_tools_file(tmp_path: Path) -> None:
+    tools = tmp_path / "tools.yaml"
+    tools.write_text("tools: []\n", encoding="utf-8")
+    for command in ("serve", "mcp"):
+        code, _, err = run(command, "--tools", str(tools))
+        assert code == 1
+        assert f"error: {tools}: 1 validation error for ToolDefinitions" in err
+
+
+def test_mcp_needs_tools_or_generic_tools(release: Path) -> None:
+    code, _, err = run("mcp", "--model", str(release), "--allow-unsigned")
+    assert code == 1
+    assert "error: an MCP server needs configured tools (--tools FILE) or --generic-tools" in err

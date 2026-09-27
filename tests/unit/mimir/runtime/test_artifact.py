@@ -1,4 +1,6 @@
 import json
+import shutil
+import socket
 from pathlib import Path
 
 import pytest
@@ -165,6 +167,58 @@ def test_variant_files_select_only_what_the_variant_reads(release: Path) -> None
         "policy/fp32.json",
         "tokenizer.json",
     ]
+
+
+def _cached_hub_release(release: Path, cache: Path, revision: str) -> str:
+    """Lay `release` out as the Hub cache holds `vathosai/mimir-1` at `revision`."""
+    commit = "0123456789abcdef0123456789abcdef01234567"
+    repository = cache / "models--vathosai--mimir-1"
+    shutil.copytree(release, repository / "snapshots" / commit)
+    (repository / "snapshots" / commit / "manifest.json.sigstore").write_bytes(b"bundle")
+    (repository / "refs").mkdir()
+    (repository / "refs" / revision).write_text(commit, encoding="utf-8")
+    return commit
+
+
+def test_offline_loads_a_cached_release_without_the_network(
+    release: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    commit = _cached_hub_release(release, tmp_path / "hub", "v1.0")
+
+    def refuse(*_: object) -> None:
+        message = "network access in an offline load"
+        raise AssertionError(message)
+
+    monkeypatch.setattr(socket.socket, "connect", refuse)
+    verifier = AcceptingVerifier()
+    snapshot = load_snapshot(
+        "vathosai/mimir-1",
+        revision=None,
+        cache_dir=tmp_path / "hub",
+        variant=None,
+        device="cpu",
+        verifier=verifier,
+        offline=True,
+    )
+    assert (snapshot.model, snapshot.revision, snapshot.is_signed) == (
+        "vathosai/mimir-1",
+        commit,
+        True,
+    )
+    assert verifier.seen == [((release / "manifest.json").read_bytes(), b"bundle")]
+    assert "onnx/model.onnx" in snapshot.digests
+
+
+def test_offline_names_the_cache_it_could_not_read(tmp_path: Path) -> None:
+    with pytest.raises(ArtifactError, match=rf"@v1\.0: .*\(offline, cache {tmp_path}\)"):
+        load_snapshot(
+            "vathosai/mimir-1",
+            revision=None,
+            cache_dir=tmp_path,
+            variant=None,
+            device="cpu",
+            offline=True,
+        )
 
 
 def test_hub_errors_are_reported_as_artifact_errors(

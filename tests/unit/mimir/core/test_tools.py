@@ -1,11 +1,18 @@
 import asyncio
 
 import pytest
+from pydantic import ValidationError
 
-from mimir.core.decisions import Choice, Rate
+from mimir.core.decisions import Choice, Rate, YesNo
 from mimir.core.results import ChoiceResult
-from mimir.core.tools import ToolArguments
+from mimir.core.tools import ToolArguments, ToolDefinition, ToolDefinitions
 from tests.conftest import RecordingDecider
+
+ROUTE = {
+    "name": "route_ticket",
+    "description": "Route a ticket.",
+    "decision": {"type": "choice", "question": "Which team?", "options": ["billing", "security"]},
+}
 
 
 def test_tool_call_uses_the_bound_spec_risk_and_alpha() -> None:
@@ -21,7 +28,9 @@ def test_tool_call_uses_the_bound_spec_risk_and_alpha() -> None:
     assert len(decider.calls) == 2
 
 
-@pytest.mark.parametrize("name", ["", "has space", "x" * 65, "dots.are.bad", "ünïcode"])
+@pytest.mark.parametrize(
+    "name", ["", "has space", "x" * 65, "dots.are.bad", "ünïcode", "trailing\n"]
+)
 def test_tool_names_must_be_portable(name: str) -> None:
     with pytest.raises(ValueError, match="must match"):
         RecordingDecider().tool(name, Choice("q", ["a", "b"]), "desc")
@@ -42,3 +51,52 @@ def test_tool_schemas() -> None:
     properties = output["properties"]
     assert isinstance(properties, dict)
     assert "prediction_set" in properties
+
+
+def test_definitions_bind_in_order_with_their_risk_and_alpha() -> None:
+    definitions = ToolDefinitions.model_validate(
+        {
+            "tools": [
+                ROUTE,
+                {
+                    "name": "is_late",
+                    "description": "Check lateness.",
+                    "decision": {"type": "yes_no", "question": "Is it late?"},
+                    "risk": 0.05,
+                    "alpha": 0.2,
+                },
+            ]
+        }
+    )
+    decider = RecordingDecider()
+    tools = definitions.bind(decider)
+    assert [tool.name for tool in tools] == ["route_ticket", "is_late"]
+    assert tools[0].spec == Choice("Which team?", ["billing", "security"])
+    assert (tools[0].risk, tools[0].alpha) == (0.01, None)
+    assert (tools[1].spec, tools[1].risk, tools[1].alpha) == (YesNo("Is it late?"), 0.05, 0.2)
+    assert all(tool.decider is decider for tool in tools)
+
+
+def test_definitions_reject_repeated_names_empty_lists_and_unknown_keys() -> None:
+    with pytest.raises(ValidationError, match=r"\['route_ticket'\] are declared more than once"):
+        ToolDefinitions.model_validate({"tools": [ROUTE, ROUTE]})
+    with pytest.raises(ValidationError, match="at least 1 item"):
+        ToolDefinitions.model_validate({"tools": []})
+    with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
+        ToolDefinition.model_validate({**ROUTE, "question": "stray"})
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    [
+        ("name", "has space", "should match pattern"),
+        ("name", "trailing\n", "should match pattern"),
+        ("description", "   ", "at least 1 character"),
+        ("alpha", 1.0, "less than 1"),
+        ("risk", float("nan"), "finite number"),
+    ],
+)
+def test_definition_fields_are_validated(field: str, value: object, message: str) -> None:
+    with pytest.raises(ValidationError, match=message) as raised:
+        ToolDefinition.model_validate({**ROUTE, field: value})
+    assert raised.value.errors()[0]["loc"] == (field,)

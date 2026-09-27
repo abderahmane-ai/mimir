@@ -1,5 +1,5 @@
 """Shared test builders: a word-level tokenizer, a small ONNX graph with the release contract,
-and a complete release directory with a policy bound to this machine."""
+a complete release directory with a policy bound to this machine, and the engine on it."""
 
 import hashlib
 import zipfile
@@ -48,6 +48,7 @@ from mimir.policy.document import (
     TypePolicy,
     write_policy,
 )
+from mimir.runtime.engine import Mimir
 from mimir.runtime.hardware import hardware_name
 from mimir.runtime.release import (
     GraphContract,
@@ -520,6 +521,26 @@ def release_builder(tmp_path: Path) -> Callable[..., Path]:
         )
 
     return build
+
+
+class BatchRecorder:
+    """A `BatchObserver` keeping every batch's results."""
+
+    def __init__(self) -> None:
+        self.batches: list[list[DecisionResult]] = []
+
+    def observe_batch(self, results: Sequence[DecisionResult]) -> None:
+        self.batches.append(list(results))
+
+
+def load_engine(root: Path) -> Mimir:
+    """The engine on a release directory from `build_release`."""
+    return Mimir.from_pretrained(str(root), device="cpu", allow_unsigned=True)
+
+
+@pytest.fixture
+def engine(release: Path) -> Mimir:
+    return load_engine(release)
 
 
 @pytest.fixture

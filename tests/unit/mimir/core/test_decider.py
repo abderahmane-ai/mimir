@@ -33,6 +33,20 @@ def test_decide_uncertified_runs_without_risk() -> None:
     assert decider.calls[0].risk is None
 
 
+def test_decide_uncertified_many_runs_one_batch_without_risk() -> None:
+    decider = RecordingDecider()
+    items = [("a", YesNo("one")), ("b", Rank("two", ["x", "y"]))]
+    results = decider.decide_uncertified_many(items, batch_size=3)
+    assert [result.type for result in results] == ["yes_no", "rank"]
+    assert len(decider.calls) == 1
+    call = decider.calls[0]
+    assert (call.risk, call.alpha, call.batch_size) == (None, None, 3)
+    assert [context for context, _ in call.requests] == [
+        Context(passages=(Passage(text="a"),)),
+        Context(passages=(Passage(text="b"),)),
+    ]
+
+
 def test_decide_many_keeps_order_and_batch_size() -> None:
     decider = RecordingDecider()
     items = [("a", YesNo("one")), ({"k": 1}, Estimate("two", 0.0, 1.0))]
@@ -68,6 +82,7 @@ def test_async_methods_match_the_sync_ones() -> None:
         await decider.adecide("x", YesNo("q"))
         await decider.adecide_many([("x", YesNo("q"))])
         await decider.adecide_uncertified("x", YesNo("q"))
+        await decider.adecide_uncertified_many([("x", YesNo("q"))], batch_size=2)
         await decider.achoose("x", "q", ["a", "b"])
         await decider.ayes_no("x", "q")
         await decider.averify("x", "c")
@@ -76,7 +91,8 @@ def test_async_methods_match_the_sync_ones() -> None:
         await decider.aestimate("x", "q", 0, 1)
 
     asyncio.run(run())
-    assert [call.risk for call in decider.calls] == [0.01, 0.01, None, *[0.01] * 6]
+    assert [call.risk for call in decider.calls] == [0.01, 0.01, None, None, *[0.01] * 6]
+    assert decider.calls[3].batch_size == 2
 
 
 def test_async_decide_rejects_a_missing_risk() -> None:

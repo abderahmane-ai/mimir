@@ -111,10 +111,82 @@ route_ticket("My card was charged twice")
 route_ticket.input_schema, route_ticket.output_schema
 ```
 
+Tools can also be declared in a YAML file, which the HTTP and MCP servers load:
+
+```yaml
+tools:
+  - name: route_ticket
+    description: Route a support ticket to the team that owns it.
+    decision:
+      type: choice
+      question: Which team should handle this ticket?
+      options: [billing, security]
+```
+
+## HTTP server
+
+```bash
+pip install "mimirai[local,server]"
+MIMIR_API_KEYS=key-one,key-two mimir serve --host 0.0.0.0 --tools tools.yaml
+```
+
+| Route | Does |
+|---|---|
+| `POST /v1/decide` | one certified decision: `{context, decision, risk, alpha}` |
+| `POST /v1/decide/uncertified` | the model's raw answer: `{context, decision}` |
+| `POST /v1/decide/batch` | up to 64 decisions in one call |
+| `POST /v1/tools/{name}` | a tool from `--tools`, given only `{context}` |
+| `POST /v1/systemone` | Jev's request and response format |
+| `GET /v1/models` | model, revision, runtime and certified risk levels |
+| `GET /healthz`, `GET /readyz` | liveness, and readiness once the model is loaded |
+| `GET /metrics` | Prometheus metrics |
+
+Concurrent requests are batched. With keys in `MIMIR_API_KEYS`, every route but the probes
+needs `Authorization: Bearer <key>`; a server without keys listens only on loopback unless
+started with `--allow-no-auth`. The OpenAPI 3.1 document is `openapi.json`.
+
+## MCP server
+
+Each configured tool becomes an MCP tool that takes only a context; `--generic-tools` adds
+`mimir_choose`, `mimir_verify`, `mimir_rank` and `mimir_rate`. A deferred decision is a normal
+result telling the agent to escalate.
+
+```bash
+uvx --from "mimirai[local,mcp]" mimirai mcp --tools tools.yaml               # stdio
+MIMIR_API_KEYS=... mimir mcp --http --host 0.0.0.0 --tools tools.yaml       # Streamable HTTP at /mcp
+mimir mcp --tools tools.yaml --remote https://mimir.internal                  # forward to a server
+mimir serve --mcp --tools tools.yaml                                          # HTTP API and /mcp together
+```
+
+In Claude Code:
+
+```bash
+claude mcp add mimir -- uvx --from "mimirai[local,mcp]" mimirai mcp --tools /path/to/tools.yaml
+claude mcp add --transport http mimir https://mimir.internal/mcp --header "Authorization: Bearer ..."
+```
+
+Claude Desktop, Cursor and VS Code take the same command, or the same URL and header, in their
+MCP server configuration.
+
+<!-- mcp-name: io.github.vathosai/mimir -->
+
+## Containers
+
+```bash
+docker run -p 8000:8000 -e MIMIR_API_KEYS=... -v mimir-models:/models ghcr.io/vathosai/mimir:1.0.0-cpu
+docker run --gpus all -p 8000:8000 -e MIMIR_API_KEYS=... -v mimir-models:/models ghcr.io/vathosai/mimir:1.0.0-cuda
+```
+
+Images carry the runtime, never the model: it is downloaded and verified into `/models` on
+first start. To run from that cache with no network, end the command with
+`serve --host 0.0.0.0 --model-cache /models --offline`.
+
 ## Command line
 
 | Command | Description |
 |---|---|
+| `mimir serve` | the HTTP server; `--mcp` also serves MCP at `/mcp` |
+| `mimir mcp` | the MCP server, over stdio or `--http` |
 | `mimir decide` | one decision from flags, or a JSON request on stdin |
 | `mimir bench FILE` | accuracy, coverage and realised risk on labelled decisions |
 | `mimir calibrate FILE` | certify thresholds on labelled decisions |

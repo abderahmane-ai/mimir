@@ -1,9 +1,10 @@
+import importlib.util
 import sys
 
 import pytest
 
 from mimir.core.errors import MissingExtraError
-from mimir.extras import LOCAL_MODULES, engine_class
+from mimir.extras import LOCAL_MODULES, MCP_MODULES, SERVER_MODULES, engine_class, require_extra
 from mimir.runtime.engine import Mimir
 
 
@@ -24,3 +25,20 @@ def test_local_modules_are_the_local_extra() -> None:
     assert {"onnxruntime", "numpy", "tokenizers", "sigstore", "huggingface_hub", "onnx"} == (
         LOCAL_MODULES
     )
+
+
+def test_server_and_mcp_modules_are_their_extras() -> None:
+    assert {"fastapi", "prometheus_client", "uvicorn", "yaml"} == SERVER_MODULES
+    assert {"mcp", "uvicorn", "yaml"} == MCP_MODULES
+
+
+def test_require_extra_names_the_extra_and_the_missing_module(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    require_extra("mimir serve", "server", SERVER_MODULES)
+    found = importlib.util.find_spec
+    monkeypatch.setattr(
+        importlib.util, "find_spec", lambda name: None if name == "uvicorn" else found(name)
+    )
+    with pytest.raises(MissingExtraError, match=r"mimir mcp requires the 'mcp' extra \(uvicorn"):
+        require_extra("mimir mcp", "mcp", MCP_MODULES)

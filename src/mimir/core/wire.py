@@ -9,6 +9,8 @@ from mimir.core.decisions import DecisionSpec, ModelType
 from mimir.core.results import DecisionResult
 
 DEFAULT_RISK: Final = 0.01
+MAX_BODY_BYTES: Final = 4 * 1024 * 1024
+MAX_BATCH_ITEMS: Final = 64
 
 
 class _Frozen(BaseModel):

@@ -1,0 +1,3077 @@
+{
+  "components": {
+    "schemas": {
+      "BatchItem": {
+        "additionalProperties": false,
+        "properties": {
+          "context": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "$ref": "#/components/schemas/Context"
+              },
+              {
+                "$ref": "#/components/schemas/JsonState"
+              }
+            ],
+            "description": "A string (one passage), a list of strings (passages), a Context object, or {'state': <JSON>} for a structured state.",
+            "title": "Context"
+          },
+          "decision": {
+            "discriminator": {
+              "mapping": {
+                "choice": "#/components/schemas/Choice",
+                "estimate": "#/components/schemas/Estimate",
+                "multi_choice": "#/components/schemas/MultiChoice",
+                "rank": "#/components/schemas/Rank",
+                "rate": "#/components/schemas/Rate",
+                "verify": "#/components/schemas/Verify",
+                "yes_no": "#/components/schemas/YesNo"
+              },
+              "propertyName": "type"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Choice"
+              },
+              {
+                "$ref": "#/components/schemas/MultiChoice"
+              },
+              {
+                "$ref": "#/components/schemas/YesNo"
+              },
+              {
+                "$ref": "#/components/schemas/Verify"
+              },
+              {
+                "$ref": "#/components/schemas/Rank"
+              },
+              {
+                "$ref": "#/components/schemas/Rate"
+              },
+              {
+                "$ref": "#/components/schemas/Estimate"
+              }
+            ],
+            "title": "Decision"
+          }
+        },
+        "required": [
+          "context",
+          "decision"
+        ],
+        "title": "BatchItem",
+        "type": "object"
+      },
+      "BatchRequest": {
+        "additionalProperties": false,
+        "description": "Body of `POST /v1/decide/batch`. Results are returned in item order.",
+        "properties": {
+          "alpha": {
+            "anyOf": [
+              {
+                "exclusiveMaximum": 1.0,
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alpha"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/BatchItem"
+            },
+            "minItems": 1,
+            "title": "Items",
+            "type": "array"
+          },
+          "risk": {
+            "default": 0.01,
+            "title": "Risk",
+            "type": "number"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "BatchRequest",
+        "type": "object"
+      },
+      "BatchResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "results": {
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "choice": "#/components/schemas/ChoiceResult",
+                  "estimate": "#/components/schemas/EstimateResult",
+                  "multi_choice": "#/components/schemas/MultiChoiceResult",
+                  "rank": "#/components/schemas/RankResult",
+                  "rate": "#/components/schemas/RateResult",
+                  "verify": "#/components/schemas/VerifyResult",
+                  "yes_no": "#/components/schemas/YesNoResult"
+                },
+                "propertyName": "type"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/ChoiceResult"
+                },
+                {
+                  "$ref": "#/components/schemas/MultiChoiceResult"
+                },
+                {
+                  "$ref": "#/components/schemas/YesNoResult"
+                },
+                {
+                  "$ref": "#/components/schemas/VerifyResult"
+                },
+                {
+                  "$ref": "#/components/schemas/RankResult"
+                },
+                {
+                  "$ref": "#/components/schemas/RateResult"
+                },
+                {
+                  "$ref": "#/components/schemas/EstimateResult"
+                }
+              ]
+            },
+            "title": "Results",
+            "type": "array"
+          }
+        },
+        "required": [
+          "results"
+        ],
+        "title": "BatchResponse",
+        "type": "object"
+      },
+      "Cell": {
+        "additionalProperties": false,
+        "description": "A table cell with its parsed number and date, if any.",
+        "properties": {
+          "date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date"
+          },
+          "number": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Number"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "Cell",
+        "type": "object"
+      },
+      "Certificate": {
+        "additionalProperties": false,
+        "description": "The certified threshold a decision was checked against.\n\nOn `records` held-out decisions, `taken` reached the threshold and `errors` of those were\nwrong. The exact binomial test of `errors` out of `taken` at rate `risk` gives `p_value`:\nthe error rate of taken decisions is at most `risk` with probability `confidence`.\n`coverage` is `taken / records`, with a 95% Wilson interval.",
+        "properties": {
+          "confidence": {
+            "title": "Confidence",
+            "type": "number"
+          },
+          "coverage": {
+            "title": "Coverage",
+            "type": "number"
+          },
+          "coverage_interval": {
+            "anyOf": [
+              {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Coverage Interval"
+          },
+          "errors": {
+            "title": "Errors",
+            "type": "integer"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "origin": {
+            "enum": [
+              "release",
+              "custom"
+            ],
+            "title": "Origin",
+            "type": "string"
+          },
+          "p_value": {
+            "title": "P Value",
+            "type": "number"
+          },
+          "records": {
+            "title": "Records",
+            "type": "integer"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "string"
+          },
+          "risk": {
+            "title": "Risk",
+            "type": "number"
+          },
+          "taken": {
+            "title": "Taken",
+            "type": "integer"
+          },
+          "threshold": {
+            "title": "Threshold",
+            "type": "number"
+          },
+          "variant": {
+            "title": "Variant",
+            "type": "string"
+          }
+        },
+        "required": [
+          "risk",
+          "confidence",
+          "threshold",
+          "records",
+          "taken",
+          "errors",
+          "p_value",
+          "coverage",
+          "coverage_interval",
+          "model",
+          "revision",
+          "variant",
+          "origin"
+        ],
+        "title": "Certificate",
+        "type": "object"
+      },
+      "Choice": {
+        "additionalProperties": false,
+        "description": "Pick one option, or none.",
+        "properties": {
+          "options": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              }
+            ],
+            "title": "Options"
+          },
+          "question": {
+            "minLength": 1,
+            "title": "Question",
+            "type": "string"
+          },
+          "type": {
+            "const": "choice",
+            "default": "choice",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "question",
+          "options"
+        ],
+        "title": "Choice",
+        "type": "object"
+      },
+      "ChoiceAnswer": {
+        "additionalProperties": false,
+        "properties": {
+          "choice": {
+            "title": "Choice",
+            "type": "string"
+          },
+          "confidence": {
+            "title": "Confidence",
+            "type": "number"
+          },
+          "probabilities": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Probabilities",
+            "type": "object"
+          },
+          "type": {
+            "const": "choice",
+            "default": "choice",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "choice",
+          "probabilities",
+          "confidence"
+        ],
+        "title": "ChoiceAnswer",
+        "type": "object"
+      },
+      "ChoiceQuestion": {
+        "additionalProperties": false,
+        "properties": {
+          "criteria": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "maxProperties": 255,
+            "minProperties": 1,
+            "title": "Criteria",
+            "type": "object"
+          },
+          "instructions": {
+            "$ref": "#/components/schemas/JsonValue"
+          },
+          "type": {
+            "const": "choice",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "instructions",
+          "criteria"
+        ],
+        "title": "ChoiceQuestion",
+        "type": "object"
+      },
+      "ChoiceResult": {
+        "additionalProperties": false,
+        "properties": {
+          "abstain_probability": {
+            "title": "Abstain Probability",
+            "type": "number"
+          },
+          "answer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The option id, or None when no option applies.",
+            "title": "Answer"
+          },
+          "certificate": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Certificate"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Calibrated probability of the answer, compared with the threshold.",
+            "title": "Confidence"
+          },
+          "deferral": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Deferral"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "latency_ms": {
+            "title": "Latency Ms",
+            "type": "number"
+          },
+          "prediction_set": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OptionSet"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "probabilities": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Probabilities",
+            "type": "object"
+          },
+          "relevant_context": {
+            "items": {
+              "$ref": "#/components/schemas/ContextRelevance"
+            },
+            "title": "Relevant Context",
+            "type": "array"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/Status"
+          },
+          "type": {
+            "const": "choice",
+            "default": "choice",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "confidence",
+          "relevant_context",
+          "deferral",
+          "certificate",
+          "latency_ms",
+          "answer",
+          "probabilities",
+          "abstain_probability",
+          "prediction_set"
+        ],
+        "title": "ChoiceResult",
+        "type": "object"
+      },
+      "Context": {
+        "additionalProperties": false,
+        "description": "The input of a decision. May be empty, in which case only the question is read.",
+        "properties": {
+          "fields": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/Field"
+            },
+            "title": "Fields",
+            "type": "array"
+          },
+          "passages": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/Passage"
+            },
+            "title": "Passages",
+            "type": "array"
+          },
+          "tables": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/Table"
+            },
+            "title": "Tables",
+            "type": "array"
+          }
+        },
+        "title": "Context",
+        "type": "object"
+      },
+      "ContextRelevance": {
+        "additionalProperties": false,
+        "description": "Relevance of one part of the context.\n\n`index` is the position of the passage, table or field in the context. `row` is the row\nposition for `table_row` and None otherwise. A `table` part is the caption and header.",
+        "properties": {
+          "index": {
+            "title": "Index",
+            "type": "integer"
+          },
+          "kind": {
+            "enum": [
+              "passage",
+              "table",
+              "table_row",
+              "field"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "relevance": {
+            "title": "Relevance",
+            "type": "number"
+          },
+          "row": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Row"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "index",
+          "row",
+          "relevance",
+          "text"
+        ],
+        "title": "ContextRelevance",
+        "type": "object"
+      },
+      "DecideRequest": {
+        "additionalProperties": false,
+        "description": "Body of `POST /v1/decide`. `alpha=None` uses the release default.",
+        "properties": {
+          "alpha": {
+            "anyOf": [
+              {
+                "exclusiveMaximum": 1.0,
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alpha"
+          },
+          "context": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "$ref": "#/components/schemas/Context"
+              },
+              {
+                "$ref": "#/components/schemas/JsonState"
+              }
+            ],
+            "description": "A string (one passage), a list of strings (passages), a Context object, or {'state': <JSON>} for a structured state.",
+            "title": "Context"
+          },
+          "decision": {
+            "discriminator": {
+              "mapping": {
+                "choice": "#/components/schemas/Choice",
+                "estimate": "#/components/schemas/Estimate",
+                "multi_choice": "#/components/schemas/MultiChoice",
+                "rank": "#/components/schemas/Rank",
+                "rate": "#/components/schemas/Rate",
+                "verify": "#/components/schemas/Verify",
+                "yes_no": "#/components/schemas/YesNo"
+              },
+              "propertyName": "type"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Choice"
+              },
+              {
+                "$ref": "#/components/schemas/MultiChoice"
+              },
+              {
+                "$ref": "#/components/schemas/YesNo"
+              },
+              {
+                "$ref": "#/components/schemas/Verify"
+              },
+              {
+                "$ref": "#/components/schemas/Rank"
+              },
+              {
+                "$ref": "#/components/schemas/Rate"
+              },
+              {
+                "$ref": "#/components/schemas/Estimate"
+              }
+            ],
+            "title": "Decision"
+          },
+          "risk": {
+            "default": 0.01,
+            "title": "Risk",
+            "type": "number"
+          }
+        },
+        "required": [
+          "context",
+          "decision"
+        ],
+        "title": "DecideRequest",
+        "type": "object"
+      },
+      "Deferral": {
+        "additionalProperties": false,
+        "description": "Reason a decision was deferred.\n\n- `no_certified_threshold`: no threshold is certified for this decision type and risk.\n- `out_of_distribution`: `gate_p_value` is at or below the policy's gate level.\n- `below_threshold`: `confidence` is below `threshold`.",
+        "properties": {
+          "gate_p_value": {
+            "title": "Gate P Value",
+            "type": "number"
+          },
+          "reason": {
+            "enum": [
+              "below_threshold",
+              "out_of_distribution",
+              "no_certified_threshold"
+            ],
+            "title": "Reason",
+            "type": "string"
+          },
+          "threshold": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Threshold"
+          }
+        },
+        "required": [
+          "reason",
+          "threshold",
+          "gate_p_value"
+        ],
+        "title": "Deferral",
+        "type": "object"
+      },
+      "ErrorBody": {
+        "additionalProperties": false,
+        "description": "Body of every error response.",
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ErrorDetail"
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "title": "ErrorBody",
+        "type": "object"
+      },
+      "ErrorDetail": {
+        "additionalProperties": false,
+        "properties": {
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "message"
+        ],
+        "title": "ErrorDetail",
+        "type": "object"
+      },
+      "Estimate": {
+        "additionalProperties": false,
+        "description": "Estimate a value in `[low, high]`.",
+        "properties": {
+          "high": {
+            "title": "High",
+            "type": "number"
+          },
+          "low": {
+            "title": "Low",
+            "type": "number"
+          },
+          "question": {
+            "minLength": 1,
+            "title": "Question",
+            "type": "string"
+          },
+          "type": {
+            "const": "estimate",
+            "default": "estimate",
+            "title": "Type",
+            "type": "string"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          }
+        },
+        "required": [
+          "question",
+          "low",
+          "high"
+        ],
+        "title": "Estimate",
+        "type": "object"
+      },
+      "EstimateResult": {
+        "additionalProperties": false,
+        "properties": {
+          "answer": {
+            "description": "The mean of the predicted distribution.",
+            "title": "Answer",
+            "type": "number"
+          },
+          "certificate": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Certificate"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Calibrated probability of the answer, compared with the threshold.",
+            "title": "Confidence"
+          },
+          "deferral": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Deferral"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "interval": {
+            "anyOf": [
+              {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "maxItems": 0,
+                "minItems": 0,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Conformal interval at `alpha`; empty if the set is empty.",
+            "title": "Interval"
+          },
+          "latency_ms": {
+            "title": "Latency Ms",
+            "type": "number"
+          },
+          "relevant_context": {
+            "items": {
+              "$ref": "#/components/schemas/ContextRelevance"
+            },
+            "title": "Relevant Context",
+            "type": "array"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/Status"
+          },
+          "type": {
+            "const": "estimate",
+            "default": "estimate",
+            "title": "Type",
+            "type": "string"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          }
+        },
+        "required": [
+          "status",
+          "confidence",
+          "relevant_context",
+          "deferral",
+          "certificate",
+          "latency_ms",
+          "answer",
+          "unit",
+          "interval"
+        ],
+        "title": "EstimateResult",
+        "type": "object"
+      },
+      "Field": {
+        "additionalProperties": false,
+        "description": "A typed field of a structured state, keyed by its dotted path.",
+        "properties": {
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "text",
+              "number",
+              "category",
+              "datetime",
+              "list"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "key",
+          "kind",
+          "value"
+        ],
+        "title": "Field",
+        "type": "object"
+      },
+      "InputLimits": {
+        "additionalProperties": false,
+        "description": "Maximum input sizes the release was tested at. Larger inputs are rejected.",
+        "properties": {
+          "context_tokens": {
+            "title": "Context Tokens",
+            "type": "integer"
+          },
+          "levels": {
+            "title": "Levels",
+            "type": "integer"
+          },
+          "options": {
+            "title": "Options",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "options",
+          "levels",
+          "context_tokens"
+        ],
+        "title": "InputLimits",
+        "type": "object"
+      },
+      "JsonState": {
+        "additionalProperties": false,
+        "description": "A structured state in a JSON request body: `{\"state\": {...}}`.",
+        "properties": {
+          "state": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/JsonValue"
+                },
+                "type": "object"
+              },
+              {
+                "items": {
+                  "$ref": "#/components/schemas/JsonValue"
+                },
+                "type": "array"
+              }
+            ],
+            "title": "State"
+          }
+        },
+        "required": [
+          "state"
+        ],
+        "title": "JsonState",
+        "type": "object"
+      },
+      "JsonValue": {},
+      "ModelInfo": {
+        "additionalProperties": false,
+        "description": "Response of `GET /v1/models` and `Decider.info()`.\n\n`certification` is one of:\n\n- `certified`: the policy's fingerprint lists this runtime and hardware;\n- `equivalent`: the hardware is not listed, but the equivalence check passed;\n- `none`: no policy is loaded; only `decide_uncertified` is available.",
+        "properties": {
+          "certification": {
+            "enum": [
+              "certified",
+              "equivalent",
+              "none"
+            ],
+            "title": "Certification",
+            "type": "string"
+          },
+          "decision_types": {
+            "items": {
+              "enum": [
+                "binary",
+                "categorical",
+                "multilabel",
+                "ranking",
+                "ordinal",
+                "continuous"
+              ],
+              "type": "string"
+            },
+            "title": "Decision Types",
+            "type": "array"
+          },
+          "device": {
+            "enum": [
+              "cpu",
+              "cuda"
+            ],
+            "title": "Device",
+            "type": "string"
+          },
+          "limits": {
+            "$ref": "#/components/schemas/InputLimits"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "policy": {
+            "anyOf": [
+              {
+                "enum": [
+                  "release",
+                  "custom"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Policy"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "string"
+          },
+          "risk_levels": {
+            "items": {
+              "type": "number"
+            },
+            "title": "Risk Levels",
+            "type": "array"
+          },
+          "runtime": {
+            "$ref": "#/components/schemas/RuntimeInfo"
+          },
+          "variant": {
+            "title": "Variant",
+            "type": "string"
+          }
+        },
+        "required": [
+          "model",
+          "revision",
+          "variant",
+          "device",
+          "runtime",
+          "certification",
+          "policy",
+          "risk_levels",
+          "decision_types",
+          "limits"
+        ],
+        "title": "ModelInfo",
+        "type": "object"
+      },
+      "MultiChoice": {
+        "additionalProperties": false,
+        "description": "Pick every option that applies. The answer may be empty.",
+        "properties": {
+          "options": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              }
+            ],
+            "title": "Options"
+          },
+          "question": {
+            "minLength": 1,
+            "title": "Question",
+            "type": "string"
+          },
+          "type": {
+            "const": "multi_choice",
+            "default": "multi_choice",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "question",
+          "options"
+        ],
+        "title": "MultiChoice",
+        "type": "object"
+      },
+      "MultiChoiceResult": {
+        "additionalProperties": false,
+        "properties": {
+          "answer": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Answer",
+            "type": "array"
+          },
+          "certificate": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Certificate"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Calibrated probability of the answer, compared with the threshold.",
+            "title": "Confidence"
+          },
+          "deferral": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Deferral"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "latency_ms": {
+            "title": "Latency Ms",
+            "type": "number"
+          },
+          "probabilities": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "description": "Independent probability that each option applies.",
+            "title": "Probabilities",
+            "type": "object"
+          },
+          "relevant_context": {
+            "items": {
+              "$ref": "#/components/schemas/ContextRelevance"
+            },
+            "title": "Relevant Context",
+            "type": "array"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/Status"
+          },
+          "type": {
+            "const": "multi_choice",
+            "default": "multi_choice",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "confidence",
+          "relevant_context",
+          "deferral",
+          "certificate",
+          "latency_ms",
+          "answer",
+          "probabilities"
+        ],
+        "title": "MultiChoiceResult",
+        "type": "object"
+      },
+      "NoulAnswer": {
+        "additionalProperties": false,
+        "properties": {
+          "noul": {
+            "title": "Noul",
+            "type": "number"
+          },
+          "type": {
+            "const": "noul",
+            "default": "noul",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "noul"
+        ],
+        "title": "NoulAnswer",
+        "type": "object"
+      },
+      "NoulCriteria": {
+        "additionalProperties": false,
+        "properties": {
+          "false": {
+            "$ref": "#/components/schemas/JsonValue"
+          },
+          "true": {
+            "$ref": "#/components/schemas/JsonValue"
+          }
+        },
+        "title": "NoulCriteria",
+        "type": "object"
+      },
+      "NoulQuestion": {
+        "additionalProperties": false,
+        "properties": {
+          "criteria": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NoulCriteria"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "instructions": {
+            "$ref": "#/components/schemas/JsonValue"
+          },
+          "type": {
+            "const": "noul",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "instructions"
+        ],
+        "title": "NoulQuestion",
+        "type": "object"
+      },
+      "OptionSet": {
+        "additionalProperties": false,
+        "description": "A conformal prediction set. `abstain` is true when \"none of the options\" is included.",
+        "properties": {
+          "abstain": {
+            "title": "Abstain",
+            "type": "boolean"
+          },
+          "options": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Options",
+            "type": "array"
+          }
+        },
+        "required": [
+          "options",
+          "abstain"
+        ],
+        "title": "OptionSet",
+        "type": "object"
+      },
+      "Passage": {
+        "additionalProperties": false,
+        "description": "A passage of text with an optional title.",
+        "properties": {
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "title": {
+            "default": "",
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "Passage",
+        "type": "object"
+      },
+      "Probe": {
+        "additionalProperties": false,
+        "description": "Body of `GET /healthz` and `GET /readyz`.",
+        "properties": {
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "status": {
+            "enum": [
+              "loading",
+              "ready",
+              "failed"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "error"
+        ],
+        "title": "Probe",
+        "type": "object"
+      },
+      "Rank": {
+        "additionalProperties": false,
+        "description": "Rank candidates from best to worst.",
+        "properties": {
+          "candidates": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              }
+            ],
+            "title": "Candidates"
+          },
+          "question": {
+            "minLength": 1,
+            "title": "Question",
+            "type": "string"
+          },
+          "type": {
+            "const": "rank",
+            "default": "rank",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "question",
+          "candidates"
+        ],
+        "title": "Rank",
+        "type": "object"
+      },
+      "RankResult": {
+        "additionalProperties": false,
+        "properties": {
+          "answer": {
+            "description": "Every candidate id, best first.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Answer",
+            "type": "array"
+          },
+          "certificate": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Certificate"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Calibrated probability of the answer, compared with the threshold.",
+            "title": "Confidence"
+          },
+          "deferral": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Deferral"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "latency_ms": {
+            "title": "Latency Ms",
+            "type": "number"
+          },
+          "probabilities": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "description": "Each candidate's probability of being the best one.",
+            "title": "Probabilities",
+            "type": "object"
+          },
+          "relevant_context": {
+            "items": {
+              "$ref": "#/components/schemas/ContextRelevance"
+            },
+            "title": "Relevant Context",
+            "type": "array"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/Status"
+          },
+          "type": {
+            "const": "rank",
+            "default": "rank",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "confidence",
+          "relevant_context",
+          "deferral",
+          "certificate",
+          "latency_ms",
+          "answer",
+          "probabilities"
+        ],
+        "title": "RankResult",
+        "type": "object"
+      },
+      "Rate": {
+        "additionalProperties": false,
+        "description": "Rate on an ordered scale. Levels are given from lowest to highest.",
+        "properties": {
+          "levels": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              }
+            ],
+            "title": "Levels"
+          },
+          "question": {
+            "minLength": 1,
+            "title": "Question",
+            "type": "string"
+          },
+          "type": {
+            "const": "rate",
+            "default": "rate",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "question",
+          "levels"
+        ],
+        "title": "Rate",
+        "type": "object"
+      },
+      "RateResult": {
+        "additionalProperties": false,
+        "properties": {
+          "answer": {
+            "title": "Answer",
+            "type": "string"
+          },
+          "certificate": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Certificate"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Calibrated probability of the answer, compared with the threshold.",
+            "title": "Confidence"
+          },
+          "deferral": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Deferral"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "latency_ms": {
+            "title": "Latency Ms",
+            "type": "number"
+          },
+          "prediction_set": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Contiguous levels in the conformal set; empty if the set is empty.",
+            "title": "Prediction Set"
+          },
+          "probabilities": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Probabilities",
+            "type": "object"
+          },
+          "relevant_context": {
+            "items": {
+              "$ref": "#/components/schemas/ContextRelevance"
+            },
+            "title": "Relevant Context",
+            "type": "array"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/Status"
+          },
+          "type": {
+            "const": "rate",
+            "default": "rate",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "confidence",
+          "relevant_context",
+          "deferral",
+          "certificate",
+          "latency_ms",
+          "answer",
+          "probabilities",
+          "prediction_set"
+        ],
+        "title": "RateResult",
+        "type": "object"
+      },
+      "RuntimeInfo": {
+        "additionalProperties": false,
+        "description": "The ONNX Runtime configuration in use.",
+        "properties": {
+          "hardware": {
+            "title": "Hardware",
+            "type": "string"
+          },
+          "onnxruntime": {
+            "title": "Onnxruntime",
+            "type": "string"
+          },
+          "options_sha256": {
+            "title": "Options Sha256",
+            "type": "string"
+          },
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          }
+        },
+        "required": [
+          "onnxruntime",
+          "provider",
+          "options_sha256",
+          "hardware"
+        ],
+        "title": "RuntimeInfo",
+        "type": "object"
+      },
+      "ScoreAnswer": {
+        "additionalProperties": false,
+        "properties": {
+          "confidence": {
+            "title": "Confidence",
+            "type": "number"
+          },
+          "legend": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Legend",
+            "type": "object"
+          },
+          "probabilities": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Probabilities",
+            "type": "object"
+          },
+          "score": {
+            "title": "Score",
+            "type": "number"
+          },
+          "type": {
+            "const": "score",
+            "default": "score",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "score",
+          "legend",
+          "probabilities",
+          "confidence"
+        ],
+        "title": "ScoreAnswer",
+        "type": "object"
+      },
+      "ScoreQuestion": {
+        "additionalProperties": false,
+        "properties": {
+          "criteria": {
+            "items": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "maxItems": 10,
+            "minItems": 2,
+            "title": "Criteria",
+            "type": "array"
+          },
+          "instructions": {
+            "$ref": "#/components/schemas/JsonValue"
+          },
+          "type": {
+            "const": "score",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "instructions",
+          "criteria"
+        ],
+        "title": "ScoreQuestion",
+        "type": "object"
+      },
+      "Status": {
+        "enum": [
+          "decided",
+          "abstained",
+          "deferred"
+        ],
+        "title": "Status",
+        "type": "string"
+      },
+      "SystemOneRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "questions": {
+            "additionalProperties": {
+              "discriminator": {
+                "mapping": {
+                  "choice": "#/components/schemas/ChoiceQuestion",
+                  "noul": "#/components/schemas/NoulQuestion",
+                  "score": "#/components/schemas/ScoreQuestion"
+                },
+                "propertyName": "type"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/NoulQuestion"
+                },
+                {
+                  "$ref": "#/components/schemas/ChoiceQuestion"
+                },
+                {
+                  "$ref": "#/components/schemas/ScoreQuestion"
+                }
+              ]
+            },
+            "title": "Questions",
+            "type": "object"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/JsonValue"
+                },
+                "type": "object"
+              },
+              {
+                "items": {
+                  "$ref": "#/components/schemas/JsonValue"
+                },
+                "type": "array"
+              }
+            ],
+            "title": "State"
+          }
+        },
+        "required": [
+          "state",
+          "model",
+          "questions"
+        ],
+        "title": "SystemOneRequest",
+        "type": "object"
+      },
+      "SystemOneResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "answers": {
+            "additionalProperties": {
+              "discriminator": {
+                "mapping": {
+                  "choice": "#/components/schemas/ChoiceAnswer",
+                  "noul": "#/components/schemas/NoulAnswer",
+                  "score": "#/components/schemas/ScoreAnswer"
+                },
+                "propertyName": "type"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/NoulAnswer"
+                },
+                {
+                  "$ref": "#/components/schemas/ChoiceAnswer"
+                },
+                {
+                  "$ref": "#/components/schemas/ScoreAnswer"
+                }
+              ]
+            },
+            "title": "Answers",
+            "type": "object"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "usage": {
+            "$ref": "#/components/schemas/Usage"
+          }
+        },
+        "required": [
+          "model",
+          "answers",
+          "usage"
+        ],
+        "title": "SystemOneResponse",
+        "type": "object"
+      },
+      "Table": {
+        "additionalProperties": false,
+        "description": "A table with an optional caption and header.",
+        "properties": {
+          "caption": {
+            "default": "",
+            "title": "Caption",
+            "type": "string"
+          },
+          "header": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Header",
+            "type": "array"
+          },
+          "rows": {
+            "items": {
+              "items": {
+                "$ref": "#/components/schemas/Cell"
+              },
+              "type": "array"
+            },
+            "title": "Rows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "rows"
+        ],
+        "title": "Table",
+        "type": "object"
+      },
+      "ToolArguments": {
+        "additionalProperties": false,
+        "description": "Arguments of a decision tool call.",
+        "properties": {
+          "context": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "$ref": "#/components/schemas/Context"
+              },
+              {
+                "$ref": "#/components/schemas/JsonState"
+              }
+            ],
+            "description": "A string (one passage), a list of strings (passages), a Context object, or {'state': <JSON>} for a structured state.",
+            "title": "Context"
+          }
+        },
+        "required": [
+          "context"
+        ],
+        "title": "ToolArguments",
+        "type": "object"
+      },
+      "UncertifiedRequest": {
+        "additionalProperties": false,
+        "description": "Body of `POST /v1/decide/uncertified`.",
+        "properties": {
+          "context": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "$ref": "#/components/schemas/Context"
+              },
+              {
+                "$ref": "#/components/schemas/JsonState"
+              }
+            ],
+            "description": "A string (one passage), a list of strings (passages), a Context object, or {'state': <JSON>} for a structured state.",
+            "title": "Context"
+          },
+          "decision": {
+            "discriminator": {
+              "mapping": {
+                "choice": "#/components/schemas/Choice",
+                "estimate": "#/components/schemas/Estimate",
+                "multi_choice": "#/components/schemas/MultiChoice",
+                "rank": "#/components/schemas/Rank",
+                "rate": "#/components/schemas/Rate",
+                "verify": "#/components/schemas/Verify",
+                "yes_no": "#/components/schemas/YesNo"
+              },
+              "propertyName": "type"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Choice"
+              },
+              {
+                "$ref": "#/components/schemas/MultiChoice"
+              },
+              {
+                "$ref": "#/components/schemas/YesNo"
+              },
+              {
+                "$ref": "#/components/schemas/Verify"
+              },
+              {
+                "$ref": "#/components/schemas/Rank"
+              },
+              {
+                "$ref": "#/components/schemas/Rate"
+              },
+              {
+                "$ref": "#/components/schemas/Estimate"
+              }
+            ],
+            "title": "Decision"
+          }
+        },
+        "required": [
+          "context",
+          "decision"
+        ],
+        "title": "UncertifiedRequest",
+        "type": "object"
+      },
+      "Usage": {
+        "additionalProperties": false,
+        "properties": {
+          "input_tokens": {
+            "title": "Input Tokens",
+            "type": "integer"
+          },
+          "output_tokens": {
+            "title": "Output Tokens",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "input_tokens",
+          "output_tokens"
+        ],
+        "title": "Usage",
+        "type": "object"
+      },
+      "Verify": {
+        "additionalProperties": false,
+        "description": "Check whether the context supports or contradicts a claim.",
+        "properties": {
+          "claim": {
+            "minLength": 1,
+            "title": "Claim",
+            "type": "string"
+          },
+          "type": {
+            "const": "verify",
+            "default": "verify",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "claim"
+        ],
+        "title": "Verify",
+        "type": "object"
+      },
+      "VerifyResult": {
+        "additionalProperties": false,
+        "properties": {
+          "abstain_probability": {
+            "title": "Abstain Probability",
+            "type": "number"
+          },
+          "answer": {
+            "anyOf": [
+              {
+                "enum": [
+                  "supported",
+                  "contradicted",
+                  "not_enough_information"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answer"
+          },
+          "certificate": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Certificate"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Calibrated probability of the answer, compared with the threshold.",
+            "title": "Confidence"
+          },
+          "deferral": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Deferral"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "latency_ms": {
+            "title": "Latency Ms",
+            "type": "number"
+          },
+          "prediction_set": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OptionSet"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "probabilities": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Probabilities",
+            "type": "object"
+          },
+          "relevant_context": {
+            "items": {
+              "$ref": "#/components/schemas/ContextRelevance"
+            },
+            "title": "Relevant Context",
+            "type": "array"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/Status"
+          },
+          "type": {
+            "const": "verify",
+            "default": "verify",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "confidence",
+          "relevant_context",
+          "deferral",
+          "certificate",
+          "latency_ms",
+          "answer",
+          "probabilities",
+          "abstain_probability",
+          "prediction_set"
+        ],
+        "title": "VerifyResult",
+        "type": "object"
+      },
+      "YesNo": {
+        "additionalProperties": false,
+        "description": "Answer a yes/no question.",
+        "properties": {
+          "question": {
+            "minLength": 1,
+            "title": "Question",
+            "type": "string"
+          },
+          "type": {
+            "const": "yes_no",
+            "default": "yes_no",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "question"
+        ],
+        "title": "YesNo",
+        "type": "object"
+      },
+      "YesNoResult": {
+        "additionalProperties": false,
+        "properties": {
+          "abstain_probability": {
+            "title": "Abstain Probability",
+            "type": "number"
+          },
+          "answer": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answer"
+          },
+          "certificate": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Certificate"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Calibrated probability of the answer, compared with the threshold.",
+            "title": "Confidence"
+          },
+          "deferral": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Deferral"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "latency_ms": {
+            "title": "Latency Ms",
+            "type": "number"
+          },
+          "prediction_set": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OptionSet"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "probabilities": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Probabilities",
+            "type": "object"
+          },
+          "relevant_context": {
+            "items": {
+              "$ref": "#/components/schemas/ContextRelevance"
+            },
+            "title": "Relevant Context",
+            "type": "array"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/Status"
+          },
+          "type": {
+            "const": "yes_no",
+            "default": "yes_no",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "confidence",
+          "relevant_context",
+          "deferral",
+          "certificate",
+          "latency_ms",
+          "answer",
+          "probabilities",
+          "abstain_probability",
+          "prediction_set"
+        ],
+        "title": "YesNoResult",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "summary": "Typed, calibrated and certified decisions.",
+    "title": "MIMIR",
+    "version": "1.0.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/healthz": {
+      "get": {
+        "operationId": "healthz_healthz_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Probe"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Probe"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Healthz"
+      }
+    },
+    "/readyz": {
+      "get": {
+        "operationId": "readyz_readyz_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Probe"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Probe"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Readyz"
+      }
+    },
+    "/v1/decide": {
+      "post": {
+        "operationId": "decide_v1_decide_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecideRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "discriminator": {
+                    "mapping": {
+                      "choice": "#/components/schemas/ChoiceResult",
+                      "estimate": "#/components/schemas/EstimateResult",
+                      "multi_choice": "#/components/schemas/MultiChoiceResult",
+                      "rank": "#/components/schemas/RankResult",
+                      "rate": "#/components/schemas/RateResult",
+                      "verify": "#/components/schemas/VerifyResult",
+                      "yes_no": "#/components/schemas/YesNoResult"
+                    },
+                    "propertyName": "type"
+                  },
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ChoiceResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/MultiChoiceResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/YesNoResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/VerifyResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/RankResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/RateResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/EstimateResult"
+                    }
+                  ],
+                  "title": "Response Decide V1 Decide Post"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Decide"
+      }
+    },
+    "/v1/decide/batch": {
+      "post": {
+        "operationId": "decide_batch_v1_decide_batch_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BatchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Decide Batch"
+      }
+    },
+    "/v1/decide/uncertified": {
+      "post": {
+        "operationId": "decide_uncertified_v1_decide_uncertified_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UncertifiedRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "discriminator": {
+                    "mapping": {
+                      "choice": "#/components/schemas/ChoiceResult",
+                      "estimate": "#/components/schemas/EstimateResult",
+                      "multi_choice": "#/components/schemas/MultiChoiceResult",
+                      "rank": "#/components/schemas/RankResult",
+                      "rate": "#/components/schemas/RateResult",
+                      "verify": "#/components/schemas/VerifyResult",
+                      "yes_no": "#/components/schemas/YesNoResult"
+                    },
+                    "propertyName": "type"
+                  },
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ChoiceResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/MultiChoiceResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/YesNoResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/VerifyResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/RankResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/RateResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/EstimateResult"
+                    }
+                  ],
+                  "title": "Response Decide Uncertified V1 Decide Uncertified Post"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Decide Uncertified"
+      }
+    },
+    "/v1/models": {
+      "get": {
+        "operationId": "models_v1_models_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelInfo"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Models"
+      }
+    },
+    "/v1/systemone": {
+      "post": {
+        "operationId": "systemone_v1_systemone_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SystemOneRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemOneResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Systemone"
+      }
+    },
+    "/v1/tools/{name}": {
+      "post": {
+        "operationId": "call_tool_v1_tools__name__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ToolArguments"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "discriminator": {
+                    "mapping": {
+                      "choice": "#/components/schemas/ChoiceResult",
+                      "estimate": "#/components/schemas/EstimateResult",
+                      "multi_choice": "#/components/schemas/MultiChoiceResult",
+                      "rank": "#/components/schemas/RankResult",
+                      "rate": "#/components/schemas/RateResult",
+                      "verify": "#/components/schemas/VerifyResult",
+                      "yes_no": "#/components/schemas/YesNoResult"
+                    },
+                    "propertyName": "type"
+                  },
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ChoiceResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/MultiChoiceResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/YesNoResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/VerifyResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/RankResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/RateResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/EstimateResult"
+                    }
+                  ],
+                  "title": "Response Call Tool V1 Tools  Name  Post"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Call Tool"
+      }
+    }
+  }
+}

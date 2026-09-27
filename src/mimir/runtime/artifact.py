@@ -3,7 +3,8 @@
 A release is a Hugging Face Hub repository at a pinned revision, or a local directory with the
 same layout. `load_snapshot` verifies, in order: the manifest signature, the supported package
 versions, and the SHA-256 of each file the chosen variant uses. `config.json` is parsed only
-after its digest is verified. `HF_HUB_OFFLINE` is honoured.
+after its digest is verified. Offline loading (`offline=True` or `HF_HUB_OFFLINE`) reads only
+the local cache.
 """
 
 import hashlib
@@ -64,19 +65,22 @@ def file_sha256(path: Path) -> str:
         return hashlib.file_digest(handle, "sha256").hexdigest()
 
 
-def _download(model: str, revision: str, cache_dir: Path | None, patterns: list[str]) -> Path:
+def _download(
+    model: str, revision: str, cache_dir: Path | None, patterns: list[str], *, offline: bool
+) -> Path:
     try:
         found = snapshot_download(
             model,
             revision=revision,
             cache_dir=cache_dir,
             allow_patterns=patterns,
+            local_files_only=offline,
             library_name=PACKAGE,
             library_version=metadata.version(PACKAGE),
         )
     except (OSError, EntryNotFoundError) as error:
-        offline = " (HF_HUB_OFFLINE is set)" if constants.HF_HUB_OFFLINE else ""
-        message = f"{model}@{revision}: cannot fetch {patterns}{offline}: {error}"
+        where = f" (offline, cache {cache_dir or constants.HF_HUB_CACHE})" if offline else ""
+        message = f"{model}@{revision}: cannot fetch {patterns}{where}: {error}"
         raise ArtifactError(message) from error
     return Path(found)
 
@@ -166,6 +170,7 @@ def load_snapshot(
     device: str,
     verifier: ManifestVerifier | None = None,
     allow_unsigned: bool = False,
+    offline: bool = False,
 ) -> Snapshot:
     """Download (if needed) and verify a release for one variant.
 
@@ -174,14 +179,18 @@ def load_snapshot(
         revision: Hub revision; defaults to `DEFAULT_REVISION`.
         allow_unsigned: Accept a local directory without a manifest signature. Hub releases
             always require one.
+        offline: Read only from `cache_dir` and verify the signature with the cached trust
+            root, with no network access. Also on when `HF_HUB_OFFLINE` is set.
     """
+    is_offline = offline or constants.HF_HUB_OFFLINE
     local = Path(model)
     is_local = local.is_dir()
     if is_local:
         root, resolved = local, LOCAL_REVISION
     else:
         pinned = revision or DEFAULT_REVISION
-        root = _download(model, pinned, cache_dir, [CONFIG_FILE, MANIFEST_FILE, SIGNATURE_FILE])
+        first = [CONFIG_FILE, MANIFEST_FILE, SIGNATURE_FILE]
+        root = _download(model, pinned, cache_dir, first, offline=is_offline)
         resolved = root.name
     manifest_path = root / MANIFEST_FILE
     try:
@@ -192,7 +201,7 @@ def load_snapshot(
     bundle_path = root / SIGNATURE_FILE
     is_signed = bundle_path.is_file()
     if is_signed:
-        chosen_verifier = verifier or SigstoreVerifier(offline=constants.HF_HUB_OFFLINE)
+        chosen_verifier = verifier or SigstoreVerifier(offline=is_offline)
         chosen_verifier.verify(manifest_bytes, bundle_path.read_bytes(), str(manifest_path))
     elif not (is_local and allow_unsigned):
         message = f"{root}: {SIGNATURE_FILE} is missing"
@@ -210,7 +219,7 @@ def load_snapshot(
     chosen = choose_variant(config, variant, device)
     needed = variant_files(manifest, config, chosen)
     if not is_local:
-        root = _download(model, resolved, cache_dir, needed)
+        root = _download(model, resolved, cache_dir, needed, offline=is_offline)
     digests = _verify_files(root, manifest, needed)
     return Snapshot(
         root=root,

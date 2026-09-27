@@ -1,0 +1,90 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.vathosai/mimir",
+  "title": "MIMIR",
+  "description": "Typed, calibrated and certified decisions over a context, with abstention and evidence.",
+  "repository": {
+    "url": "https://github.com/vathosai/mimir",
+    "source": "github"
+  },
+  "websiteUrl": "https://github.com/vathosai/mimir",
+  "version": "1.0.0",
+  "packages": [
+    {
+      "registryType": "pypi",
+      "registryBaseUrl": "https://pypi.org",
+      "identifier": "mimirai",
+      "version": "1.0.0",
+      "runtimeHint": "uvx",
+      "runtimeArguments": [
+        {
+          "type": "named",
+          "name": "--from",
+          "value": "mimirai[local,mcp]==1.0.0",
+          "description": "Install the CPU engine and the MCP server with the package."
+        }
+      ],
+      "transport": {
+        "type": "stdio"
+      },
+      "packageArguments": [
+        {
+          "type": "positional",
+          "value": "mcp"
+        },
+        {
+          "type": "named",
+          "name": "--tools",
+          "description": "YAML file declaring the decision tools to expose.",
+          "format": "filepath",
+          "isRequired": true
+        }
+      ]
+    },
+    {
+      "registryType": "oci",
+      "identifier": "ghcr.io/vathosai/mimir:1.0.0-cpu",
+      "transport": {
+        "type": "stdio"
+      },
+      "runtimeArguments": [
+        {
+          "type": "named",
+          "name": "--mount",
+          "value": "type=bind,src={tools_file},dst=/config/tools.yaml,readonly",
+          "description": "The YAML file declaring the decision tools to expose.",
+          "isRequired": true,
+          "variables": {
+            "tools_file": {
+              "description": "Path of the tools file on the host.",
+              "format": "filepath",
+              "isRequired": true
+            }
+          }
+        },
+        {
+          "type": "named",
+          "name": "--volume",
+          "value": "mimir-models:/models",
+          "description": "Keep the downloaded model between runs."
+        }
+      ],
+      "packageArguments": [
+        {
+          "type": "positional",
+          "value": "mcp"
+        },
+        {
+          "type": "named",
+          "name": "--tools",
+          "value": "/config/tools.yaml"
+        },
+        {
+          "type": "named",
+          "name": "--model-cache",
+          "value": "/models"
+        }
+      ]
+    }
+  ]
+}

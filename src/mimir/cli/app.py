@@ -3,12 +3,15 @@
 Commands print JSON to stdout. Errors print `error: <message>` to stderr and exit with status 1.
 """
 
+import asyncio
+import contextlib
 import json
+import logging
 import platform
 import sys
 from importlib import metadata
 from pathlib import Path
-from typing import Annotated, Final, Literal
+from typing import TYPE_CHECKING, Annotated, Final, Literal
 
 import typer
 from pydantic import JsonValue, ValidationError
@@ -19,9 +22,18 @@ from mimir.core.decisions import Choice, DecisionSpec, MultiChoice, Rank, Rate, 
 from mimir.core.errors import MimirError
 from mimir.core.labels import LabelError, read_labelled
 from mimir.core.schema import json_schemas
-from mimir.core.wire import DEFAULT_RISK, DecideRequest
+from mimir.core.wire import DEFAULT_RISK, MAX_BATCH_ITEMS, MAX_BODY_BYTES, DecideRequest
 from mimir.evaluation.bench import bench as bench_results
-from mimir.extras import engine_class
+from mimir.extras import MCP_MODULES, SERVER_MODULES, engine_class, require_extra
+from mimir.server.batcher import BATCH_WAIT_S
+
+if TYPE_CHECKING:
+    from mcp.server.mcpserver import MCPServer
+    from starlette.types import ASGIApp
+
+    from mimir.runtime.engine import Mimir
+    from mimir.server.batcher import BatchObserver
+    from mimir.server.model import ServedModel
 
 DEFAULT_MODEL: Final = "vathosai/mimir-1"
 SpecType = Literal["choice", "multi_choice", "yes_no", "verify", "rank", "rate"]
@@ -44,6 +56,19 @@ Unsigned = Annotated[
 ]
 Server = Annotated[
     str | None, typer.Option(help="Use a MIMIR server at this URL instead of a local model.")
+]
+ModelCache = Annotated[Path | None, typer.Option(help="Hub cache directory for the model.")]
+Offline = Annotated[bool, typer.Option(help="Load only from the model cache, with no network.")]
+Host = Annotated[str, typer.Option(help="Address to listen on.")]
+Port = Annotated[int, typer.Option(help="Port to listen on.")]
+ToolsFile = Annotated[Path | None, typer.Option("--tools", help="YAML file of decision tools.")]
+GenericTools = Annotated[
+    bool, typer.Option(help="Add mimir_choose, mimir_verify, mimir_rank and mimir_rate to MCP.")
+]
+GenericRisk = Annotated[float, typer.Option(help="Certified risk level of the generic tools.")]
+MaxBodyBytes = Annotated[int, typer.Option(help="Largest request body, in bytes.")]
+AllowNoAuth = Annotated[
+    bool, typer.Option(help="Serve a non-loopback address without $MIMIR_API_KEYS.")
 ]
 
 
@@ -348,6 +373,217 @@ def calibrate(
             },
         }
     )
+
+
+def _served(
+    feature: str,
+    *,
+    model: str,
+    revision: str | None,
+    device: str,
+    variant: str | None,
+    policy: Path | None,
+    allow_unsigned: bool,
+    model_cache: Path | None,
+    offline: bool,
+    batch_tokens: int | None = None,
+    wait_s: float = BATCH_WAIT_S,
+    observer: "BatchObserver | None" = None,
+) -> "ServedModel":
+    from mimir.server.model import ServedModel
+
+    engine = engine_class(feature)
+
+    def load() -> "Mimir":
+        return engine.from_pretrained(
+            model,
+            revision=revision,
+            device=device,
+            variant=variant,
+            policy=policy,
+            cache_dir=model_cache,
+            allow_unsigned=allow_unsigned,
+            offline=offline,
+        )
+
+    return ServedModel(load, batch_tokens=batch_tokens, wait_s=wait_s, observer=observer)
+
+
+def _log_to_stderr() -> None:
+    logging.basicConfig(
+        level=logging.INFO,
+        stream=sys.stderr,
+        format="%(asctime)s %(levelname)s %(name)s %(message)s",
+    )
+
+
+@app.command()
+def serve(
+    host: Host = "127.0.0.1",
+    port: Port = 8000,
+    tools: ToolsFile = None,
+    mcp: Annotated[bool, typer.Option(help="Also serve the MCP endpoint at /mcp.")] = False,
+    generic_tools: GenericTools = False,
+    risk: GenericRisk = DEFAULT_RISK,
+    max_body_bytes: MaxBodyBytes = MAX_BODY_BYTES,
+    max_batch_items: Annotated[
+        int, typer.Option(help="Most items in one POST /v1/decide/batch.")
+    ] = MAX_BATCH_ITEMS,
+    batch_tokens: Annotated[
+        int | None, typer.Option(help="Encoder tokens that fill a batch; the release's budget.")
+    ] = None,
+    batch_wait_ms: Annotated[
+        float, typer.Option(help="Longest wait for a batch to fill, in milliseconds.")
+    ] = BATCH_WAIT_S * 1000,
+    allow_no_auth: AllowNoAuth = False,
+    model: Model = DEFAULT_MODEL,
+    revision: Revision = None,
+    device: DeviceOption = "auto",
+    variant: VariantOption = None,
+    policy: PolicyOption = None,
+    allow_unsigned: Unsigned = False,
+    model_cache: ModelCache = None,
+    offline: Offline = False,
+) -> None:
+    """Serve the HTTP API; with --mcp, also the MCP endpoint at /mcp."""
+    if generic_tools and not mcp:
+        message = "--generic-tools adds MCP tools; pass --mcp as well"
+        raise _fail(message)
+    try:
+        require_extra("mimir serve", "server", SERVER_MODULES)
+        if mcp:
+            require_extra("mimir serve --mcp", "mcp", MCP_MODULES)
+        import uvicorn
+
+        from mimir.cli.toolfile import read_tools
+        from mimir.server.app import create_app
+        from mimir.server.auth import api_keys_from_environment, check_exposure
+        from mimir.server.metrics import Metrics
+
+        keys = api_keys_from_environment()
+        check_exposure(host, keys, allow_no_auth=allow_no_auth)
+        definitions = None if tools is None else read_tools(tools)
+        metrics = Metrics()
+        served = _served(
+            "mimir serve",
+            model=model,
+            revision=revision,
+            device=device,
+            variant=variant,
+            policy=policy,
+            allow_unsigned=allow_unsigned,
+            model_cache=model_cache,
+            offline=offline,
+            batch_tokens=batch_tokens,
+            wait_s=batch_wait_ms / 1000,
+            observer=metrics,
+        )
+        bound = () if definitions is None else definitions.bind(served)
+        mcp_app = None
+        if mcp:
+            from mimir.mcp.server import create_server
+            from mimir.mcp.transport import streamable_http_app
+
+            mcp_server = create_server(served, bound, with_generic_tools=generic_tools, risk=risk)
+            mcp_app = streamable_http_app(mcp_server, host=host, max_body_bytes=max_body_bytes)
+        server_app = create_app(
+            served,
+            metrics=metrics,
+            tools=bound,
+            api_keys=keys,
+            max_body_bytes=max_body_bytes,
+            max_batch_items=max_batch_items,
+            mcp=mcp_app,
+        )
+    except (MimirError, ValueError, OSError) as error:
+        raise _fail(str(error)) from error
+    _log_to_stderr()
+    uvicorn.run(server_app, host=host, port=port, access_log=False, log_config=None)
+
+
+async def _run_mcp(
+    server: "MCPServer",
+    served: "ServedModel | None",
+    http_app: "ASGIApp | None",
+    *,
+    host: str,
+    port: int,
+) -> None:
+    import uvicorn
+
+    async with served.running() if served is not None else contextlib.nullcontext():
+        if http_app is None:
+            await server.run_stdio_async()
+            return
+        config = uvicorn.Config(http_app, host=host, port=port, access_log=False, log_config=None)
+        await uvicorn.Server(config).serve()
+
+
+@app.command("mcp")
+def mcp_command(
+    tools: ToolsFile = None,
+    generic_tools: GenericTools = False,
+    risk: GenericRisk = DEFAULT_RISK,
+    http: Annotated[
+        bool, typer.Option(help="Serve Streamable HTTP at /mcp instead of stdio.")
+    ] = False,
+    host: Host = "127.0.0.1",
+    port: Port = 8000,
+    max_body_bytes: MaxBodyBytes = MAX_BODY_BYTES,
+    allow_no_auth: AllowNoAuth = False,
+    remote: Annotated[
+        str | None,
+        typer.Option(help="Forward every call to a MIMIR HTTP server at this URL."),
+    ] = None,
+    model: Model = DEFAULT_MODEL,
+    revision: Revision = None,
+    device: DeviceOption = "auto",
+    variant: VariantOption = None,
+    policy: PolicyOption = None,
+    allow_unsigned: Unsigned = False,
+    model_cache: ModelCache = None,
+    offline: Offline = False,
+) -> None:
+    """Serve decision tools over MCP: stdio, or Streamable HTTP at /mcp with --http."""
+    try:
+        require_extra("mimir mcp", "mcp", MCP_MODULES)
+        from mimir.cli.toolfile import read_tools
+        from mimir.mcp.server import create_server
+        from mimir.mcp.transport import streamable_http_app
+        from mimir.server.auth import BearerKeys, api_keys_from_environment, check_exposure
+
+        definitions = None if tools is None else read_tools(tools)
+        served = None
+        decider: Decider
+        if remote is not None:
+            from mimir.client.http import MimirClient
+
+            decider = MimirClient(remote)
+        else:
+            served = _served(
+                "mimir mcp",
+                model=model,
+                revision=revision,
+                device=device,
+                variant=variant,
+                policy=policy,
+                allow_unsigned=allow_unsigned,
+                model_cache=model_cache,
+                offline=offline,
+            )
+            decider = served
+        bound = () if definitions is None else definitions.bind(decider)
+        server = create_server(decider, bound, with_generic_tools=generic_tools, risk=risk)
+        http_app = None
+        if http:
+            keys = api_keys_from_environment()
+            check_exposure(host, keys, allow_no_auth=allow_no_auth)
+            inner = streamable_http_app(server, host=host, max_body_bytes=max_body_bytes)
+            http_app = BearerKeys(inner, keys)
+    except (MimirError, ValueError, OSError) as error:
+        raise _fail(str(error)) from error
+    _log_to_stderr()
+    asyncio.run(_run_mcp(server, served, http_app, host=host, port=port))
 
 
 def main() -> None:

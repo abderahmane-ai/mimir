@@ -45,9 +45,23 @@ local-gpu = [
     "sigstore>=4.5,<5",
     "tokenizers>=0.23.2,<0.24",
 ]
+server = [
+    "fastapi>=0.141.1,<1",
+    "prometheus-client>=0.26,<1",
+    "pyyaml>=6.0.3,<7",
+    "uvicorn>=0.54,<1",
+]
+mcp = [
+    "mcp>=2.2,<3",
+    "pyyaml>=6.0.3,<7",
+    "uvicorn>=0.54,<1",
+]
+all = ["mimirai[local,server,mcp]"]
 
 [project.scripts]
 mimir = "mimir.cli.app:main"
+# `uvx mimirai ...` runs the command named after the package, as MCP Registry clients do.
+mimirai = "mimir.cli.app:main"
 
 [project.urls]
 Homepage = "https://github.com/vathosai/mimir"
@@ -60,6 +74,7 @@ dev = [
     "pytest==9.1.1",
     "ruff==0.16.9",
     "types-protobuf==7.35.1.20260906",
+    "types-pyyaml==6.0.12.20260906",
     "vulture==2.16",
 ]
 
@@ -68,8 +83,12 @@ requires = ["uv_build>=0.12.19,<0.13"]
 build-backend = "uv_build"
 
 [tool.uv]
-# Both extras install the module `onnxruntime`; an environment holds one of them.
-conflicts = [[{ extra = "local" }, { extra = "local-gpu" }]]
+# `local` and `local-gpu` both install the module `onnxruntime`; an environment holds one of
+# them, and `all` includes `local`.
+conflicts = [
+    [{ extra = "local" }, { extra = "local-gpu" }],
+    [{ extra = "all" }, { extra = "local-gpu" }],
+]
 default-groups = ["dev"]
 
 [tool.uv.build-backend]
@@ -108,11 +127,16 @@ max-returns = 8
 "src/mimir/extras.py" = ["PLC0415"]
 # The same deferral applies to the CLI; Typer maps each command parameter to one flag.
 "src/mimir/cli/app.py" = ["PLC0415", "PLR0913", "PLR0917"]
+# `Mimir.from_pretrained` takes one keyword-only option per loading choice.
+"src/mimir/runtime/engine.py" = ["PLR0913"]
+# The load test's record order needs a reproducible seeded generator, not a cryptographic one.
+"tools/load.py" = ["S311"]
 # nvidia-smi and sysctl are read by name from PATH with literal arguments to name the hardware.
 "src/mimir/runtime/hardware.py" = ["S603", "S607"]
 # pytest asserts and literal expected values are the point of a test; tests reach
-# module-private helpers directly; the import test runs this interpreter with a literal script.
-"tests/**" = ["S101", "PLR2004", "SLF001", "PLC2701", "S603"]
+# module-private helpers directly; the import test runs this interpreter with a literal script;
+# the any-address appears as a host the servers must refuse to expose without keys.
+"tests/**" = ["S101", "PLR2004", "SLF001", "PLC2701", "S603", "S104"]
 
 [tool.mypy]
 strict = true
@@ -156,12 +180,13 @@ min_confidence = 60
 # and calls validators by decoration; ONNX Runtime reads use_deterministic_compute and
 # graph_optimization_level; tokenizers reads normalizer and pre_tokenizer; onnx writes
 # ir_version; the session protocol names its parameters output_names and input_feed. `mask`
-# and `output_tokens` are fields of external formats (config.json, Jev's usage) that are
-# validated and serialised, not read.
+# and `output_tokens` are fields of external formats (config.json, Jev's usage), and
+# `mimirai` and `measured_at` fields of the load report, that are validated and serialised,
+# not read.
 ignore_names = [
     "pytestmark", "__getattr__", "model_config", "use_deterministic_compute",
     "graph_optimization_level", "normalizer", "pre_tokenizer", "ir_version", "output_names",
-    "input_feed", "_check_*", "mask", "output_tokens",
+    "input_feed", "_check_*", "mask", "output_tokens", "mimirai", "measured_at",
 ]
-# Typer calls command functions registered by decoration.
-ignore_decorators = ["@app.command"]
+# Typer and FastAPI call the functions they register by decoration.
+ignore_decorators = ["@app.command", "@app.get", "@app.post"]

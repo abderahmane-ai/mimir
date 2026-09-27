@@ -160,6 +160,13 @@ class Decider(abc.ABC):
         requests = [(Context.coerce(context), spec)]
         return self._run(requests, risk=None, alpha=None, batch_size=None)[0]
 
+    def decide_uncertified_many(
+        self, items: Items, *, batch_size: int | None = None
+    ) -> list[DecisionResult]:
+        """Return raw model answers for many `(context, spec)` pairs, batched as `decide_many`."""
+        requests = [(Context.coerce(context), spec) for context, spec in items]
+        return self._run(requests, risk=None, alpha=None, batch_size=batch_size)
+
     @overload
     async def adecide(
         self, context: ContextLike, spec: Choice, *, risk: float = ..., alpha: float | None = ...
@@ -241,6 +248,13 @@ class Decider(abc.ABC):
         requests = [(Context.coerce(context), spec)]
         found = await self._arun(requests, risk=None, alpha=None, batch_size=None)
         return found[0]
+
+    async def adecide_uncertified_many(
+        self, items: Items, *, batch_size: int | None = None
+    ) -> list[DecisionResult]:
+        """Async version of `decide_uncertified_many`."""
+        requests = [(Context.coerce(context), spec) for context, spec in items]
+        return await self._arun(requests, risk=None, alpha=None, batch_size=batch_size)
 
     def choose(
         self,

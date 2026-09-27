@@ -137,6 +137,7 @@ class Mimir(Decider):
         cache_dir: str | Path | None = None,
         allow_unsigned: bool = False,
         verifier: ManifestVerifier | None = None,
+        offline: bool = False,
     ) -> "Mimir":
         """Download, verify and load a release.
 
@@ -149,6 +150,7 @@ class Mimir(Decider):
             cache_dir: Hub cache directory.
             allow_unsigned: Load a local directory that has no manifest signature.
             verifier: Manifest signature verifier; defaults to Sigstore with the release identity.
+            offline: Load only from `cache_dir`, with no network access.
 
         Raises:
             ArtifactError: download, signature, integrity or graph contract failure.
@@ -165,6 +167,7 @@ class Mimir(Decider):
             device=resolved,
             verifier=verifier,
             allow_unsigned=allow_unsigned,
+            offline=offline,
         )
         graph = snapshot.path(snapshot.config.variants[snapshot.variant].graph)
         authenticated = {snapshot.path(relative).resolve() for relative in snapshot.digests}

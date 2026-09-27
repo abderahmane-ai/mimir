@@ -1,5 +1,6 @@
 """Imports that depend on optional extras, raising `MissingExtraError` when absent."""
 
+import importlib.util
 from typing import TYPE_CHECKING, Final
 
 from mimir.core.errors import MissingExtraError
@@ -10,6 +11,8 @@ if TYPE_CHECKING:
 LOCAL_MODULES: Final = frozenset(
     {"huggingface_hub", "numpy", "onnx", "onnxruntime", "sigstore", "tokenizers"}
 )
+SERVER_MODULES: Final = frozenset({"fastapi", "prometheus_client", "uvicorn", "yaml"})
+MCP_MODULES: Final = frozenset({"mcp", "uvicorn", "yaml"})
 
 
 def engine_class(feature: str) -> "type[Mimir]":
@@ -22,3 +25,10 @@ def engine_class(feature: str) -> "type[Mimir]":
             raise
         raise MissingExtraError(feature, "local", root) from error
     return Mimir
+
+
+def require_extra(feature: str, extra: str, modules: frozenset[str]) -> None:
+    """Raise `MissingExtraError` naming `feature` and `extra` if any of `modules` is missing."""
+    for module in sorted(modules):
+        if importlib.util.find_spec(module) is None:
+            raise MissingExtraError(feature, extra, module)
