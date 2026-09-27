@@ -43,7 +43,7 @@ def build_crew(decider: Decider, llm: BaseLLM | None = None) -> Crew:
 
 
 def main() -> None:
-    crew = build_crew(Mimir.from_pretrained("vathosai/mimir-1"))
+    crew = build_crew(Mimir.from_pretrained("mythologic/mimir-1"))
     print(crew.kickoff(inputs={"ticket": "I was charged twice for order 4412."}))
 
 

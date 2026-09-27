@@ -1,7 +1,7 @@
 # mimirai
 
 Typed, calibrated and certified decisions from **MIMIR**, a non-generative decision model by
-VathosAI. Give it a context, a question and the options; get back a typed answer, calibrated
+Mythologic. Give it a context, a question and the options; get back a typed answer, calibrated
 probabilities, the parts of the context it relied on, and a certified signal for when to act
 and when to escalate.
 
@@ -11,14 +11,14 @@ pip install "mimirai[local-gpu]"    # CUDA engine
 pip install mimirai                 # data models and the HTTP client only
 ```
 
-Python 3.11 or later. Documentation: <https://vathosai.github.io/mimir/>.
+Python 3.11 or later. Documentation: <https://mythologic.github.io/mimir/>.
 
 ## Quickstart
 
 ```python
 from mimir import Mimir
 
-model = Mimir.from_pretrained("vathosai/mimir-1")
+model = Mimir.from_pretrained("mythologic/mimir-1")
 result = model.choose(
     "My card was charged twice for the same order.",
     "Which team should handle this ticket?",
@@ -84,7 +84,7 @@ mimir calibrate labelled.jsonl --risk 0.01 --confidence 0.95 --out policy.json
 ```
 
 ```python
-model = Mimir.from_pretrained("vathosai/mimir-1", policy="policy.json")
+model = Mimir.from_pretrained("mythologic/mimir-1", policy="policy.json")
 ```
 
 ## Remote use
@@ -213,13 +213,13 @@ claude mcp add --transport http mimir https://mimir.internal/mcp --header "Autho
 Claude Desktop, Cursor and VS Code take the same command, or the same URL and header, in their
 MCP server configuration.
 
-<!-- mcp-name: io.github.vathosai/mimir -->
+<!-- mcp-name: io.github.mythologic/mimir -->
 
 ## Containers
 
 ```bash
-docker run -p 8000:8000 -e MIMIR_API_KEYS=... -v mimir-models:/models ghcr.io/vathosai/mimir:1.0.0-cpu
-docker run --gpus all -p 8000:8000 -e MIMIR_API_KEYS=... -v mimir-models:/models ghcr.io/vathosai/mimir:1.0.0-cuda
+docker run -p 8000:8000 -e MIMIR_API_KEYS=... -v mimir-models:/models ghcr.io/mythologic/mimir:1.0.0-cpu
+docker run --gpus all -p 8000:8000 -e MIMIR_API_KEYS=... -v mimir-models:/models ghcr.io/mythologic/mimir:1.0.0-cuda
 ```
 
 Images carry the runtime, never the model: it is downloaded and verified into `/models` on
@@ -242,7 +242,7 @@ first start. To run from that cache with no network, end the command with
 ## Integrity
 
 Releases are loaded from a pinned Hugging Face revision. Before anything is read, the
-manifest's Sigstore signature is verified against the VathosAI release workflow, every file is
+manifest's Sigstore signature is verified against the Mythologic release workflow, every file is
 checked against the manifest's SHA-256, and the ONNX graph is checked against its operator
 allowlist and signature. No pickle is used anywhere.
 

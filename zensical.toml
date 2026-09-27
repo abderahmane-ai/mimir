@@ -1,10 +1,10 @@
 [project]
 site_name = "MIMIR"
 site_description = "Typed, calibrated and certified decisions from MIMIR, a non-generative decision model"
-site_url = "https://vathosai.github.io/mimir/"
-repo_url = "https://github.com/vathosai/mimir"
-repo_name = "vathosai/mimir"
-copyright = "Copyright VathosAI"
+site_url = "https://mythologic.github.io/mimir/"
+repo_url = "https://github.com/mythologic/mimir"
+repo_name = "mythologic/mimir"
+copyright = "Copyright Mythologic"
 docs_dir = "docs"
 site_dir = "site"
 nav = [

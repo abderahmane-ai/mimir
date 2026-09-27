@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 DIGITS: Final = 4
 MIN_OPTIONS: Final = 2
 PROBABILITY_FLOOR: Final = 1e-12
-DEFAULT_REPOSITORY: Final = "vathosai/mimir-1"
+DEFAULT_REPOSITORY: Final = "mythologic/mimir-1"
 
 
 class LayaNoulQuestion(NoulQuestion):

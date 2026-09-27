@@ -107,15 +107,15 @@ load: ## Load-test a running server: URL=http://host:port RELEASE=<release dir> 
 
 image: ## Build a runtime image (operator, needs Docker): VARIANT=cpu|cuda
 	$(if $(filter $(VARIANT),$(VARIANTS)),,$(error VARIANT must be one of: $(VARIANTS)))
-	docker build -f docker/$(VARIANT).Dockerfile -t ghcr.io/vathosai/mimir:$(VERSION)-$(VARIANT) .
+	docker build -f docker/$(VARIANT).Dockerfile -t ghcr.io/mythologic/mimir:$(VERSION)-$(VARIANT) .
 
 publish: ## Start a publishing workflow on main (operator): ACTION=sign REVISION=<Hub commit> | ACTION=release MODEL_COMMIT=<signed Hub commit>
 ifeq ($(ACTION),sign)
 	$(if $(REVISION),,$(error REVISION is required))
-	gh workflow run sign-model.yml --repo vathosai/mimir --ref main -f revision=$(REVISION)
+	gh workflow run sign-model.yml --repo mythologic/mimir --ref main -f revision=$(REVISION)
 else ifeq ($(ACTION),release)
 	$(if $(MODEL_COMMIT),,$(error MODEL_COMMIT is required))
-	gh workflow run release.yml --repo vathosai/mimir --ref main -f model_commit=$(MODEL_COMMIT)
+	gh workflow run release.yml --repo mythologic/mimir --ref main -f model_commit=$(MODEL_COMMIT)
 else
 	$(error ACTION must be one of: sign release)
 endif

@@ -37,7 +37,7 @@ def build_agent(decider: Decider, client: BaseChatClient[Any]) -> Agent:
 async def main() -> None:
     from agent_framework.openai import OpenAIChatClient
 
-    agent = build_agent(Mimir.from_pretrained("vathosai/mimir-1"), OpenAIChatClient(model=MODEL))
+    agent = build_agent(Mimir.from_pretrained("mythologic/mimir-1"), OpenAIChatClient(model=MODEL))
     print((await agent.run("I was charged twice for order 4412.")).text)
 
 

@@ -46,7 +46,7 @@ def build_agent(
 async def main() -> None:
     from agent_framework.openai import OpenAIChatClient
 
-    agent = build_agent(Mimir.from_pretrained("vathosai/mimir-1"), OpenAIChatClient(model=MODEL))
+    agent = build_agent(Mimir.from_pretrained("mythologic/mimir-1"), OpenAIChatClient(model=MODEL))
     print((await agent.run("Refund 900 dollars on order 4412.")).text)
 
 

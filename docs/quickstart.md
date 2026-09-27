@@ -7,7 +7,7 @@ pip install "mimirai[local]"
 ```python
 from mimir import Mimir
 
-model = Mimir.from_pretrained("vathosai/mimir-1")
+model = Mimir.from_pretrained("mythologic/mimir-1")
 result = model.choose(
     "My card was charged twice for the same order.",
     "Which team should handle this ticket?",

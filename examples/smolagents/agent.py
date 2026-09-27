@@ -35,7 +35,7 @@ def build_agent(decider: Decider, model: Model) -> ToolCallingAgent:
 
 
 def main() -> None:
-    agent = build_agent(Mimir.from_pretrained("vathosai/mimir-1"), InferenceClientModel())
+    agent = build_agent(Mimir.from_pretrained("mythologic/mimir-1"), InferenceClientModel())
     print(agent.run("I was charged twice for order 4412."))
 
 

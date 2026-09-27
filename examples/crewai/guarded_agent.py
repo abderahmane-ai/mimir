@@ -67,7 +67,7 @@ def run_checked(crew: Crew, decider: Decider, request: str) -> str:
 
 
 def main() -> None:
-    decider = Mimir.from_pretrained("vathosai/mimir-1")
+    decider = Mimir.from_pretrained("mythologic/mimir-1")
     print(run_checked(build_crew(), decider, "Refund 900 dollars on order 4412."))
 
 

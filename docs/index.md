@@ -1,6 +1,6 @@
 # MIMIR
 
-MIMIR is a non-generative decision model by VathosAI. Give it a context, a question and the
+MIMIR is a non-generative decision model by Mythologic. Give it a context, a question and the
 options; it returns a typed answer, calibrated probabilities, the parts of the context it relied
 on, and a certified verdict on whether the answer may be acted on.
 

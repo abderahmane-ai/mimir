@@ -7,7 +7,7 @@ from mimir.policy.binding import LoadedRuntime, bind
 from mimir.policy.document import Configuration, Fingerprint
 
 FINGERPRINT = Fingerprint(
-    model="vathosai/mimir-1",
+    model="mythologic/mimir-1",
     revision="v1.0",
     variant="fp16",
     graph_sha256="a" * 64,

@@ -1,8 +1,8 @@
 # Containers
 
 ```bash
-docker run -p 8000:8000 -e MIMIR_API_KEYS=... -v mimir-models:/models ghcr.io/vathosai/mimir:1.0.0-cpu
-docker run --gpus all -p 8000:8000 -e MIMIR_API_KEYS=... -v mimir-models:/models ghcr.io/vathosai/mimir:1.0.0-cuda
+docker run -p 8000:8000 -e MIMIR_API_KEYS=... -v mimir-models:/models ghcr.io/mythologic/mimir:1.0.0-cpu
+docker run --gpus all -p 8000:8000 -e MIMIR_API_KEYS=... -v mimir-models:/models ghcr.io/mythologic/mimir:1.0.0-cuda
 ```
 
 Images carry the runtime, never the model. On first start the model is downloaded from the
@@ -19,7 +19,7 @@ cache with no network access, end the command with
 - Images are signed with Sigstore by the release workflow:
 
 ```bash
-cosign verify ghcr.io/vathosai/mimir:1.0.0-cpu \
-  --certificate-identity https://github.com/vathosai/mimir/.github/workflows/release.yml@refs/heads/main \
+cosign verify ghcr.io/mythologic/mimir:1.0.0-cpu \
+  --certificate-identity https://github.com/mythologic/mimir/.github/workflows/release.yml@refs/heads/main \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```

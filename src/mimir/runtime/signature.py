@@ -1,6 +1,6 @@
 """Sigstore verification of the release manifest.
 
-The manifest must be signed by the release workflow of `vathosai/mimir` on GitHub Actions.
+The manifest must be signed by the release workflow of `mythologic/mimir` on GitHub Actions.
 Bundles are verified against Sigstore's production trust root, refreshed over TUF unless
 `offline` is set.
 """
@@ -16,7 +16,7 @@ from sigstore.verify.policy import Identity
 from mimir.core.errors import SignatureError
 
 RELEASE_IDENTITY: Final = (
-    "https://github.com/vathosai/mimir/.github/workflows/sign-model.yml@refs/heads/main"
+    "https://github.com/mythologic/mimir/.github/workflows/sign-model.yml@refs/heads/main"
 )
 RELEASE_ISSUER: Final = "https://token.actions.githubusercontent.com"
 

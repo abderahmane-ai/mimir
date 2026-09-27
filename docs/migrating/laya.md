@@ -6,7 +6,7 @@ Laya's shape:
 ```python
 from mimir.compat.laya.v1 import load
 
-agent = load("vathosai/mimir-1")
+agent = load("mythologic/mimir-1")
 answers = agent.predict(
     "Help! My payouts have been failing for 3 days.",
     {

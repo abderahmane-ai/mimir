@@ -1,13 +1,13 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.vathosai/mimir",
+  "name": "io.github.mythologic/mimir",
   "title": "MIMIR",
   "description": "Typed, calibrated and certified decisions over a context, with abstention and evidence.",
   "repository": {
-    "url": "https://github.com/vathosai/mimir",
+    "url": "https://github.com/mythologic/mimir",
     "source": "github"
   },
-  "websiteUrl": "https://github.com/vathosai/mimir",
+  "websiteUrl": "https://github.com/mythologic/mimir",
   "version": "1.0.0",
   "packages": [
     {
@@ -43,7 +43,7 @@
     },
     {
       "registryType": "oci",
-      "identifier": "ghcr.io/vathosai/mimir:1.0.0-cpu",
+      "identifier": "ghcr.io/mythologic/mimir:1.0.0-cpu",
       "transport": {
         "type": "stdio"
       },

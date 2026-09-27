@@ -16,7 +16,7 @@ MIMIR_API_KEYS=key-one,key-two mimir serve --host 0.0.0.0 --tools tools.yaml
 | `GET /healthz`, `GET /readyz` | liveness, and readiness once the model is loaded and verified |
 | `GET /metrics` | Prometheus: requests, latency, batch sizes, statuses |
 
-The OpenAPI 3.1 document is [`openapi.json`](https://github.com/vathosai/mimir/blob/main/openapi.json).
+The OpenAPI 3.1 document is [`openapi.json`](https://github.com/mythologic/mimir/blob/main/openapi.json).
 
 ## Tools file
 

@@ -5,7 +5,7 @@ description = "Typed, calibrated and certified decisions from MIMIR, a non-gener
 readme = "README.md"
 license = "Apache-2.0"
 license-files = ["LICENSE"]
-authors = [{ name = "VathosAI" }]
+authors = [{ name = "Mythologic" }]
 requires-python = ">=3.11"
 keywords = ["decision-model", "classification", "abstention", "calibration", "onnx", "agents"]
 classifiers = [
@@ -72,9 +72,9 @@ mimir = "mimir.cli.app:main"
 mimirai = "mimir.cli.app:main"
 
 [project.urls]
-Homepage = "https://github.com/vathosai/mimir"
-Source = "https://github.com/vathosai/mimir"
-Model = "https://huggingface.co/vathosai/mimir-1"
+Homepage = "https://github.com/mythologic/mimir"
+Source = "https://github.com/mythologic/mimir"
+Model = "https://huggingface.co/mythologic/mimir-1"
 
 [dependency-groups]
 dev = [

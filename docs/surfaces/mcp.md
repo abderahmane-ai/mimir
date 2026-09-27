@@ -98,4 +98,4 @@ use a GPU server without installing the model.
     }
     ```
 
-The server is listed in the MCP Registry as `io.github.vathosai/mimir`.
+The server is listed in the MCP Registry as `io.github.mythologic/mimir`.
