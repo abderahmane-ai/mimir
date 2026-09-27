@@ -1,0 +1,1 @@
+"""The `mimir` command line."""

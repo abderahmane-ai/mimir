@@ -1,0 +1,167 @@
+[project]
+name = "mimirai"
+version = "1.0.0"
+description = "Typed, calibrated and certified decisions from MIMIR, a non-generative decision model"
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [{ name = "VathosAI" }]
+requires-python = ">=3.11"
+keywords = ["decision-model", "classification", "abstention", "calibration", "onnx", "agents"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Typing :: Typed",
+]
+dependencies = [
+    "httpx>=0.28.1,<1",
+    "packaging>=24",
+    "pydantic>=2.11,<3",
+    "typer>=0.16,<1",
+]
+
+[project.optional-dependencies]
+local = [
+    "huggingface-hub>=1.0,<2",
+    "numpy>=2.3,<3",
+    "onnx>=1.23,<2",
+    "onnxruntime==1.30.0",
+    "sigstore>=4.5,<5",
+    "tokenizers>=0.23.2,<0.24",
+]
+local-gpu = [
+    "huggingface-hub>=1.0,<2",
+    "numpy>=2.3,<3",
+    "onnx>=1.23,<2",
+    "onnxruntime-gpu==1.30.0",
+    "sigstore>=4.5,<5",
+    "tokenizers>=0.23.2,<0.24",
+]
+
+[project.scripts]
+mimir = "mimir.cli.app:main"
+
+[project.urls]
+Homepage = "https://github.com/vathosai/mimir"
+Source = "https://github.com/vathosai/mimir"
+Model = "https://huggingface.co/vathosai/mimir-1"
+
+[dependency-groups]
+dev = [
+    "mypy==2.3.1",
+    "pytest==9.1.1",
+    "ruff==0.16.9",
+    "types-protobuf==7.35.1.20260906",
+    "vulture==2.16",
+]
+
+[build-system]
+requires = ["uv_build>=0.12.19,<0.13"]
+build-backend = "uv_build"
+
+[tool.uv]
+# Both extras install the module `onnxruntime`; an environment holds one of them.
+conflicts = [[{ extra = "local" }, { extra = "local-gpu" }]]
+default-groups = ["dev"]
+
+[tool.uv.build-backend]
+module-name = "mimir"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+src = ["src", "tests", "tools"]
+
+[tool.ruff.lint]
+select = [
+    "A", "ANN", "ARG", "B", "C4", "E", "EM", "F", "I", "N", "PERF", "PL", "PT", "PTH", "RET",
+    "RUF", "S", "SIM", "SLF", "T20", "TID", "TRY", "UP", "W",
+]
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+
+[tool.ruff.lint.isort]
+known-first-party = ["mimir", "tests", "banner"]
+
+[tool.ruff.lint.pylint]
+# The decision shortcuts take their spec's fields plus the context, risk and alpha.
+max-args = 8
+# Result construction matches on the seven spec types and returns from each case.
+max-returns = 8
+
+[tool.ruff.lint.per-file-ignores]
+# Pydantic turns only ValueError (not TypeError) raised in a validator into a ValidationError
+# that names the field.
+"src/mimir/core/**" = ["TRY004"]
+# Imports of optional extras are deferred into the functions that need them, so `import mimir`
+# and the base install never load ONNX Runtime, tokenizers or Sigstore.
+"src/mimir/__init__.py" = ["PLC0415"]
+"src/mimir/extras.py" = ["PLC0415"]
+# The same deferral applies to the CLI; Typer maps each command parameter to one flag.
+"src/mimir/cli/app.py" = ["PLC0415", "PLR0913", "PLR0917"]
+# nvidia-smi and sysctl are read by name from PATH with literal arguments to name the hardware.
+"src/mimir/runtime/hardware.py" = ["S603", "S607"]
+# pytest asserts and literal expected values are the point of a test; tests reach
+# module-private helpers directly; the import test runs this interpreter with a literal script.
+"tests/**" = ["S101", "PLR2004", "SLF001", "PLC2701", "S603"]
+
+[tool.mypy]
+strict = true
+warn_unreachable = true
+disallow_any_unimported = true
+disallow_any_generics = true
+no_implicit_reexport = true
+explicit_package_bases = true
+mypy_path = "src:tools"
+files = ["src", "tests", "tools"]
+plugins = ["pydantic.mypy"]
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true
+
+[[tool.mypy.overrides]]
+# These tests pass values of the wrong type on purpose, to prove the runtime checks reject them.
+module = ["tests.unit.mimir.core.test_context", "tests.unit.mimir.core.test_decider"]
+disable_error_code = ["arg-type", "call-overload"]
+
+[[tool.mypy.overrides]]
+# onnxruntime ships neither stubs nor py.typed; mimir.runtime.session types the surface it uses.
+module = ["onnxruntime", "onnxruntime.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = [".", "tools"]
+addopts = ["--import-mode=importlib", "--strict-markers", "--strict-config", "-m", "not integration"]
+filterwarnings = ["error"]
+markers = [
+    "integration: needs the released artifact, the network or a subprocess; run by `make test TASK=integration`",
+]
+
+[tool.vulture]
+paths = ["src", "tests", "tools"]
+min_confidence = 60
+# pytest reads pytestmark; Python calls a module's __getattr__; Pydantic reads model_config
+# and calls validators by decoration; ONNX Runtime reads use_deterministic_compute and
+# graph_optimization_level; tokenizers reads normalizer and pre_tokenizer; onnx writes
+# ir_version; the session protocol names its parameters output_names and input_feed. `mask`
+# and `output_tokens` are fields of external formats (config.json, Jev's usage) that are
+# validated and serialised, not read.
+ignore_names = [
+    "pytestmark", "__getattr__", "model_config", "use_deterministic_compute",
+    "graph_optimization_level", "normalizer", "pre_tokenizer", "ir_version", "output_names",
+    "input_feed", "_check_*", "mask", "output_tokens",
+]
+# Typer calls command functions registered by decoration.
+ignore_decorators = ["@app.command"]

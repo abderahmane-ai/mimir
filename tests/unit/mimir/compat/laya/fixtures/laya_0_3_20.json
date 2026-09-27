@@ -1,0 +1,42 @@
+{
+  "source": "laya 0.3.20 (PyPI), laya/agent.py: Agent.predict_batch answer construction",
+  "retrieved": "2026-09-27",
+  "request": {
+    "state": {"ticket": "My card was charged twice", "plan": "pro"},
+    "questions": {
+      "team": {"type": "choice", "instructions": "Which team should handle this?", "criteria": ["billing", "security"]},
+      "urgency": {"type": "score", "instructions": "How urgent is this?", "criteria": ["low", "medium", "high"]},
+      "refund": {"type": "noul", "instructions": "Should we refund?", "criteria": {"true": "refund now"}, "labels": {"false": "B", "true": "A"}}
+    }
+  },
+  "response": {
+    "model": "laya-rl-agent",
+    "answers": {
+      "team": {
+        "type": "choice",
+        "choice": "billing",
+        "probabilities": {"billing": 0.8123, "security": 0.1877},
+        "confidence": 0.3036,
+        "answer_confidence": 0.8123,
+        "action": {"act_probability": 0.4211}
+      },
+      "urgency": {
+        "type": "score",
+        "score": 0.4312,
+        "legend": {"0": "low", "1": "medium", "2": "high"},
+        "probabilities": {"0": 0.6421, "1": 0.2846, "2": 0.0733},
+        "confidence": 0.2167,
+        "answer_confidence": 0.6421,
+        "action": {"act_probability": 0.3902}
+      },
+      "refund": {
+        "type": "noul",
+        "noul": 0.2744,
+        "confidence": 0.7256,
+        "answer_confidence": 0.7256,
+        "action": {"act_probability": 0.5}
+      }
+    },
+    "usage": {"input_tokens": 57, "output_tokens": 0}
+  }
+}

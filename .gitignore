@@ -1,0 +1,21 @@
+__pycache__/
+*.py[cod]
+dist/
+build/
+*.egg-info/
+.venv/
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+.DS_Store
+
+# Model artifacts are downloaded, never committed.
+*.onnx
+*.onnx_data
+*.npz
+artifacts/
+
+# Internal notes for collaborators and assistants.
+CLAUDE.md
