@@ -1,0 +1,24 @@
+{
+  "name": "mimir-vercel-ai-example",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "tsx agent.ts",
+    "test": "tsx --test agent.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@ai-sdk/mcp": "2.0.60",
+    "@ai-sdk/openai": "4.0.78",
+    "ai": "7.0.118"
+  },
+  "devDependencies": {
+    "@ai-sdk/provider": "4.0.18",
+    "@types/node": "26.6.3",
+    "tsx": "4.23.15",
+    "typescript": "7.0.2"
+  }
+}

@@ -5,7 +5,7 @@ from pydantic import ValidationError
 
 from mimir.core.decisions import Choice, Rate, YesNo
 from mimir.core.results import ChoiceResult
-from mimir.core.tools import ToolArguments, ToolDefinition, ToolDefinitions
+from mimir.core.tools import GUIDANCE, ToolArguments, ToolDefinition, ToolDefinitions
 from tests.conftest import RecordingDecider
 
 ROUTE = {
@@ -39,6 +39,27 @@ def test_tool_names_must_be_portable(name: str) -> None:
 def test_tool_description_must_not_be_blank() -> None:
     with pytest.raises(ValueError, match="blank description"):
         RecordingDecider().tool("ok", Choice("q", ["a", "b"]), "  ")
+
+
+def test_call_with_validates_the_arguments_then_decides() -> None:
+    decider = RecordingDecider()
+    tool = decider.tool("route_ticket", Choice("Which team?", ["billing", "security"]), "Route.")
+    assert isinstance(tool.call_with({"context": "charged twice"}), ChoiceResult)
+    state = {"context": {"state": {"customer": {"plan": "enterprise"}}}}
+    assert isinstance(asyncio.run(tool.acall_with(state)), ChoiceResult)
+    first, second = (call.requests[0][0] for call in decider.calls)
+    assert first.passages[0].text == "charged twice"
+    assert second.fields[0].key == "customer.plan"
+    for arguments in ({}, {"context": 3}, {"context": "x", "extra": 1}):
+        with pytest.raises(ValidationError):
+            tool.call_with(arguments)
+    assert len(decider.calls) == 2
+
+
+def test_agent_description_ends_with_the_status_guidance() -> None:
+    tool = RecordingDecider().tool("is_late", YesNo("Is it late?"), "Check lateness.")
+    assert tool.agent_description == f"Check lateness.\n\n{GUIDANCE}"
+    assert "`deferred`" in GUIDANCE
 
 
 def test_tool_schemas() -> None:

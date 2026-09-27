@@ -7,6 +7,7 @@ data models does not load ONNX Runtime.
 from importlib import metadata
 from typing import TYPE_CHECKING
 
+from mimir.core.checks import CheckOutcome, Permission, ToolCallCheck
 from mimir.core.context import Cell, Context, Field, JsonState, Passage, Table
 from mimir.core.decider import Decider
 from mimir.core.decisions import Choice, Estimate, MultiChoice, Rank, Rate, Verify, YesNo
@@ -36,6 +37,7 @@ __version__ = metadata.version("mimirai")
 __all__ = [
     "Cell",
     "Certificate",
+    "CheckOutcome",
     "Choice",
     "ChoiceResult",
     "Context",
@@ -54,12 +56,14 @@ __all__ = [
     "MultiChoiceResult",
     "OptionSet",
     "Passage",
+    "Permission",
     "Rank",
     "RankResult",
     "Rate",
     "RateResult",
     "Status",
     "Table",
+    "ToolCallCheck",
     "Verify",
     "VerifyResult",
     "YesNo",

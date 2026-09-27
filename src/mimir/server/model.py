@@ -1,8 +1,8 @@
 """`ServedModel`, the `Decider` behind `mimir serve` and `mimir mcp`.
 
-The model loads in the background once `running()` is entered; until it is loaded, decisions
-raise `NotReadyError`. Async decisions go through a `Batcher`, sync ones straight to the
-engine.
+The model loads in the background once `running()` is entered. Until it is loaded, sync
+decisions raise `NotReadyError`, and async ones first wait up to `load_wait_s` for the load to
+end. Async decisions go through a `Batcher`, sync ones straight to the engine.
 """
 
 import asyncio
@@ -43,6 +43,7 @@ class ServedModel(Decider):
         batch_tokens: Encoder tokens that fill a batch; None uses the release's token budget.
         wait_s: The longest a request waits for a batch to fill.
         observer: Receives every batch's results.
+        load_wait_s: The longest an async decision waits for a load still in progress.
     """
 
     def __init__(
@@ -52,15 +53,18 @@ class ServedModel(Decider):
         batch_tokens: int | None = None,
         wait_s: float = BATCH_WAIT_S,
         observer: BatchObserver | None = None,
+        load_wait_s: float = 0.0,
     ) -> None:
         self._load = load
         self._batch_tokens = batch_tokens
         self._wait_s = wait_s
         self._observer = observer
+        self._load_wait_s = load_wait_s
         self._state: LoadState = "loading"
         self._error: str | None = None
         self._engine: Mimir | None = None
         self._batcher: Batcher | None = None
+        self._settled = asyncio.Event()
 
     @property
     def state(self) -> LoadState:
@@ -81,7 +85,7 @@ class ServedModel(Decider):
     def _not_ready(self) -> str:
         if self._state == "failed":
             return f"the model failed to load: {self._error}"
-        return "the model is still loading; retry once GET /readyz answers 200"
+        return "the model is still loading; retry in a few seconds"
 
     @asynccontextmanager
     async def running(self) -> AsyncIterator[None]:
@@ -103,6 +107,7 @@ class ServedModel(Decider):
             engine = await asyncio.to_thread(self._load)
         except Exception as error:
             self._state, self._error = "failed", f"{type(error).__name__}: {error}"
+            self._settled.set()
             logger.exception("model load failed error=%r", self._error)
             return
         info = engine.info()
@@ -117,6 +122,7 @@ class ServedModel(Decider):
         )
         tasks.append(asyncio.create_task(batcher.run()))
         self._engine, self._batcher, self._state = engine, batcher, "ready"
+        self._settled.set()
         logger.info(
             "model ready model=%s revision=%s variant=%s device=%s certification=%s "
             "batch_tokens=%d graph_batch_size=%s seconds=%.1f",
@@ -156,6 +162,9 @@ class ServedModel(Decider):
     ) -> list[DecisionResult]:
         """Async requests share batches across callers; `batch_size` is not applied."""
         del batch_size
+        if self._batcher is None and self._load_wait_s > 0:
+            with suppress(TimeoutError):
+                await asyncio.wait_for(self._settled.wait(), self._load_wait_s)
         if self._batcher is None:
             raise NotReadyError(self._not_ready())
         return await self._batcher.submit(requests, risk=risk, alpha=alpha)

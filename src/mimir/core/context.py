@@ -11,15 +11,22 @@ Numbers and dates in table cells and fields are typed; their original text is ke
 """
 
 import datetime
+import decimal
 import math
+import numbers
+import sys
 from collections.abc import Mapping, Sequence
-from typing import Annotated, Literal, Self
+from typing import TYPE_CHECKING, Annotated, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, JsonValue, model_validator
 from pydantic import Field as PydanticField
 
 from mimir.core.errors import ContextError
 from mimir.core.values import number_text, parse_date, parse_number
+
+if TYPE_CHECKING:
+    import pandas
+    import polars
 
 FieldKind = Literal["text", "number", "category", "datetime", "list"]
 FieldValue = str | float | tuple[str, ...]
@@ -54,17 +61,34 @@ class Cell(_Frozen):
         )
 
 
-def _cell(value: str | float, row: int, column: int) -> Cell:
-    if isinstance(value, bool):
-        message = f"table row {row} column {column}: {value!r} is a bool, not a cell value"
-        raise ContextError(message)
-    if isinstance(value, str):
-        return Cell.parse(value)
-    number = float(value)
-    if not math.isfinite(number):
-        message = f"table row {row} column {column}: {value!r} is not a finite number"
-        raise ContextError(message)
-    return Cell(text=number_text(number), number=number)
+CellValue = str | float | decimal.Decimal | datetime.date | None
+
+
+def _cell(value: object, row: int, column: int) -> Cell:
+    match value:
+        case None:
+            return Cell(text="")
+        case str():
+            return Cell.parse(value)
+        case bool():
+            return Cell(text="true" if value else "false")
+        case datetime.datetime() if value.time() == datetime.time():
+            return Cell(text=value.date().isoformat(), date=value.date())
+        case datetime.datetime():
+            return Cell(text=value.isoformat(sep=" "), date=value.date())
+        case datetime.date():
+            return Cell(text=value.isoformat(), date=value)
+        case numbers.Real() | decimal.Decimal():
+            number = float(value)
+            if not math.isfinite(number):
+                message = f"table row {row} column {column}: {value!r} is not a finite number"
+                raise ContextError(message)
+            exact = isinstance(value, numbers.Integral | decimal.Decimal)
+            return Cell(text=str(value) if exact else number_text(number), number=number)
+        case _:
+            kind = type(value).__name__
+            message = f"table row {row} column {column}: {value!r} of type {kind} is not a cell"
+            raise ContextError(message)
 
 
 class Table(_Frozen):
@@ -77,12 +101,17 @@ class Table(_Frozen):
     @classmethod
     def from_rows(
         cls,
-        rows: Sequence[Sequence[str | float]],
+        rows: Sequence[Sequence[CellValue]],
         *,
         header: Sequence[str] = (),
         caption: str = "",
     ) -> Self:
-        """Create a table from raw values; strings are parsed, numbers are kept as given."""
+        """Create a table from raw values.
+
+        Strings are parsed for a number and a date. Numbers keep their value, integers and
+        decimals their exact text. Dates are typed; a datetime at midnight is its date.
+        Booleans read `true` or `false`, and None is a blank cell.
+        """
         return cls(
             rows=tuple(
                 tuple(_cell(value, row, column) for column, value in enumerate(values))
@@ -91,6 +120,30 @@ class Table(_Frozen):
             header=tuple(header),
             caption=caption,
         )
+
+    @classmethod
+    def from_dataframe(
+        cls, frame: "pandas.DataFrame | polars.DataFrame", *, caption: str = ""
+    ) -> Self:
+        """Create a table from a pandas or polars DataFrame: its columns are the header, its
+        index is dropped, and missing values are blank cells. Cells convert as in `from_rows`.
+        """
+        if "pandas" in sys.modules:
+            import pandas
+
+            if isinstance(frame, pandas.DataFrame):
+                present = frame.astype(object).where(frame.notna(), None)
+                rows = list(present.itertuples(index=False, name=None))
+                return cls.from_rows(
+                    rows, header=[str(name) for name in frame.columns], caption=caption
+                )
+        if "polars" in sys.modules:
+            import polars
+
+            if isinstance(frame, polars.DataFrame):
+                return cls.from_rows(list(frame.iter_rows()), header=frame.columns, caption=caption)
+        message = f"expected a pandas or polars DataFrame; got {type(frame).__name__}"
+        raise ContextError(message)
 
 
 def field_date(value: str) -> datetime.datetime | None:
@@ -124,27 +177,27 @@ class Field(_Frozen):
         return self
 
     @classmethod
-    def from_json(cls, value: JsonValue, prefix: str = "") -> list["Field"]:
+    def from_json(cls, value: JsonValue, prefix: str = "") -> tuple["Field", ...]:
         """Flatten a JSON value into fields, e.g. `{"a": {"b": [1]}}` gives key `a.b[0]`.
 
         Kinds: a list of strings is one `list` field, booleans and null are `category`,
         numbers are `number`, date strings are `datetime` and other strings are `text`.
         """
         if isinstance(value, Mapping):
-            return [
+            return tuple(
                 found
                 for name, item in value.items()
                 for found in cls.from_json(item, f"{prefix}.{name}" if prefix else str(name))
-            ]
+            )
         if isinstance(value, list):
             if all(isinstance(item, str) for item in value):
-                return [cls(key=prefix, kind="list", value=tuple(str(item) for item in value))]
-            return [
+                return (cls(key=prefix, kind="list", value=tuple(str(item) for item in value)),)
+            return tuple(
                 found
                 for position, item in enumerate(value)
                 for found in cls.from_json(item, f"{prefix}[{position}]")
-            ]
-        return [_scalar_field(prefix, value)]
+            )
+        return (_scalar_field(prefix, value),)
 
 
 def _scalar_field(key: str, value: JsonValue) -> Field:
@@ -176,12 +229,12 @@ class Context(_Frozen):
         if isinstance(value, Context):
             return value
         if isinstance(value, JsonState):
-            return cls(fields=tuple(Field.from_json(value.state)))
+            return cls(fields=Field.from_json(value.state))
         if isinstance(value, str):
             return cls(passages=(Passage(text=value),))
         if isinstance(value, Mapping):
             state: dict[str, JsonValue] = {str(key): item for key, item in value.items()}
-            return cls(fields=tuple(Field.from_json(state)))
+            return cls(fields=Field.from_json(state))
         if isinstance(value, Sequence) and all(isinstance(item, str) for item in value):
             return cls(passages=tuple(Passage(text=item) for item in value))
         kind = type(value).__name__

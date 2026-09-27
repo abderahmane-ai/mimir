@@ -36,7 +36,7 @@ def test_decisions_wait_for_the_load_and_then_run_in_batches(release: Path) -> N
     async def main() -> list[ChoiceResult]:
         async with served.running():
             assert served.state == "loading"
-            with pytest.raises(NotReadyError, match="still loading; retry once GET /readyz"):
+            with pytest.raises(NotReadyError, match="still loading; retry in a few seconds"):
                 await served.adecide(TEXT, TEAM)
             with pytest.raises(NotReadyError):
                 served.info()
@@ -49,6 +49,64 @@ def test_decisions_wait_for_the_load_and_then_run_in_batches(release: Path) -> N
     assert served.error is None
     assert [len(batch) for batch in recorder.batches] == [4]
     assert {result.answer for result in results} == {results[0].answer}
+
+
+def test_with_a_load_wait_a_decision_made_while_loading_waits_for_the_model(
+    release: Path,
+) -> None:
+    gate = threading.Event()
+
+    def load() -> Mimir:
+        gate.wait(10)
+        return load_engine(release)
+
+    served = ServedModel(load, load_wait_s=10.0)
+
+    async def main() -> ChoiceResult:
+        async with served.running():
+            pending = asyncio.create_task(served.adecide(TEXT, TEAM))
+            await asyncio.sleep(0.05)
+            assert not pending.done()
+            gate.set()
+            return await pending
+
+    assert asyncio.run(main()).type == "choice"
+    assert served.state == "ready"
+
+
+def test_a_load_wait_ends_with_not_ready_when_it_runs_out(release: Path) -> None:
+    gate = threading.Event()
+
+    def load() -> Mimir:
+        gate.wait(10)
+        return load_engine(release)
+
+    served = ServedModel(load, load_wait_s=0.05)
+
+    async def main() -> None:
+        async with served.running():
+            with pytest.raises(NotReadyError, match="still loading"):
+                await served.adecide(TEXT, TEAM)
+            gate.set()
+
+    asyncio.run(main())
+
+
+def test_a_load_wait_ends_as_soon_as_the_load_fails(tmp_path: Path) -> None:
+    def load() -> Mimir:
+        message = f"{tmp_path}: no manifest.json"
+        raise ArtifactError(message)
+
+    served = ServedModel(load, load_wait_s=10.0)
+
+    async def main() -> float:
+        async with served.running():
+            started = asyncio.get_running_loop().time()
+            with pytest.raises(NotReadyError, match="failed to load"):
+                await served.adecide(TEXT, TEAM)
+            return asyncio.get_running_loop().time() - started
+
+    assert asyncio.run(main()) < 5.0
 
 
 def test_on_cpu_each_request_runs_the_graph_alone(

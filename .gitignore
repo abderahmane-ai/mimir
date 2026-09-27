@@ -4,6 +4,8 @@ dist/
 build/
 *.egg-info/
 .venv/
+.venv-crewai/
+node_modules/
 .pytest_cache/
 .coverage
 htmlcov/
@@ -19,3 +21,6 @@ artifacts/
 
 # Internal notes for collaborators and assistants.
 CLAUDE.md
+
+# A shelve file one framework opens as ":memory:" writes into the working directory.
+:memory:*

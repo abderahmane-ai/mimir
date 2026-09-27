@@ -30,14 +30,10 @@ from mimir.core.results import (
     RateResult,
     VerifyResult,
 )
-from mimir.core.tools import DecisionTool, ToolArguments
+from mimir.core.tools import GUIDANCE, DecisionTool, ToolArguments
 from mimir.core.wire import DEFAULT_RISK
 
 SERVER_NAME: Final = "mimir"
-GUIDANCE: Final = (
-    "Act on `answer` only when `status` is `decided` or `abstained`; when it is `deferred`, "
-    "escalate to a person and pass on `deferral.reason`."
-)
 ANNOTATIONS: Final = ToolAnnotations(
     read_only_hint=True, destructive_hint=False, idempotent_hint=True, open_world_hint=False
 )

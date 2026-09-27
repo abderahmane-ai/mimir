@@ -6,9 +6,10 @@ defined here.
 
 import abc
 import asyncio
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from typing import overload
 
+from mimir.core.checks import DEFAULT_QUESTION, ToolCallCheck
 from mimir.core.context import Context, ContextLike
 from mimir.core.decisions import (
     Choice,
@@ -380,4 +381,22 @@ class Decider(abc.ABC):
         """Create a `DecisionTool` that applies `spec` to any context it is called with."""
         return DecisionTool(
             name=name, spec=spec, description=description, decider=self, risk=risk, alpha=alpha
+        )
+
+    def tool_call_check(
+        self,
+        rules: str | Sequence[str],
+        *,
+        question: str = DEFAULT_QUESTION,
+        tools: Iterable[str] | None = None,
+        risk: float = DEFAULT_RISK,
+    ) -> ToolCallCheck:
+        """Create a `ToolCallCheck` deciding pending calls of `tools` (every tool if None)
+        against `rules`."""
+        return ToolCallCheck(
+            decider=self,
+            rules=(rules,) if isinstance(rules, str) else tuple(rules),
+            question=question,
+            tools=None if tools is None else frozenset(tools),
+            risk=risk,
         )

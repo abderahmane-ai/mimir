@@ -36,6 +36,9 @@ if TYPE_CHECKING:
     from mimir.server.model import ServedModel
 
 DEFAULT_MODEL: Final = "vathosai/mimir-1"
+# An MCP host starts `mimir mcp` and calls a tool at once; the call waits this long for the
+# model to load rather than failing.
+MCP_LOAD_WAIT_S: Final = 60.0
 SpecType = Literal["choice", "multi_choice", "yes_no", "verify", "rank", "rate"]
 
 app = typer.Typer(
@@ -153,7 +156,7 @@ def decide(
     try:
         if question is not None:
             if state is not None:
-                context = Context(fields=tuple(Field.from_json(_read_json(state))))
+                context = Context(fields=Field.from_json(_read_json(state)))
             else:
                 context = Context.coerce(text or "")
             spec = _spec(kind, question, option or [])
@@ -389,6 +392,7 @@ def _served(
     batch_tokens: int | None = None,
     wait_s: float = BATCH_WAIT_S,
     observer: "BatchObserver | None" = None,
+    load_wait_s: float = 0.0,
 ) -> "ServedModel":
     from mimir.server.model import ServedModel
 
@@ -406,7 +410,9 @@ def _served(
             offline=offline,
         )
 
-    return ServedModel(load, batch_tokens=batch_tokens, wait_s=wait_s, observer=observer)
+    return ServedModel(
+        load, batch_tokens=batch_tokens, wait_s=wait_s, observer=observer, load_wait_s=load_wait_s
+    )
 
 
 def _log_to_stderr() -> None:
@@ -570,6 +576,7 @@ def mcp_command(
                 allow_unsigned=allow_unsigned,
                 model_cache=model_cache,
                 offline=offline,
+                load_wait_s=MCP_LOAD_WAIT_S,
             )
             decider = served
         bound = () if definitions is None else definitions.bind(decider)

@@ -1,0 +1,10 @@
+tools:
+  - name: route_ticket
+    description: Route a customer support ticket to the team that owns it.
+    decision:
+      type: choice
+      question: Which team should handle this ticket?
+      options:
+        billing: "Billing: payments, refunds and invoices"
+        security: "Security: account access, passwords and fraud"
+        shipping: "Shipping: deliveries, tracking and returns"

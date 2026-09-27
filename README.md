@@ -62,7 +62,8 @@ result = model.decide(context, Rate("How urgent is this?", ["low", "medium", "hi
 ```
 
 A context can also be a string, a list of strings, or a dict read as a JSON state. Numbers and
-dates in tables and fields are typed. `decide_many` batches many decisions, and every method
+dates in tables and fields are typed. `Table.from_dataframe(frame)` reads a pandas or polars
+DataFrame: its columns are the header and missing values are blank cells. `decide_many` batches many decisions, and every method
 has an async form (`adecide`, `adecide_many`, ...).
 
 ## Certification
@@ -122,6 +123,50 @@ tools:
       question: Which team should handle this ticket?
       options: [billing, security]
 ```
+
+## Tool-call checks
+
+A tool-call check decides, against rules you write, whether an agent's pending tool call may
+run. A certified yes allows it, a certified no denies it, and anything else escalates it to a
+person.
+
+```python
+check = model.tool_call_check(
+    ["Refunds above 500 dollars need a manager's approval."], tools=["issue_refund"]
+)
+outcome = check("issue_refund", {"order": "4412", "amount": 900})
+outcome.permission    # Permission.ALLOW, Permission.DENY or Permission.ESCALATE
+outcome.reason        # one sentence for the agent or the approver
+```
+
+Write the rules the call is judged against; without them the check has nothing to decide by.
+
+## Agent frameworks
+
+Each adapter turns decision tools into the framework's own tools, and a tool-call check into
+its own approval hook where it has one.
+
+| Framework | Install | Tools | Tool-call check |
+|---|---|---|---|
+| OpenAI Agents SDK | `mimirai[openai-agents]` | `as_function_tool` | `guard`: escalations pause the run for approval |
+| LangChain, LangGraph | `mimirai[langchain]` | `as_structured_tool` | `ToolCallCheckMiddleware`: escalations interrupt with the human-in-the-loop request |
+| PydanticAI | `mimirai[pydantic-ai]` | `as_toolset` | `guard`: escalations end the run with `DeferredToolRequests` |
+| CrewAI | `mimirai[crewai]` | `as_crewai_tool` | `tool_call_hook`: escalations go to your approver |
+| Google ADK | `mimirai[adk]` | `as_adk_tool` | `tool_call_callback`: escalations ask for ADK confirmation |
+| Microsoft Agent Framework | `mimirai[agent-framework]` | `as_function_tool` | `ToolCallCheckMiddleware`: only certified calls run |
+| LlamaIndex | `mimirai[llamaindex]` | `as_llamaindex_tool` | none: no hook before a tool call |
+| smolagents | `mimirai[smolagents]` | `as_smolagents_tool` | none: no hook before a tool call |
+
+```python
+from agents import Agent
+from mimir.integrations.openai_agents import as_function_tool
+
+agent = Agent(name="support", tools=[as_function_tool(route_ticket)])
+```
+
+Every framework also reaches MIMIR through its own MCP client, and so does any other language:
+[`examples/`](examples) has a native, an MCP and a checked agent for each framework, and a
+Vercel AI SDK agent in TypeScript.
 
 ## HTTP server
 

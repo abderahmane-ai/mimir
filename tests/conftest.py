@@ -2,6 +2,8 @@
 a complete release directory with a policy bound to this machine, and the engine on it."""
 
 import hashlib
+import os
+import sys
 import zipfile
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
@@ -29,6 +31,7 @@ from mimir.core.decisions import (
 from mimir.core.results import (
     ChoiceResult,
     DecisionResult,
+    Deferral,
     EstimateResult,
     MultiChoiceResult,
     RankResult,
@@ -499,6 +502,38 @@ class RecordingDecider(Decider):
         )
 
 
+class YesNoDecider(RecordingDecider):
+    """A `RecordingDecider` answering every `YesNo` with `answer` at `status`; a deferred
+    answer carries a `below_threshold` deferral."""
+
+    def __init__(self, *, answer: bool | None, status: Status = Status.DECIDED) -> None:
+        super().__init__()
+        self.answer = answer
+        self.status = status
+
+    def _run(
+        self,
+        requests: Sequence[tuple[Context, DecisionSpec]],
+        *,
+        risk: float | None,
+        alpha: float | None,
+        batch_size: int | None,
+    ) -> list[DecisionResult]:
+        results = super()._run(requests, risk=risk, alpha=alpha, batch_size=batch_size)
+        deferral = (
+            Deferral(reason="below_threshold", threshold=0.97, gate_p_value=0.4)
+            if self.status is Status.DEFERRED
+            else None
+        )
+        update = {"answer": self.answer, "status": self.status, "deferral": deferral}
+        return [
+            YesNoResult.model_validate({**result.model_dump(), **update})
+            if isinstance(result, YesNoResult)
+            else result
+            for result in results
+        ]
+
+
 @pytest.fixture
 def tokenizer() -> Tokenizer:
     return build_tokenizer()
@@ -562,3 +597,23 @@ def isolated_cache(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     cache = tmp_path / "cache"
     monkeypatch.setenv("MIMIR_CACHE", str(cache))
     return cache
+
+
+EXAMPLE_TOOLS: Final = Path(__file__).parents[1] / "examples" / "tools.yaml"
+# The MCP SDK 1 environment holds clients only; `make test` points it at the main
+# environment's `mimir` through MIMIR_SERVER.
+MIMIR_SERVER: Final = os.environ.get("MIMIR_SERVER", str(Path(sys.executable).parent / "mimir"))
+
+
+def mcp_server_arguments(release: Path) -> list[str]:
+    """`mimir mcp` arguments serving the examples' tools file on a test release."""
+    return [
+        "mcp",
+        "--tools",
+        str(EXAMPLE_TOOLS),
+        "--model",
+        str(release),
+        "--allow-unsigned",
+        "--device",
+        "cpu",
+    ]

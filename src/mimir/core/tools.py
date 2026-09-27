@@ -7,14 +7,23 @@ a tools file does.
 
 import re
 from collections import Counter
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Annotated, Final, Self
 
-from pydantic import BaseModel, ConfigDict, JsonValue, StringConstraints, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    JsonValue,
+    StringConstraints,
+    ValidationError,
+    model_validator,
+)
 from pydantic import Field as PydanticField
 
 from mimir.core.context import ContextInput, ContextLike
 from mimir.core.decisions import DecisionSpec
+from mimir.core.errors import ContextError, InputLimitError
 from mimir.core.results import RESULT_FOR_SPEC, DecisionResult
 from mimir.core.wire import DEFAULT_RISK
 
@@ -23,6 +32,12 @@ if TYPE_CHECKING:
 
 # The names OpenAI function tools and MCP tools both accept.
 TOOL_NAME: Final = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+GUIDANCE: Final = (
+    "Act on `answer` only when `status` is `decided` or `abstained`; when it is `deferred`, "
+    "escalate to a person and pass on `deferral.reason`."
+)
+# Errors in what the agent sent, which it can correct; adapters return these to the model.
+ARGUMENT_ERRORS: Final = (ValidationError, ContextError, InputLimitError)
 
 
 class ToolArguments(BaseModel):
@@ -57,6 +72,19 @@ class DecisionTool:
 
     async def acall(self, context: ContextLike) -> DecisionResult:
         return await self.decider.adecide(context, self.spec, risk=self.risk, alpha=self.alpha)
+
+    def call_with(self, arguments: Mapping[str, object]) -> DecisionResult:
+        """Decide on a tool call's arguments, validated against `input_schema`."""
+        return self(ToolArguments.model_validate(arguments).context)
+
+    async def acall_with(self, arguments: Mapping[str, object]) -> DecisionResult:
+        """`call_with`, awaitable."""
+        return await self.acall(ToolArguments.model_validate(arguments).context)
+
+    @property
+    def agent_description(self) -> str:
+        """The description an agent reads: `description`, then how to act on the status."""
+        return f"{self.description}\n\n{GUIDANCE}"
 
     @property
     def input_schema(self) -> dict[str, JsonValue]:

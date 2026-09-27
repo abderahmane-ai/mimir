@@ -13,7 +13,7 @@ from mimir.client.http import MimirClient
 from mimir.core.decider import Decider
 from mimir.core.decisions import Choice, Estimate, Rate, YesNo
 from mimir.core.tools import DecisionTool
-from mimir.mcp.server import GUIDANCE, create_server
+from mimir.mcp.server import create_server
 from mimir.runtime.engine import Mimir
 from mimir.server.app import create_app
 from mimir.server.metrics import Metrics
@@ -60,7 +60,7 @@ def test_tools_are_listed_in_order_with_the_contract_schemas(engine: Mimir) -> N
     for decision_tool, mcp_tool in zip(tools, listed, strict=False):
         assert mcp_tool.input_schema == decision_tool.input_schema
         assert mcp_tool.output_schema == decision_tool.output_schema
-        assert mcp_tool.description == f"{decision_tool.description}\n\n{GUIDANCE}"
+        assert mcp_tool.description == decision_tool.agent_description
     for tool in listed:
         assert tool.annotations is not None
         assert tool.annotations.read_only_hint is True

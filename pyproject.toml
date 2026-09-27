@@ -56,6 +56,14 @@ mcp = [
     "pyyaml>=6.0.3,<7",
     "uvicorn>=0.54,<1",
 ]
+openai-agents = ["openai-agents>=0.21,<1"]
+langchain = ["langchain>=1.3,<2"]
+pydantic-ai = ["pydantic-ai-slim>=2.16,<3"]
+crewai = ["crewai>=1.15,<2; python_version < '3.14'"]
+llamaindex = ["llama-index-core>=0.14.25,<0.15"]
+adk = ["google-adk>=2.10,<3"]
+agent-framework = ["agent-framework-core>=1.19,<2"]
+smolagents = ["smolagents>=1.26,<2"]
 all = ["mimirai[local,server,mcp]"]
 
 [project.scripts]
@@ -71,12 +79,25 @@ Model = "https://huggingface.co/vathosai/mimir-1"
 [dependency-groups]
 dev = [
     "mypy==2.3.1",
+    "pandas==3.0.6",
+    "pandas-stubs==3.0.5.260914",
+    "polars==1.44.2",
     "pytest==9.1.1",
     "ruff==0.16.9",
     "types-protobuf==7.35.1.20260906",
     "types-pyyaml==6.0.12.20260906",
     "vulture==2.16",
 ]
+# What the examples import beyond the extras: the frameworks' MCP clients and the model
+# providers, those on the MCP SDK 2 and those still on the SDK 1 (with CrewAI, which pins it).
+examples = [
+    "agent-framework-openai",
+    "google-adk[mcp]",
+    "langchain[mcp]",
+    "llama-index-tools-mcp==0.6.0",
+    "pydantic-ai-slim[mcp]",
+]
+examples-mcp1 = ["mcp>=1.28,<2", "smolagents[mcp]"]
 
 [build-system]
 requires = ["uv_build>=0.12.19,<0.13"]
@@ -84,12 +105,20 @@ build-backend = "uv_build"
 
 [tool.uv]
 # `local` and `local-gpu` both install the module `onnxruntime`; an environment holds one of
-# them, and `all` includes `local`.
+# them, and `all` includes `local`. CrewAI pins `mcp~=1.28` and `openai<3`, below the `mcp`
+# extra, the examples' MCP SDK 2 clients and the OpenAI Agents SDK.
 conflicts = [
     [{ extra = "local" }, { extra = "local-gpu" }],
     [{ extra = "all" }, { extra = "local-gpu" }],
+    [{ extra = "crewai" }, { extra = "mcp" }],
+    [{ extra = "crewai" }, { extra = "all" }],
+    [{ extra = "crewai" }, { extra = "openai-agents" }],
+    [{ extra = "crewai" }, { group = "examples" }],
+    [{ group = "examples-mcp1" }, { extra = "mcp" }],
+    [{ group = "examples-mcp1" }, { extra = "all" }],
+    [{ group = "examples-mcp1" }, { group = "examples" }],
 ]
-default-groups = ["dev"]
+default-groups = ["dev", "examples"]
 
 [tool.uv.build-backend]
 module-name = "mimir"
@@ -109,7 +138,7 @@ select = [
 ban-relative-imports = "all"
 
 [tool.ruff.lint.isort]
-known-first-party = ["mimir", "tests", "banner"]
+known-first-party = ["mimir", "tests", "banner", "examples"]
 
 [tool.ruff.lint.pylint]
 # The decision shortcuts take their spec's fields plus the context, risk and alpha.
@@ -125,6 +154,13 @@ max-returns = 8
 # and the base install never load ONNX Runtime, tokenizers or Sigstore.
 "src/mimir/__init__.py" = ["PLC0415"]
 "src/mimir/extras.py" = ["PLC0415"]
+# Examples are scripts that report to their console, and import a model provider's package
+# only in `main`, so their agents build without it.
+"examples/**" = ["T201", "PLC0415"]
+# Adapters implement the frameworks' callback signatures, which pass more than each one reads.
+"src/mimir/integrations/**" = ["ARG001", "ARG002"]
+# `Table.from_dataframe` imports pandas or polars only when the caller already has.
+"src/mimir/core/context.py" = ["PLC0415"]
 # The same deferral applies to the CLI; Typer maps each command parameter to one flag.
 "src/mimir/cli/app.py" = ["PLC0415", "PLR0913", "PLR0917"]
 # `Mimir.from_pretrained` takes one keyword-only option per loading choice.
@@ -135,8 +171,9 @@ max-returns = 8
 "src/mimir/runtime/hardware.py" = ["S603", "S607"]
 # pytest asserts and literal expected values are the point of a test; tests reach
 # module-private helpers directly; the import test runs this interpreter with a literal script;
-# the any-address appears as a host the servers must refuse to expose without keys.
-"tests/**" = ["S101", "PLR2004", "SLF001", "PLC2701", "S603", "S104"]
+# the any-address appears as a host the servers must refuse to expose without keys; scripted
+# models implement framework methods whose every parameter they do not read.
+"tests/**" = ["S101", "PLR2004", "SLF001", "PLC2701", "S603", "S104", "ARG002"]
 
 [tool.mypy]
 strict = true
@@ -146,7 +183,7 @@ disallow_any_generics = true
 no_implicit_reexport = true
 explicit_package_bases = true
 mypy_path = "src:tools"
-files = ["src", "tests", "tools"]
+files = ["src", "tests", "tools", "examples"]
 plugins = ["pydantic.mypy"]
 
 [tool.pydantic-mypy]
@@ -157,7 +194,39 @@ warn_required_dynamic_aliases = true
 [[tool.mypy.overrides]]
 # These tests pass values of the wrong type on purpose, to prove the runtime checks reject them.
 module = ["tests.unit.mimir.core.test_context", "tests.unit.mimir.core.test_decider"]
-disable_error_code = ["arg-type", "call-overload"]
+disable_error_code = ["arg-type", "call-overload", "list-item"]
+
+[[tool.mypy.overrides]]
+# CrewAI's `Agent` and LlamaIndex's `FunctionAgent` declare their fields through metaclasses
+# the Pydantic plugin cannot read.
+module = [
+    "tests.unit.mimir.integrations.test_crewai",
+    "tests.unit.mimir.integrations.test_llamaindex",
+    "tests.unit.examples.test_crewai",
+    "tests.unit.examples.test_llamaindex",
+    "tests.integration.examples.test_crewai",
+    "tests.integration.examples.test_llamaindex",
+    "examples.crewai.*",
+    "examples.llamaindex.*",
+]
+disable_error_code = ["call-arg"]
+
+[[tool.mypy.overrides]]
+# smolagents and LlamaIndex's MCP tools and OpenAI model are annotated but ship no py.typed.
+module = ["smolagents", "smolagents.*", "llama_index.tools.*"]
+follow_untyped_imports = true
+
+[[tool.mypy.overrides]]
+# LlamaIndex's OpenAI model pins `openai<3`, which the OpenAI Agents SDK here excludes; its
+# examples import it only in `main`.
+module = ["llama_index.llms.openai"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# smolagents leaves `Tool.__init__` unannotated, and annotates an input's type as one string
+# though `Tool.validate_arguments` accepts a list of them.
+module = ["mimir.integrations.smolagents"]
+disable_error_code = ["no-untyped-call", "arg-type"]
 
 [[tool.mypy.overrides]]
 # onnxruntime ships neither stubs nor py.typed; mimir.runtime.session types the surface it uses.
@@ -168,13 +237,35 @@ ignore_missing_imports = true
 testpaths = ["tests"]
 pythonpath = [".", "tools"]
 addopts = ["--import-mode=importlib", "--strict-markers", "--strict-config", "-m", "not integration"]
-filterwarnings = ["error"]
+# Warnings the frameworks raise from their own code, each ignored by its message:
+# - CrewAI 1.15 imports a child module of a package that forbids attributes on itself, reads its
+#   own deprecated agent fields (`deprecated` alone is Pydantic's message for such a field) and,
+#   through the MCP SDK 1, calls the SDK's deprecated HTTP client. It renames its modules, so the
+#   module pattern is its package.
+# - LlamaIndex's workflow engine reads every attribute of an agent with `inspect.getmembers`,
+#   Pydantic's deprecated ones included.
+# - Google ADK warns on every experimental feature it uses, builds its own deprecated `MCPTool`,
+#   and reads `Tool.inputSchema` and `Tool.outputSchema`, which fastmcp (under the LangChain and PydanticAI MCP clients)
+#   marks deprecated.
+# - LangChain warns on import of its MCP client, marked beta.
+filterwarnings = [
+    "error",
+    "ignore:Cannot set an attribute on 'crewai.rag' for child module:ImportWarning",
+    "ignore:function_calling_llm is deprecated:DeprecationWarning:crewai",
+    "ignore:deprecated\\Z:DeprecationWarning:crewai",
+    "ignore::pydantic.warnings.PydanticDeprecationWarning:inspect",
+    "ignore:\\[EXPERIMENTAL\\] feature FeatureName:UserWarning:google.adk",
+    "ignore:`langchain.mcp` is in beta:DeprecationWarning",
+    "ignore:Use `streamable_http_client` instead:DeprecationWarning",
+    "ignore:MCPTool class is deprecated, use `McpTool` instead",
+    "ignore:Accessing `Tool.(input|output)Schema` is deprecated",
+]
 markers = [
     "integration: needs the released artifact, the network or a subprocess; run by `make test TASK=integration`",
 ]
 
 [tool.vulture]
-paths = ["src", "tests", "tools"]
+paths = ["src", "tests", "tools", "examples"]
 min_confidence = 60
 # pytest reads pytestmark; Python calls a module's __getattr__; Pydantic reads model_config
 # and calls validators by decoration; ONNX Runtime reads use_deterministic_compute and
@@ -182,11 +273,16 @@ min_confidence = 60
 # ir_version; the session protocol names its parameters output_names and input_feed. `mask`
 # and `output_tokens` are fields of external formats (config.json, Jev's usage), and
 # `mimirai` and `measured_at` fields of the load report, that are validated and serialised,
-# not read.
+# not read. The agent frameworks call the methods and read the attributes their adapters and
+# scripted models define (`wrap_tool_call` to `bind_tools`), and pass the parameters their
+# callbacks declare (`call_id`, `stop_sequences`, `tools_to_call_from`).
 ignore_names = [
     "pytestmark", "__getattr__", "model_config", "use_deterministic_compute",
     "graph_optimization_level", "normalizer", "pre_tokenizer", "ir_version", "output_names",
     "input_feed", "_check_*", "mask", "output_tokens", "mimirai", "measured_at",
+    "wrap_tool_call", "awrap_tool_call", "forward", "skip_forward_signature_validation",
+    "skip_summarization", "_inner_get_response", "generate_content_async", "generate",
+    "bind_tools", "call_id", "stop_sequences", "tools_to_call_from",
 ]
-# Typer and FastAPI call the functions they register by decoration.
-ignore_decorators = ["@app.command", "@app.get", "@app.post"]
+# Typer and FastAPI call the functions they register by decoration; pytest calls fixtures.
+ignore_decorators = ["@app.command", "@app.get", "@app.post", "@pytest.fixture"]
