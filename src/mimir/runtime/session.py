@@ -17,6 +17,11 @@ import onnxruntime
 
 from mimir.core.errors import UncertifiedRuntimeError
 
+# ONNX Runtime 1.30 uploads usage events to mobile.events.data.microsoft.com from a background
+# thread; an upload still in flight when the process exits locks a destroyed mutex and aborts
+# it ("recursive_mutex lock failed", seen in the integration suite on 2026-09-27).
+onnxruntime.disable_telemetry_events()
+
 Device = Literal["cpu", "cuda"]
 Array = npt.NDArray[np.generic]
 

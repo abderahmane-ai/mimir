@@ -109,5 +109,5 @@ build: ## Build the sdist and wheel into dist/
 	uv build
 
 clean: ## Delete every cache and build output
-	find . -type d \( -name __pycache__ -o -name .pytest_cache -o -name .mypy_cache -o -name .ruff_cache -o -name htmlcov -o -name build -o -name dist \) -not -path './.venv*' -prune -exec rm -rf {} +
+	find . -type d \( -name __pycache__ -o -name .pytest_cache -o -name .mypy_cache -o -name .ruff_cache -o -name htmlcov -o -name build -o -name dist \) -not -path './.venv*' -not -path '*/node_modules/*' -prune -exec rm -rf {} +
 	find . \( -name '*.pyc' -o -name .coverage \) -not -path './.venv*' -delete

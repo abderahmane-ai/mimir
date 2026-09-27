@@ -1,5 +1,7 @@
 import hashlib
 import json
+import subprocess
+import sys
 from importlib import metadata
 from pathlib import Path
 
@@ -113,3 +115,17 @@ def test_open_session_runs_the_graph_on_the_cpu(tmp_path: Path) -> None:
 
 def test_runtime_version_is_the_pinned_one() -> None:
     assert runtime_version() == "1.30.0"
+
+
+def test_importing_the_session_module_turns_off_runtime_telemetry() -> None:
+    script = (
+        "import onnxruntime\n"
+        "calls = []\n"
+        "onnxruntime.disable_telemetry_events = lambda: calls.append(1)\n"
+        "import mimir.runtime.session\n"
+        "print(len(calls))\n"
+    )
+    finished = subprocess.run(
+        [sys.executable, "-c", script], capture_output=True, text=True, check=True
+    )
+    assert finished.stdout.strip() == "1"
