@@ -258,6 +258,9 @@ addopts = ["--import-mode=importlib", "--strict-markers", "--strict-config", "-m
 #   and reads `Tool.inputSchema` and `Tool.outputSchema`, which fastmcp (under the LangChain and PydanticAI MCP clients)
 #   marks deprecated.
 # - LangChain warns on import of its MCP client, marked beta.
+# - OpenTelemetry's importlib-metadata compat shim drives the stdlib's deprecated
+#   SelectableGroups dict interface on Python 3.11, reached from chromadb's and
+#   Agent Framework's own imports.
 filterwarnings = [
     "error",
     "ignore:Cannot set an attribute on 'crewai.rag' for child module:ImportWarning",
@@ -269,6 +272,7 @@ filterwarnings = [
     "ignore:Use `streamable_http_client` instead:DeprecationWarning",
     "ignore:MCPTool class is deprecated, use `McpTool` instead",
     "ignore:Accessing `Tool.(input|output)Schema` is deprecated",
+    "ignore:SelectableGroups dict interface is deprecated:DeprecationWarning",
 ]
 markers = [
     "integration: needs the released artifact, the network or a subprocess; run by `make test TASK=integration`",
