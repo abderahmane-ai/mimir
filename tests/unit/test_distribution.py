@@ -19,14 +19,14 @@ def test_the_registry_entry_matches_the_package_version() -> None:
     version = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"][
         "version"
     ]
-    assert version == metadata.version("mimirai")
+    assert version == metadata.version("mimir-decisions")
     server = _server()
     assert (server["name"], server["version"]) == (SERVER_NAME, version)
     packages = server["packages"]
     assert isinstance(packages, list)
     pypi, oci = packages
-    assert (pypi["identifier"], pypi["version"]) == ("mimirai", version)
-    assert pypi["runtimeArguments"][0]["value"] == f"mimirai[local,mcp]=={version}"
+    assert (pypi["identifier"], pypi["version"]) == ("mimir-decisions", version)
+    assert pypi["runtimeArguments"][0]["value"] == f"mimir-decisions[local,mcp]=={version}"
     assert oci["identifier"] == f"ghcr.io/abderahmane-ai/mimir:{version}-cpu"
 
 
@@ -42,4 +42,4 @@ def test_the_registry_command_exists() -> None:
     scripts = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"][
         "scripts"
     ]
-    assert scripts == {"mimir": "mimir.cli.app:main", "mimirai": "mimir.cli.app:main"}
+    assert scripts == {"mimir": "mimir.cli.app:main", "mimir-decisions": "mimir.cli.app:main"}

@@ -1,7 +1,7 @@
 # OpenAI Agents SDK
 
 ```bash
-pip install "mimirai[local,openai-agents]"
+pip install "mimir-decisions[local,openai-agents]"
 ```
 
 `mimir.integrations.openai_agents.as_function_tool` converts a decision tool into a `FunctionTool` for use in an `Agent`'s tool list. The typed result is returned as structured data.

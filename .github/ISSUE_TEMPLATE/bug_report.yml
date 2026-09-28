@@ -45,7 +45,7 @@ body:
   - type: input
     id: version
     attributes:
-      label: mimirai version
-      description: Output of `pip show mimirai | grep Version`.
+      label: mimir-decisions version
+      description: Output of `pip show mimir-decisions | grep Version`.
     validations:
       required: true

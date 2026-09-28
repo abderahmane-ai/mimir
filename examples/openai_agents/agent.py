@@ -1,6 +1,6 @@
 """An OpenAI Agents SDK agent that routes support tickets with a MIMIR decision tool.
 
-Install `mimirai[local,openai-agents]`, set `OPENAI_API_KEY`, then run
+Install `mimir-decisions[local,openai-agents]`, set `OPENAI_API_KEY`, then run
 `make example NAME=openai_agents/agent`.
 """
 

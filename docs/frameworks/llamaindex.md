@@ -1,7 +1,7 @@
 # LlamaIndex
 
 ```bash
-pip install "mimirai[local,llamaindex]"
+pip install "mimir-decisions[local,llamaindex]"
 ```
 
 `mimir.integrations.llamaindex.as_llamaindex_tool` converts a decision tool into a tool compatible with `FunctionAgent`, `ReActAgent`, and `AgentWorkflow`. The typed result is available as the tool output's `raw_output`.

@@ -1,7 +1,7 @@
 # smolagents
 
 ```bash
-pip install "mimirai[local,smolagents]"
+pip install "mimir-decisions[local,smolagents]"
 ```
 
 `mimir.integrations.smolagents.as_smolagents_tool` converts a decision tool into a tool for `ToolCallingAgent` and `CodeAgent`. The typed result is returned as a JSON object, so agent code reads `result["status"]` and `result["answer"]`.

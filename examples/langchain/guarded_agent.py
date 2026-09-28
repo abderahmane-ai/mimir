@@ -2,7 +2,7 @@
 
 A certified yes runs the refund, a certified no returns the reason to the model, and anything
 else interrupts the graph with LangChain's human-in-the-loop request until a person at the
-console approves or rejects it. Install `mimirai[local,langchain]` and `langchain-openai`,
+console approves or rejects it. Install `mimir-decisions[local,langchain]` and `langchain-openai`,
 set `OPENAI_API_KEY`, then run `make example NAME=langchain/guarded_agent`.
 """
 

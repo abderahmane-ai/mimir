@@ -85,7 +85,7 @@ jobs:
     runs-on: ubuntu-24.04
     environment:
       name: pypi
-      url: https://pypi.org/project/mimirai/${{ needs.build.outputs.version }}/
+      url: https://pypi.org/project/mimir-decisions/${{ needs.build.outputs.version }}/
     permissions:
       id-token: write
     steps:
@@ -184,4 +184,4 @@ jobs:
           awk -v heading="## $VERSION" '$0 == heading {found = 1; next} /^## / {found = 0} found' CHANGELOG.md > notes.md
           test -s notes.md
           printf '\nModel: Mythologic/MIMIR-1 at %s.\n' "$MODEL_COMMIT" >> notes.md
-          gh release create "v$VERSION" dist/* --target "$GITHUB_SHA" --title "mimirai $VERSION" --notes-file notes.md
+          gh release create "v$VERSION" dist/* --target "$GITHUB_SHA" --title "mimir-decisions $VERSION" --notes-file notes.md

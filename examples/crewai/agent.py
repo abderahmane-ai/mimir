@@ -1,6 +1,6 @@
 """A CrewAI crew that routes support tickets with a MIMIR decision tool.
 
-Install `mimirai[local,crewai]`, set `OPENAI_API_KEY`, then run
+Install `mimir-decisions[local,crewai]`, set `OPENAI_API_KEY`, then run
 `make example NAME=crewai/agent`.
 """
 

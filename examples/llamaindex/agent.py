@@ -1,6 +1,6 @@
 """A LlamaIndex `FunctionAgent` that routes support tickets with a MIMIR decision tool.
 
-The typed result is each tool output's `raw_output`. Install `mimirai[local,llamaindex]` and
+The typed result is each tool output's `raw_output`. Install `mimir-decisions[local,llamaindex]` and
 `llama-index-llms-openai`, set `OPENAI_API_KEY`, then run `make example NAME=llamaindex/agent`.
 """
 

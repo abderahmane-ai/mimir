@@ -1,6 +1,6 @@
 """Rank vendors against a requirement, best first.
 
-Install `mimirai[local]`, then run `make example NAME=usecases/rank_vendors`.
+Install `mimir-decisions[local]`, then run `make example NAME=usecases/rank_vendors`.
 """
 
 from mimir import Decider, Mimir, RankResult

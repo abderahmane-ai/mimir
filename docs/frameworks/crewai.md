@@ -1,7 +1,7 @@
 # CrewAI
 
 ```bash
-pip install "mimirai[local,crewai]"
+pip install "mimir-decisions[local,crewai]"
 ```
 
 `mimir.integrations.crewai.as_crewai_tool` converts a decision tool into a `BaseTool` whose `result_schema` is the typed result, for use in a CrewAI `Agent`'s tool list.
@@ -10,7 +10,7 @@ pip install "mimirai[local,crewai]"
 
 Tested from `crewai` 1.15.
 
-> **Note.** CrewAI pins the MCP SDK to version 1, which conflicts with `mimirai[mcp]`. Install CrewAI separately from the MCP extra. The MCP example for CrewAI connects over HTTP rather than stdio for this reason.
+> **Note.** CrewAI pins the MCP SDK to version 1, which conflicts with `mimir-decisions[mcp]`. Install CrewAI separately from the MCP extra. The MCP example for CrewAI connects over HTTP rather than stdio for this reason.
 
 ## Native tools
 

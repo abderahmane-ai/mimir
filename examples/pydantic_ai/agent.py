@@ -1,7 +1,7 @@
 """A PydanticAI agent that routes support tickets with MIMIR decision tools.
 
 The tools return typed results, which PydanticAI keeps in the tool return parts. Install
-`mimirai[local,pydantic-ai]` and `pydantic-ai-slim[openai]`, set `OPENAI_API_KEY`, then run
+`mimir-decisions[local,pydantic-ai]` and `pydantic-ai-slim[openai]`, set `OPENAI_API_KEY`, then run
 `make example NAME=pydantic_ai/agent`.
 """
 

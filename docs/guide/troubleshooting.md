@@ -5,10 +5,10 @@
 You imported only the data models but called something that requires the engine, the server, or a framework adapter. The exception message names the missing extra:
 
 ```bash
-pip install "mimirai[local]"            # the local engine (CPU)
-pip install "mimirai[local-gpu]"        # the local engine (CUDA)
-pip install "mimirai[local,server]"     # engine plus the HTTP server
-pip install "mimirai[local,mcp]"        # engine plus the MCP server
+pip install "mimir-decisions[local]"            # the local engine (CPU)
+pip install "mimir-decisions[local-gpu]"        # the local engine (CUDA)
+pip install "mimir-decisions[local,server]"     # engine plus the HTTP server
+pip install "mimir-decisions[local,mcp]"        # engine plus the MCP server
 ```
 
 ## The model will not load

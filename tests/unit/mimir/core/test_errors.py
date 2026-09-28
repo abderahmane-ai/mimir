@@ -27,7 +27,7 @@ def test_input_limit_error_carries_the_value_and_limit() -> None:
 
 def test_missing_extra_error_names_the_install_command() -> None:
     error = MissingExtraError("Mimir", "local", "onnxruntime")
-    assert "pip install 'mimirai[local]'" in str(error)
+    assert "pip install 'mimir-decisions[local]'" in str(error)
     assert "onnxruntime" in str(error)
     assert isinstance(error, ImportError)
 

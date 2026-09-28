@@ -1,6 +1,6 @@
 """Route a support ticket to the team that owns it.
 
-Install `mimirai[local]`, then run `make example NAME=usecases/route_ticket`.
+Install `mimir-decisions[local]`, then run `make example NAME=usecases/route_ticket`.
 """
 
 from mimir import ChoiceResult, Decider, Mimir, Status

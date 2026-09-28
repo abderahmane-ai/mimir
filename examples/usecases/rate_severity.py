@@ -1,6 +1,6 @@
 """Rate the severity of an incident on an ordered scale.
 
-Install `mimirai[local]`, then run `make example NAME=usecases/rate_severity`.
+Install `mimir-decisions[local]`, then run `make example NAME=usecases/rate_severity`.
 """
 
 from mimir import Decider, Mimir, RateResult

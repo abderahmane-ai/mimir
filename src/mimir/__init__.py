@@ -39,7 +39,7 @@ if TYPE_CHECKING:
     from mimir.client.http import MimirClient
     from mimir.runtime.engine import Mimir
 
-__version__ = metadata.version("mimirai")
+__version__ = metadata.version("mimir-decisions")
 
 __all__ = [
     "Cell",

@@ -1,5 +1,5 @@
 [project]
-name = "mimirai"
+name = "mimir-decisions"
 version = "1.0.0"
 description = "Typed, calibrated and certified decisions from MIMIR, a non-generative decision model"
 readme = "README.md"
@@ -67,12 +67,12 @@ llamaindex = ["llama-index-core>=0.14.25,<0.15"]
 adk = ["google-adk>=2.10,<3"]
 agent-framework = ["agent-framework-core>=1.19,<2"]
 smolagents = ["smolagents>=1.26,<2"]
-all = ["mimirai[local,server,mcp]"]
+all = ["mimir-decisions[local,server,mcp]"]
 
 [project.scripts]
 mimir = "mimir.cli.app:main"
-# `uvx mimirai ...` runs the command named after the package, as MCP Registry clients do.
-mimirai = "mimir.cli.app:main"
+# `uvx mimir-decisions ...` runs the command named after the package, as MCP Registry clients do.
+mimir-decisions = "mimir.cli.app:main"
 
 [project.urls]
 Homepage = "https://github.com/abderahmane-ai/mimir"
@@ -282,7 +282,7 @@ min_confidence = 60
 # graph_optimization_level; tokenizers reads normalizer and pre_tokenizer; onnx writes
 # ir_version; the session protocol names its parameters output_names and input_feed. `mask`
 # and `output_tokens` are fields of external formats (config.json, Jev's usage), and
-# and `mimirai` and `measured_at` fields of the load report, that are validated and serialised,
+# and `mimir_decisions` and `measured_at` fields of the load report, that are validated and serialised,
 # not read. The agent frameworks call the methods and read the attributes their adapters and
 # scripted models define (`wrap_tool_call` to `bind_tools`), and pass the parameters their
 # callbacks declare (`call_id`, `stop_sequences`, `tools_to_call_from`). Typer reads rich's
@@ -291,7 +291,7 @@ min_confidence = 60
 ignore_names = [
     "pytestmark", "__getattr__", "model_config", "use_deterministic_compute",
     "graph_optimization_level", "normalizer", "pre_tokenizer", "ir_version", "output_names",
-    "input_feed", "_check_*", "mask", "output_tokens", "mimirai", "measured_at",
+    "input_feed", "_check_*", "mask", "output_tokens", "mimir_decisions", "measured_at",
     "STYLE_OPTIONS_PANEL_BORDER", "STYLE_COMMANDS_PANEL_BORDER",
     "wrap_tool_call", "awrap_tool_call", "forward", "skip_forward_signature_validation",
     "skip_summarization", "_inner_get_response", "generate_content_async", "generate",

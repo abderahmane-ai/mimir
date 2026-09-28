@@ -2,7 +2,7 @@
 first.
 
 A certified yes runs the refund; otherwise the refund does not run and the model reads the
-check's reason. Install `mimirai[local,agent-framework]` and `agent-framework-openai`, set
+check's reason. Install `mimir-decisions[local,agent-framework]` and `agent-framework-openai`, set
 `OPENAI_API_KEY`, then run `make example NAME=agent_framework/guarded_agent`.
 """
 

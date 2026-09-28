@@ -202,6 +202,6 @@ def create_server(
         SERVER_NAME,
         title="MIMIR",
         description="Typed, calibrated and certified decisions over a context.",
-        version=metadata.version("mimirai"),
+        version=metadata.version("mimir-decisions"),
         tools=listed,
     )

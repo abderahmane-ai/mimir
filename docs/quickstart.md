@@ -1,7 +1,7 @@
 # Quickstart
 
 ```bash
-pip install "mimirai[local]"
+pip install "mimir-decisions[local]"
 ```
 
 ```python

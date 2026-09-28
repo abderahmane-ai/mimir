@@ -1,6 +1,6 @@
 # Command line
 
-`pip install "mimirai[local]"` installs the `mimir` command. Every command accepts `--help`.
+`pip install "mimir-decisions[local]"` installs the `mimir` command. Every command accepts `--help`.
 
 | Command | Does |
 |---|---|

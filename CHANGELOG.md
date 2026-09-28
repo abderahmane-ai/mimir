@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to `mimirai` are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+All notable changes to `mimir-decisions` are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 

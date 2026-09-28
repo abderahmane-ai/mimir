@@ -1,4 +1,4 @@
-# mimirai
+# mimir-decisions
 
 **Decisions your agents can act on.** MIMIR is a non-generative decision model: give it
 a context, a question and the options, and get back a typed answer with calibrated
@@ -10,9 +10,9 @@ Banking77, 42.3 on MASSIVE, 36.3 on typed decisions — and where it cannot back
 answer, it abstains instead of guessing.
 
 ```bash
-pip install "mimirai[local]"        # CPU engine
-pip install "mimirai[local-gpu]"    # CUDA engine
-pip install mimirai                  # data models and HTTP client only
+pip install "mimir-decisions[local]"        # CPU engine
+pip install "mimir-decisions[local-gpu]"    # CUDA engine
+pip install mimir-decisions                  # data models and HTTP client only
 ```
 
 Python 3.11+. Documentation: <https://abderahmane-ai.github.io/mimir/>
@@ -164,14 +164,14 @@ Each adapter turns decision tools into the framework's native tool type and wire
 
 | Framework | Install | Tools | Tool-call check |
 |---|---|---|---|
-| OpenAI Agents SDK | `mimirai[openai-agents]` | `as_function_tool` | `guard`: escalations pause the run for approval |
-| LangChain / LangGraph | `mimirai[langchain]` | `as_structured_tool` | `ToolCallCheckMiddleware`: escalations interrupt with the human-in-the-loop request |
-| PydanticAI | `mimirai[pydantic-ai]` | `as_toolset` | `guard`: escalations end the run with `DeferredToolRequests` |
-| CrewAI | `mimirai[crewai]` | `as_crewai_tool` | `tool_call_hook`: escalations go to your approver |
-| Google ADK | `mimirai[adk]` | `as_adk_tool` | `tool_call_callback`: escalations ask for ADK confirmation |
-| Microsoft Agent Framework | `mimirai[agent-framework]` | `as_function_tool` | `ToolCallCheckMiddleware`: only certified calls run |
-| LlamaIndex | `mimirai[llamaindex]` | `as_llamaindex_tool` | none |
-| smolagents | `mimirai[smolagents]` | `as_smolagents_tool` | none |
+| OpenAI Agents SDK | `mimir-decisions[openai-agents]` | `as_function_tool` | `guard`: escalations pause the run for approval |
+| LangChain / LangGraph | `mimir-decisions[langchain]` | `as_structured_tool` | `ToolCallCheckMiddleware`: escalations interrupt with the human-in-the-loop request |
+| PydanticAI | `mimir-decisions[pydantic-ai]` | `as_toolset` | `guard`: escalations end the run with `DeferredToolRequests` |
+| CrewAI | `mimir-decisions[crewai]` | `as_crewai_tool` | `tool_call_hook`: escalations go to your approver |
+| Google ADK | `mimir-decisions[adk]` | `as_adk_tool` | `tool_call_callback`: escalations ask for ADK confirmation |
+| Microsoft Agent Framework | `mimir-decisions[agent-framework]` | `as_function_tool` | `ToolCallCheckMiddleware`: only certified calls run |
+| LlamaIndex | `mimir-decisions[llamaindex]` | `as_llamaindex_tool` | none |
+| smolagents | `mimir-decisions[smolagents]` | `as_smolagents_tool` | none |
 
 ```python
 from agents import Agent
@@ -187,7 +187,7 @@ Every framework also reaches MIMIR through its own MCP client. [`examples/`](exa
 ## HTTP server
 
 ```bash
-pip install "mimirai[local,server]"
+pip install "mimir-decisions[local,server]"
 MIMIR_API_KEYS=key-one,key-two mimir serve --host 0.0.0.0 --tools tools.yaml
 ```
 
@@ -211,7 +211,7 @@ Concurrent requests are batched. With keys in `MIMIR_API_KEYS`, every route exce
 Each configured tool becomes an MCP tool that takes only a context; `--generic-tools` adds `mimir_choose`, `mimir_verify`, `mimir_rank`, and `mimir_rate`. A deferred decision is a normal result telling the agent to escalate.
 
 ```bash
-uvx --from "mimirai[local,mcp]" mimirai mcp --tools tools.yaml               # stdio
+uvx --from "mimir-decisions[local,mcp]" mimir-decisions mcp --tools tools.yaml               # stdio
 MIMIR_API_KEYS=... mimir mcp --http --host 0.0.0.0 --tools tools.yaml       # Streamable HTTP at /mcp
 mimir mcp --tools tools.yaml --remote https://mimir.internal                  # forward to a server
 mimir serve --mcp --tools tools.yaml                                          # HTTP API and /mcp together
@@ -220,7 +220,7 @@ mimir serve --mcp --tools tools.yaml                                          # 
 In Claude Code:
 
 ```bash
-claude mcp add mimir -- uvx --from "mimirai[local,mcp]" mimirai mcp --tools /path/to/tools.yaml
+claude mcp add mimir -- uvx --from "mimir-decisions[local,mcp]" mimir-decisions mcp --tools /path/to/tools.yaml
 claude mcp add --transport http mimir https://mimir.internal/mcp --header "Authorization: Bearer ..."
 ```
 
@@ -278,4 +278,4 @@ Releases are loaded from a pinned Hugging Face revision. Before any model file i
 
 ## License
 
-The `mimirai` package is licensed under [Apache 2.0](LICENSE). The MIMIR model weights are distributed under their own license on the [Hugging Face Hub](https://huggingface.co/Mythologic/MIMIR-1).
+The `mimir-decisions` package is licensed under [Apache 2.0](LICENSE). The MIMIR model weights are distributed under their own license on the [Hugging Face Hub](https://huggingface.co/Mythologic/MIMIR-1).

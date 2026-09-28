@@ -1,6 +1,6 @@
 """A Microsoft Agent Framework agent that routes support tickets with a MIMIR decision tool.
 
-Install `mimirai[local,agent-framework]` and `agent-framework-openai`, set `OPENAI_API_KEY`,
+Install `mimir-decisions[local,agent-framework]` and `agent-framework-openai`, set `OPENAI_API_KEY`,
 then run `make example NAME=agent_framework/agent`.
 """
 

@@ -1,6 +1,6 @@
 """Gate a refund tool call against a written rule.
 
-Install `mimirai[local]`, then run `make example NAME=usecases/gate_tool_call`.
+Install `mimir-decisions[local]`, then run `make example NAME=usecases/gate_tool_call`.
 """
 
 from mimir import CheckOutcome, Decider, Mimir, Permission

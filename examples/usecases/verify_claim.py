@@ -1,6 +1,6 @@
 """Check a claim against evidence passages.
 
-Install `mimirai[local]`, then run `make example NAME=usecases/verify_claim`.
+Install `mimir-decisions[local]`, then run `make example NAME=usecases/verify_claim`.
 """
 
 from mimir import Context, Decider, Mimir, Passage, VerifyResult

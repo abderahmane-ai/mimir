@@ -44,7 +44,7 @@ def test_the_contract_and_client_import_without_extras() -> None:
         [sys.executable, "-c", WITHOUT_EXTRAS], capture_output=True, text=True, check=False
     )
     assert completed.returncode == 0, completed.stderr
-    assert "pip install 'mimirai[local]'" in completed.stdout
+    assert "pip install 'mimir-decisions[local]'" in completed.stdout
 
 
 def test_public_names_resolve() -> None:

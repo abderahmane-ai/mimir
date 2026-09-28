@@ -2,7 +2,7 @@
 
 `config.json` lists the variants, decision types (in graph index order), certified risk levels,
 input limits, default alpha, input layout and graph contract. `manifest.json` lists the SHA-256
-of every other file and the `mimirai` versions that can load the release.
+of every other file and the `mimir-decisions` versions that can load the release.
 """
 
 from typing import Final
@@ -15,7 +15,7 @@ CONFIG_FILE: Final = "config.json"
 MANIFEST_FILE: Final = "manifest.json"
 SIGNATURE_FILE: Final = "manifest.json.sigstore"
 FORMAT_VERSION: Final = 1
-PACKAGE: Final = "mimirai"
+PACKAGE: Final = "mimir-decisions"
 
 
 class _Frozen(BaseModel):

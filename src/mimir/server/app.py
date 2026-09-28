@@ -88,7 +88,7 @@ def create_app(
     app = FastAPI(
         title="MIMIR",
         summary="Typed, calibrated and certified decisions.",
-        version=metadata.version("mimirai"),
+        version=metadata.version("mimir-decisions"),
         lifespan=lifespan,
         docs_url=None,
         redoc_url=None,

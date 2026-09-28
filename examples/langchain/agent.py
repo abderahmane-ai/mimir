@@ -1,7 +1,7 @@
 """A LangChain agent that routes support tickets with a MIMIR decision tool.
 
 The tool's typed result is the tool message's `artifact`. Install
-`mimirai[local,langchain]` and `langchain-openai`, set `OPENAI_API_KEY`, then run
+`mimir-decisions[local,langchain]` and `langchain-openai`, set `OPENAI_API_KEY`, then run
 `make example NAME=langchain/agent`.
 """
 

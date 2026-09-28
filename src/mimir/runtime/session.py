@@ -104,7 +104,7 @@ def resolve_device(device: str) -> Device:
         if CUDA not in available:
             message = (
                 f"device 'cuda' needs {CUDA}; this ONNX Runtime offers {available}: "
-                "pip install 'mimirai[local-gpu]'"
+                "pip install 'mimir-decisions[local-gpu]'"
             )
             raise UncertifiedRuntimeError(message)
         return "cuda"

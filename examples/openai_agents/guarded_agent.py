@@ -2,7 +2,7 @@
 
 A certified yes runs the refund, a certified no rejects it with the reason, and anything else
 pauses the run until a person at the console approves or rejects it. Install
-`mimirai[local,openai-agents]`, set `OPENAI_API_KEY`, then run
+`mimir-decisions[local,openai-agents]`, set `OPENAI_API_KEY`, then run
 `make example NAME=openai_agents/guarded_agent`.
 """
 

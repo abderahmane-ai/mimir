@@ -1,7 +1,7 @@
 # Google ADK
 
 ```bash
-pip install "mimirai[local,adk]"
+pip install "mimir-decisions[local,adk]"
 ```
 
 `mimir.integrations.google_adk.as_adk_tool` converts a decision tool into an ADK tool declared with the decision tool's argument schema, for use in an `LlmAgent`'s tool list.

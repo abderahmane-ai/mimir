@@ -1,7 +1,7 @@
 # LangChain and LangGraph
 
 ```bash
-pip install "mimirai[local,langchain]"
+pip install "mimir-decisions[local,langchain]"
 ```
 
 `mimir.integrations.langchain.as_structured_tool` converts a decision tool into a `StructuredTool` for use with `create_agent` and LangGraph's `ToolNode`. The typed result is the tool message's `artifact`.

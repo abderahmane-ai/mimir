@@ -1,6 +1,6 @@
 """A Google ADK agent that routes support tickets with a MIMIR decision tool.
 
-Install `mimirai[local,adk]`, set `GOOGLE_API_KEY`, then run
+Install `mimir-decisions[local,adk]`, set `GOOGLE_API_KEY`, then run
 `make example NAME=google_adk/agent`.
 """
 

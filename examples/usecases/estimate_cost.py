@@ -1,6 +1,6 @@
 """Estimate a repair cost inside a range, with an interval.
 
-Install `mimirai[local]`, then run `make example NAME=usecases/estimate_cost`.
+Install `mimir-decisions[local]`, then run `make example NAME=usecases/estimate_cost`.
 """
 
 from mimir import Decider, EstimateResult, Mimir

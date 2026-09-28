@@ -2,12 +2,12 @@
 
 MIMIR is a non-generative decision model by Mythologic. Give it a context, a question, and the options; it returns a typed answer, calibrated probabilities, the parts of the context it relied on, and a certified verdict on whether the answer may be acted on.
 
-`mimirai` is its Python package: a local engine on ONNX Runtime, an HTTP server, an MCP server, and adapters for eight agent frameworks, all sharing one typed contract.
+`mimir-decisions` is its Python package: a local engine on ONNX Runtime, an HTTP server, an MCP server, and adapters for eight agent frameworks, all sharing one typed contract.
 
 ```bash
-pip install "mimirai[local]"        # CPU engine
-pip install "mimirai[local-gpu]"    # CUDA engine
-pip install mimirai                  # data models and HTTP client only
+pip install "mimir-decisions[local]"        # CPU engine
+pip install "mimir-decisions[local-gpu]"    # CUDA engine
+pip install mimir-decisions                  # data models and HTTP client only
 ```
 
 Python 3.11 or later.

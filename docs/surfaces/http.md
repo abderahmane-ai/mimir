@@ -1,7 +1,7 @@
 # HTTP server
 
 ```bash
-pip install "mimirai[local,server]"
+pip install "mimir-decisions[local,server]"
 MIMIR_API_KEYS=key-one,key-two mimir serve --host 0.0.0.0 --tools tools.yaml
 ```
 

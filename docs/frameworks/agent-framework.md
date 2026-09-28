@@ -1,7 +1,7 @@
 # Microsoft Agent Framework
 
 ```bash
-pip install "mimirai[local,agent-framework]"
+pip install "mimir-decisions[local,agent-framework]"
 ```
 
 `mimir.integrations.agent_framework.as_function_tool` converts a decision tool into a `FunctionTool` that returns the typed result as JSON.

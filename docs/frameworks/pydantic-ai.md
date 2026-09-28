@@ -1,7 +1,7 @@
 # PydanticAI
 
 ```bash
-pip install "mimirai[local,pydantic-ai]"
+pip install "mimir-decisions[local,pydantic-ai]"
 ```
 
 `mimir.integrations.pydantic_ai.as_toolset` converts a collection of decision tools into a `FunctionToolset` with typed return values for use in a PydanticAI agent.

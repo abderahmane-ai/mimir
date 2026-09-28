@@ -29,7 +29,7 @@ class MissingExtraError(MimirError, ImportError):
     def __init__(self, feature: str, extra: str, missing: str) -> None:
         super().__init__(
             f"{feature} requires the '{extra}' extra ({missing} is not installed): "
-            f"pip install 'mimirai[{extra}]'"
+            f"pip install 'mimir-decisions[{extra}]'"
         )
         self.extra = extra
 

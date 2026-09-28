@@ -110,11 +110,11 @@ def test_a_file_missing_from_the_manifest_is_refused(release: Path) -> None:
 
 def test_a_release_for_other_package_versions_is_refused(release: Path) -> None:
     manifest = json.loads((release / "manifest.json").read_text(encoding="utf-8"))
-    manifest["loadable_by"] = {"mimirai": ">=2,<3"}
+    manifest["loadable_by"] = {"mimir-decisions": ">=2,<3"}
     (release / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
-    with pytest.raises(FormatVersionError, match=r"requires mimirai >=2,<3; 1\.0\.0 is installed"):
+    with pytest.raises(FormatVersionError, match=r"requires mimir-decisions >=2,<3; 1\.0\.0 is installed"):
         load(release, allow_unsigned=True)
-    manifest["loadable_by"] = {"mimirai": "not a specifier"}
+    manifest["loadable_by"] = {"mimir-decisions": "not a specifier"}
     (release / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
     with pytest.raises(FormatVersionError, match="not a version specifier"):
         load(release, allow_unsigned=True)

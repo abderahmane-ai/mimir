@@ -13,14 +13,14 @@
     {
       "registryType": "pypi",
       "registryBaseUrl": "https://pypi.org",
-      "identifier": "mimirai",
+      "identifier": "mimir-decisions",
       "version": "1.0.0",
       "runtimeHint": "uvx",
       "runtimeArguments": [
         {
           "type": "named",
           "name": "--from",
-          "value": "mimirai[local,mcp]==1.0.0",
+          "value": "mimir-decisions[local,mcp]==1.0.0",
           "description": "Install the CPU engine and the MCP server with the package."
         }
       ],

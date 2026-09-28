@@ -2,7 +2,7 @@
 
 A certified yes runs the refund, a certified no blocks it, and anything else asks a person at
 the console. The check is a global before-tool-call hook, registered while the crew runs.
-Install `mimirai[local,crewai]`, set `OPENAI_API_KEY`, then run
+Install `mimir-decisions[local,crewai]`, set `OPENAI_API_KEY`, then run
 `make example NAME=crewai/guarded_agent`.
 """
 

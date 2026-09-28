@@ -1,6 +1,6 @@
 """A smolagents `ToolCallingAgent` that routes support tickets with a MIMIR decision tool.
 
-Install `mimirai[local,smolagents]`, set `HF_TOKEN` for the Inference Providers model, then
+Install `mimir-decisions[local,smolagents]`, set `HF_TOKEN` for the Inference Providers model, then
 run `make example NAME=smolagents/agent`.
 """
 

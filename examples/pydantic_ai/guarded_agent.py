@@ -2,7 +2,7 @@
 
 A certified yes runs the refund, a certified no fails it with the reason, and anything else
 ends the run with deferred tool requests until a person at the console approves or denies
-them. Install `mimirai[local,pydantic-ai]` and `pydantic-ai-slim[openai]`, set
+them. Install `mimir-decisions[local,pydantic-ai]` and `pydantic-ai-slim[openai]`, set
 `OPENAI_API_KEY`, then run `make example NAME=pydantic_ai/guarded_agent`.
 """
 

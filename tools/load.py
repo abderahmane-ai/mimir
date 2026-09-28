@@ -97,7 +97,7 @@ class Report(_Frozen):
     records: int
     seed: int
     levels: tuple[Level, ...]
-    mimirai: str
+    mimir_decisions: str
     measured_at: str
 
 
@@ -183,7 +183,7 @@ async def run(
         records=len(records),
         seed=seed,
         levels=tuple(levels),
-        mimirai=metadata.version("mimirai"),
+        mimir_decisions=metadata.version("mimir-decisions"),
         measured_at=datetime.datetime.now(datetime.UTC).isoformat(timespec="seconds"),
     )
 

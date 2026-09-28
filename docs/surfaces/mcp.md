@@ -1,7 +1,7 @@
 # MCP server
 
 ```bash
-pip install "mimirai[local,mcp]"
+pip install "mimir-decisions[local,mcp]"
 mimir mcp --tools tools.yaml
 ```
 
@@ -12,7 +12,7 @@ Every tool declares its full output schema, returns structured content, and is a
 ## Transports
 
 ```bash
-uvx --from "mimirai[local,mcp]" mimirai mcp --tools tools.yaml               # stdio
+uvx --from "mimir-decisions[local,mcp]" mimir-decisions mcp --tools tools.yaml               # stdio
 MIMIR_API_KEYS=... mimir mcp --http --host 0.0.0.0 --tools tools.yaml       # Streamable HTTP at /mcp
 MIMIR_API_KEY=... mimir mcp --tools tools.yaml --remote https://mimir.internal  # forward to a server
 mimir serve --mcp --tools tools.yaml                                          # HTTP API and /mcp together
@@ -25,7 +25,7 @@ mimir serve --mcp --tools tools.yaml                                          # 
 === "Claude Code"
 
     ```bash
-    claude mcp add mimir -- uvx --from "mimirai[local,mcp]" mimirai mcp --tools /path/to/tools.yaml
+    claude mcp add mimir -- uvx --from "mimir-decisions[local,mcp]" mimir-decisions mcp --tools /path/to/tools.yaml
     claude mcp add --transport http mimir https://mimir.internal/mcp --header "Authorization: Bearer ..."
     ```
 
@@ -38,7 +38,7 @@ mimir serve --mcp --tools tools.yaml                                          # 
       "mcpServers": {
         "mimir": {
           "command": "uvx",
-          "args": ["--from", "mimirai[local,mcp]", "mimirai", "mcp", "--tools", "/path/to/tools.yaml"]
+          "args": ["--from", "mimir-decisions[local,mcp]", "mimir-decisions", "mcp", "--tools", "/path/to/tools.yaml"]
         }
       }
     }
@@ -55,7 +55,7 @@ mimir serve --mcp --tools tools.yaml                                          # 
       "mcpServers": {
         "mimir": {
           "command": "uvx",
-          "args": ["--from", "mimirai[local,mcp]", "mimirai", "mcp", "--tools", "/path/to/tools.yaml"]
+          "args": ["--from", "mimir-decisions[local,mcp]", "mimir-decisions", "mcp", "--tools", "/path/to/tools.yaml"]
         },
         "mimir-remote": {
           "url": "https://mimir.internal/mcp",
@@ -74,7 +74,7 @@ mimir serve --mcp --tools tools.yaml                                          # 
       "servers": {
         "mimir": {
           "command": "uvx",
-          "args": ["--from", "mimirai[local,mcp]", "mimirai", "mcp", "--tools", "${workspaceFolder}/tools.yaml"]
+          "args": ["--from", "mimir-decisions[local,mcp]", "mimir-decisions", "mcp", "--tools", "${workspaceFolder}/tools.yaml"]
         },
         "mimir-remote": {
           "type": "http",

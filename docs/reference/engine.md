@@ -4,7 +4,7 @@
 downloads the release at the revision this package version pins, verifies the manifest's
 Sigstore signature and every file's SHA-256, checks the graph against its contract, and
 loads it — or raises `ArtifactError` before anything is read. Safe to share across
-threads. Needs `mimirai[local]` (CPU) or `mimirai[local-gpu]` (CUDA); the two install
+threads. Needs `mimir-decisions[local]` (CPU) or `mimir-decisions[local-gpu]` (CUDA); the two install
 the same `onnxruntime` module, so keep one of them.
 
 | Argument | Default | Does |

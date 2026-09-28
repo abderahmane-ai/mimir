@@ -16,7 +16,7 @@ import { generateText, type LanguageModel, stepCountIs } from "ai";
 export const TOOLS = fileURLToPath(new URL("../tools.yaml", import.meta.url));
 export const SERVER = {
   command: "uvx",
-  args: ["--from", "mimirai[local,mcp]", "mimirai", "mcp", "--tools", TOOLS],
+  args: ["--from", "mimir-decisions[local,mcp]", "mimir-decisions", "mcp", "--tools", TOOLS],
 };
 export const INSTRUCTIONS =
   "Route the customer's ticket with route_ticket, then tell the customer which team will " +

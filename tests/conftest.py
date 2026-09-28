@@ -362,7 +362,7 @@ def write_manifest(root: Path) -> None:
         for path in sorted(root.rglob("*"))
         if path.is_file() and not path.name.startswith("manifest.json")
     }
-    manifest = Manifest(format_version=1, files=files, loadable_by={"mimirai": ">=1,<2"})
+    manifest = Manifest(format_version=1, files=files, loadable_by={"mimir-decisions": ">=1,<2"})
     (root / "manifest.json").write_text(manifest.model_dump_json(indent=2), encoding="utf-8")
 
 
