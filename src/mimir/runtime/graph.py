@@ -1,8 +1,9 @@
 """Graph contract checks, run on the graph structure before a session is created.
 
 A graph is rejected if it uses an opset or operator outside the contract, defines local
-functions, stores external data outside its directory or in a file not in the manifest, or
-has different inputs or outputs. All failures are reported together.
+functions, names an external-data location that is not a plain file name beside it or
+points at a file not in the manifest, or has different inputs or outputs. All failures
+are reported together.
 """
 
 from collections.abc import Collection, Iterable
@@ -54,12 +55,14 @@ def external_locations(model: onnx.ModelProto) -> set[str]:
 
 
 def contract_failures(
-    model: onnx.ModelProto, contract: GraphContract, root: Path, authenticated: Collection[Path]
+    model: onnx.ModelProto, contract: GraphContract, graph: Path, authenticated: Collection[Path]
 ) -> list[str]:
-    """Return all contract violations of `model`, stored in `root`.
+    """Return all contract violations of `model`, stored beside `graph`.
 
-    `authenticated` contains the resolved paths verified against the manifest; external data
-    must be one of them.
+    `authenticated` contains the resolved paths verified against the manifest. The external
+    data must be named by a plain file name and resolve to one of them: the Hub cache
+    materialises release files as symlinks into a shared, sharded blob store, so no
+    directory comparison survives every layout.
     """
     failures: list[str] = []
     opset = {_domain(entry.domain): int(entry.version) for entry in model.opset_import}
@@ -71,12 +74,11 @@ def contract_failures(
     if model.functions:
         names = sorted(function.name for function in model.functions)
         failures.append(f"local functions {names}; the contract allows none")
-    resolved_root = root.resolve()
+    root = graph.parent
     for location in sorted(external_locations(model)):
-        target = (root / location).resolve()
-        if not location or target.parent != resolved_root:
+        if not location or Path(location).name != location:
             failures.append(f"external data at {location!r} is outside {root}")
-        elif target not in authenticated:
+        elif (root / location).resolve() not in authenticated:
             failures.append(f"external data at {location!r} is not authenticated by the manifest")
     for kind, found, expected in (
         ("inputs", _specs(model.graph.input), contract.inputs),
@@ -107,7 +109,7 @@ def weights_path(path: Path) -> Path:
 
 def check_graph(path: Path, contract: GraphContract, authenticated: Collection[Path]) -> None:
     """Raise `GraphContractError` listing every violation of the graph at `path`."""
-    failures = contract_failures(read_structure(path), contract, path.parent, authenticated)
+    failures = contract_failures(read_structure(path), contract, path, authenticated)
     if failures:
         message = f"{path}: " + "; ".join(failures)
         raise GraphContractError(message)

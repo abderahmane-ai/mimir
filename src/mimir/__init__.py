@@ -4,6 +4,7 @@
 data models does not load ONNX Runtime.
 """
 
+import os
 from importlib import metadata
 from typing import TYPE_CHECKING
 
@@ -27,6 +28,12 @@ from mimir.core.results import (
     YesNoResult,
 )
 from mimir.core.tools import DecisionTool
+
+# The Hub cache's shared blob store splits a graph and its external data across shard
+# directories, and ONNX Runtime refuses external data outside the model's resolved
+# directory; the classic per-repo cache keeps the pair in one. Read at huggingface_hub
+# import time, so it is set before any submodule imports it.
+os.environ.setdefault("HF_HUB_DISABLE_SHARED_BLOBS", "1")
 
 if TYPE_CHECKING:
     from mimir.client.http import MimirClient

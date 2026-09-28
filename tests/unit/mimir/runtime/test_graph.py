@@ -42,7 +42,7 @@ def test_every_violation_is_reported_together(tmp_path: Path) -> None:
             ),
         }
     )
-    failures = contract_failures(read_structure(graph), narrowed, tmp_path, _authenticated(graph))
+    failures = contract_failures(read_structure(graph), narrowed, graph, _authenticated(graph))
     assert len(failures) == 3
     assert "opset {'ai.onnx': 20}" in failures[0]
     assert "['ai.onnx::Div']" in failures[1]
@@ -57,11 +57,42 @@ def test_external_data_must_stay_in_the_directory_and_be_authenticated(tmp_path:
         for entry in tensor.external_data:
             if entry.key == "location":
                 entry.value = "../outside.bin"
-    failures = contract_failures(model, graph_contract(graph), graph.parent, {graph.resolve()})
+    failures = contract_failures(model, graph_contract(graph), graph, {graph.resolve()})
     assert failures == [f"external data at '../outside.bin' is outside {graph.parent}"]
     local = tmp_path / "model.onnx"
     build_graph(local)
-    failures = contract_failures(read_structure(local), graph_contract(local), tmp_path, set())
+    failures = contract_failures(read_structure(local), graph_contract(local), local, set())
+    assert failures == ["external data at 'model.onnx_data' is not authenticated by the manifest"]
+
+
+def test_external_data_survives_the_hub_cache_symlinks(tmp_path: Path) -> None:
+    graph_blob = tmp_path / "blobs" / "aa" / "graph"
+    data_blob = tmp_path / "blobs" / "c6" / "data"
+    graph_blob.parent.mkdir(parents=True)
+    data_blob.parent.mkdir(parents=True)
+    staged = tmp_path / "staged"
+    staged.mkdir()
+    build_graph(staged / "model.onnx")
+    (staged / "model.onnx").rename(graph_blob)
+    (staged / "model.onnx_data").rename(data_blob)
+    snapshot = tmp_path / "snapshots" / "abc" / "onnx"
+    snapshot.mkdir(parents=True)
+    linked = snapshot / "model.onnx"
+    linked.symlink_to(graph_blob)
+    data = snapshot / "model.onnx_data"
+    data.symlink_to(data_blob)
+    authenticated = {linked.resolve(), data.resolve()}
+    failures = contract_failures(
+        read_structure(linked), graph_contract(graph_blob), linked, authenticated
+    )
+    assert failures == []
+    escape = tmp_path / "escape.bin"
+    escape.write_bytes(b"not weights")
+    data.unlink()
+    data.symlink_to(escape)
+    failures = contract_failures(
+        read_structure(linked), graph_contract(graph_blob), linked, authenticated
+    )
     assert failures == ["external data at 'model.onnx_data' is not authenticated by the manifest"]
 
 
@@ -73,7 +104,7 @@ def test_local_functions_are_refused(tmp_path: Path) -> None:
         "custom", "Identity2", ["x"], ["y"], [], [helper.make_opsetid("", 20)]
     )
     model.functions.append(function)
-    failures = contract_failures(model, graph_contract(graph), tmp_path, _authenticated(graph))
+    failures = contract_failures(model, graph_contract(graph), graph, _authenticated(graph))
     assert failures == ["local functions ['Identity2']; the contract allows none"]
 
 
