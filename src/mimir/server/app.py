@@ -165,8 +165,41 @@ def _no_model() -> Never:
     raise RuntimeError(message)
 
 
+# Starlette takes each response's phrase from http.HTTPStatus, whose wording for 413 and 422
+# changed in CPython 3.13 to RFC 9110's; the committed document pins the RFC wording so one
+# file matches every interpreter the gate runs.
+STATUS_PHRASES: Final = {
+    "200": "Successful Response",
+    "401": "Unauthorized",
+    "404": "Not Found",
+    "409": "Conflict",
+    "413": "Content Too Large",
+    "422": "Unprocessable Content",
+    "503": "Service Unavailable",
+}
+
+
 def openapi_document() -> dict[str, JsonValue]:
     """The server's OpenAPI 3.1 document, generated without loading a model."""
     app = create_app(ServedModel(_no_model), metrics=Metrics())
     document: dict[str, JsonValue] = app.openapi()
+    paths = document["paths"]
+    if not isinstance(paths, dict):
+        return document
+    for operations in paths.values():
+        if not isinstance(operations, dict):
+            continue
+        for operation in operations.values():
+            if not isinstance(operation, dict):
+                continue
+            responses = operation.get("responses")
+            if not isinstance(responses, dict):
+                continue
+            for code, response in responses.items():
+                phrase = STATUS_PHRASES.get(code)
+                if phrase is None and code.isdigit():
+                    message = f"OpenAPI status {code} has no pinned phrase in STATUS_PHRASES"
+                    raise RuntimeError(message)
+                if phrase is not None and isinstance(response, dict):
+                    response["description"] = phrase
     return document
