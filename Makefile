@@ -29,6 +29,8 @@ endif
 TASKS := unit integration minimum
 VARIANTS := cpu cuda
 VERSION := $(shell sed -n 's/^version = "\(.*\)"/\1/p' pyproject.toml)
+HUB_URL := https://huggingface.co/Mythologic/MIMIR-1
+MIMIR_DIR ?= $(HOME)/Development/MIMIR
 
 .PHONY: help install format lint typecheck dead test docs check openapi serve mcp example inspect load image publish build clean
 
@@ -109,15 +111,39 @@ image: ## Build a runtime image (operator, needs Docker): VARIANT=cpu|cuda
 	$(if $(filter $(VARIANT),$(VARIANTS)),,$(error VARIANT must be one of: $(VARIANTS)))
 	docker build -f docker/$(VARIANT).Dockerfile -t ghcr.io/abderahmane-ai/mimir:$(VERSION)-$(VARIANT) .
 
-publish: ## Start a publishing workflow on main (operator): ACTION=sign REVISION=<Hub commit> | ACTION=release MODEL_COMMIT=<signed Hub commit>
+publish: ## Publishing (operator): ACTION=sign REVISION=<Hub commit> | ACTION=release MODEL_COMMIT=<signed commit> | ACTION=hub (upload, sign, move the tag, verify)
 ifeq ($(ACTION),sign)
 	$(if $(REVISION),,$(error REVISION is required))
 	gh workflow run sign-model.yml --repo abderahmane-ai/mimir --ref main -f revision=$(REVISION)
 else ifeq ($(ACTION),release)
 	$(if $(MODEL_COMMIT),,$(error MODEL_COMMIT is required))
 	gh workflow run release.yml --repo abderahmane-ai/mimir --ref main -f model_commit=$(MODEL_COMMIT)
+else ifeq ($(ACTION),hub)
+	@set -euo pipefail; \
+	$(MAKE) -C $(MIMIR_DIR) push; \
+	REVISION=$$(git ls-remote $(HUB_URL) main | cut -f1); \
+	echo "unsigned Hub commit: $$REVISION"; \
+	BEFORE=$$(gh run list --repo abderahmane-ai/mimir --workflow=sign-model.yml --event workflow_dispatch --limit 1 --json databaseId --jq '.[0].databaseId // empty'); \
+	gh workflow run sign-model.yml --repo abderahmane-ai/mimir --ref main -f revision=$$REVISION; \
+	RUN=; \
+	for _ in $$(seq 1 24); do \
+		RUN=$$(gh run list --repo abderahmane-ai/mimir --workflow=sign-model.yml --event workflow_dispatch --limit 1 --json databaseId --jq '.[0].databaseId // empty'); \
+		if [ -n "$$RUN" ] && [ "$$RUN" != "$$BEFORE" ]; then break; fi; \
+		sleep 5; \
+	done; \
+	test -n "$$RUN" && test "$$RUN" != "$$BEFORE"; \
+	gh run watch "$$RUN" --repo abderahmane-ai/mimir --exit-status; \
+	SIGNED=$$(git ls-remote $(HUB_URL) main | cut -f1); \
+	test "$$SIGNED" != "$$REVISION"; \
+	$(UV) python tools/hub.py retag --revision "$$SIGNED"; \
+	TAG=$$($(UV) python -c 'from mimir.runtime.artifact import DEFAULT_REVISION; print(DEFAULT_REVISION)'); \
+	test "$$(git ls-remote --tags $(HUB_URL) refs/tags/$$TAG | cut -f1)" = "$$SIGNED"; \
+	curl -sfL $(HUB_URL)/resolve/$$SIGNED/LICENSE | diff -q - $(MIMIR_DIR)/artifacts/release/hub/LICENSE; \
+	curl -sfL $(HUB_URL)/resolve/$$SIGNED/README.md | diff -q - $(MIMIR_DIR)/artifacts/release/hub/README.md; \
+	$(UV) mimir doctor --verify > /dev/null; \
+	echo "published: $$TAG -> $$SIGNED; card and licence match; model loads and verifies"
 else
-	$(error ACTION must be one of: sign release)
+	$(error ACTION must be one of: sign release hub)
 endif
 
 build: ## Build the sdist and wheel into dist/

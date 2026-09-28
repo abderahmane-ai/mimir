@@ -276,6 +276,16 @@ Releases are loaded from a pinned Hugging Face revision. Before any model file i
 
 ---
 
-## License
+## Licensing
 
-The `mimir-decisions` package is licensed under [Apache 2.0](LICENSE). The MIMIR model weights are distributed under their own license on the [Hugging Face Hub](https://huggingface.co/Mythologic/MIMIR-1).
+The MIMIR SDK is licensed under [Apache-2.0](LICENSE); that license covers the software only,
+not the MIMIR model weights. The MIMIR-1 model weights are licensed separately under the
+[MIMIR Model License](MODEL-LICENSE.md).
+
+Eligible community users may use MIMIR-1 commercially without royalties, subject to the
+MIMIR Model License. Anyone may download, benchmark, evaluate and prototype with MIMIR
+without registering.
+
+Organizations exceeding the Revenue Threshold (US$1,000,000 annual gross revenue), or
+requiring enterprise, OEM, redistribution, hosting, or other additional rights, may obtain a
+commercial agreement from Mythologic. See [COMMERCIAL-LICENSING.md](COMMERCIAL-LICENSING.md).

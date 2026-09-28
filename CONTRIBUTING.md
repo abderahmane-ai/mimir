@@ -72,4 +72,6 @@ tools/             release and Hub management scripts
 
 ## Licence
 
-By submitting a pull request you agree that your contribution will be licensed under the [Apache 2.0 licence](LICENSE) that covers this project.
+By submitting a pull request you agree that your contribution will be licensed under the [Apache 2.0 licence](LICENSE) that covers the MIMIR SDK.
+
+The MIMIR-1 model weights are governed separately by the [MIMIR Model License](MODEL-LICENSE.md); contributions to this repository do not attach to them.

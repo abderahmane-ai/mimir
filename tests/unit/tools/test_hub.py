@@ -5,7 +5,7 @@ from typing import Final
 import pytest
 from huggingface_hub.hf_api import CommitInfo, GitRefInfo, GitRefs
 
-from hub import HubError, attach_signature, check_commit, tag_release
+from hub import HubError, attach_signature, check_commit, retag_release, tag_release
 from mimir.runtime.artifact import DEFAULT_REVISION
 from mimir.runtime.release import SIGNATURE_FILE
 
@@ -20,6 +20,7 @@ class FakeHub:
     tags: dict[str, str] = field(default_factory=dict)
     uploads: list[dict[str, object]] = field(default_factory=list)
     created: list[tuple[str, str, str]] = field(default_factory=list)
+    deleted: list[tuple[str, str]] = field(default_factory=list)
 
     def upload_file(
         self,
@@ -57,6 +58,9 @@ class FakeHub:
 
     def create_tag(self, repo_id: str, *, tag: str, revision: str) -> None:
         self.created.append((repo_id, tag, revision))
+
+    def delete_tag(self, repo_id: str, *, tag: str) -> None:
+        self.deleted.append((repo_id, tag))
 
 
 def test_the_signature_is_committed_on_top_of_the_signed_commit(tmp_path: Path) -> None:
@@ -108,3 +112,24 @@ def test_a_tag_at_another_commit_is_never_moved() -> None:
     with pytest.raises(HubError, match=f"already names {OTHER}, not {SIGNED}"):
         tag_release(hub, MODEL, SIGNED)
     assert hub.created == []
+
+
+def test_retag_moves_the_pinned_tag_onto_the_signed_commit() -> None:
+    hub = FakeHub(tags={DEFAULT_REVISION: OTHER})
+    assert retag_release(hub, MODEL, SIGNED) == SIGNED
+    assert hub.deleted == [(MODEL, DEFAULT_REVISION)]
+    assert hub.created == [(MODEL, DEFAULT_REVISION, SIGNED)]
+
+
+def test_retag_leaves_a_tag_already_at_the_commit_alone() -> None:
+    hub = FakeHub(tags={DEFAULT_REVISION: SIGNED})
+    assert retag_release(hub, MODEL, SIGNED) == SIGNED
+    assert hub.deleted == []
+    assert hub.created == []
+
+
+def test_retag_creates_a_tag_that_does_not_exist_yet() -> None:
+    hub = FakeHub()
+    assert retag_release(hub, MODEL, SIGNED) == SIGNED
+    assert hub.deleted == []
+    assert hub.created == [(MODEL, DEFAULT_REVISION, SIGNED)]

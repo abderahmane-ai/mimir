@@ -2,8 +2,9 @@
 
 `attach-signature` commits a manifest's Sigstore bundle on top of the commit whose manifest was
 signed, and fails if the branch has moved past it. `tag` points the revision this package pins
-(`DEFAULT_REVISION`) at a commit, and fails if that tag already names another commit. Both
-print the commit they leave the release at.
+(`DEFAULT_REVISION`) at a commit, and fails if that tag already names another commit. `retag`
+moves that tag onto a signed commit, for a release that changes no model bytes, such as a
+licence or card update. All print the commit they leave the release at.
 """
 
 import argparse
@@ -42,6 +43,8 @@ class Hub(Protocol):
 
     def create_tag(self, repo_id: str, *, tag: str, revision: str) -> None: ...
 
+    def delete_tag(self, repo_id: str, *, tag: str) -> None: ...
+
 
 def check_commit(revision: str) -> str:
     if COMMIT.fullmatch(revision) is None:
@@ -78,6 +81,18 @@ def tag_release(hub: Hub, model: str, commit: str, tag: str = DEFAULT_REVISION) 
     return commit
 
 
+def retag_release(hub: Hub, model: str, commit: str, tag: str = DEFAULT_REVISION) -> str:
+    """Move `tag` onto `commit`, or leave it if it already points there; return the commit."""
+    check_commit(commit)
+    existing = {ref.name: ref.target_commit for ref in hub.list_repo_refs(model).tags}
+    if existing.get(tag) == commit:
+        return commit
+    if tag in existing:
+        hub.delete_tag(model, tag=tag)
+    hub.create_tag(model, tag=tag, revision=commit)
+    return commit
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Write a MIMIR release to the Hub.")
     parser.add_argument("--model", default=DEFAULT_MODEL, help="Hub repository id.")
@@ -87,13 +102,17 @@ def main() -> None:
     attach.add_argument("--bundle", type=Path, required=True, help=f"The {SIGNATURE_FILE} file.")
     tag = commands.add_parser("tag", help=f"Point {DEFAULT_REVISION} at a signed commit.")
     tag.add_argument("--revision", required=True, help="The signed commit.")
+    retag = commands.add_parser("retag", help=f"Move {DEFAULT_REVISION} onto a signed commit.")
+    retag.add_argument("--revision", required=True, help="The signed commit.")
     arguments = parser.parse_args()
     hub = HfApi()
     try:
         if arguments.command == "attach-signature":
             commit = attach_signature(hub, arguments.model, arguments.revision, arguments.bundle)
-        else:
+        elif arguments.command == "tag":
             commit = tag_release(hub, arguments.model, arguments.revision)
+        else:
+            commit = retag_release(hub, arguments.model, arguments.revision)
     except HubError as error:
         sys.stderr.write(f"{error}\n")
         sys.exit(1)
