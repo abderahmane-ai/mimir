@@ -75,11 +75,11 @@ mimir = "mimir.cli.app:main"
 mimirai = "mimir.cli.app:main"
 
 [project.urls]
-Homepage = "https://github.com/Mythologic/mimir"
-Documentation = "https://mythologic.github.io/mimir/"
-Changelog = "https://github.com/Mythologic/mimir/blob/main/CHANGELOG.md"
-Source = "https://github.com/Mythologic/mimir"
-Tracker = "https://github.com/Mythologic/mimir/issues"
+Homepage = "https://github.com/abderahmane-ai/mimir"
+Documentation = "https://abderahmane-ai.github.io/mimir/"
+Changelog = "https://github.com/abderahmane-ai/mimir/blob/main/CHANGELOG.md"
+Source = "https://github.com/abderahmane-ai/mimir"
+Tracker = "https://github.com/abderahmane-ai/mimir/issues"
 Model = "https://huggingface.co/Mythologic/MIMIR-1"
 
 [dependency-groups]
@@ -282,14 +282,17 @@ min_confidence = 60
 # graph_optimization_level; tokenizers reads normalizer and pre_tokenizer; onnx writes
 # ir_version; the session protocol names its parameters output_names and input_feed. `mask`
 # and `output_tokens` are fields of external formats (config.json, Jev's usage), and
-# `mimirai` and `measured_at` fields of the load report, that are validated and serialised,
+# and `mimirai` and `measured_at` fields of the load report, that are validated and serialised,
 # not read. The agent frameworks call the methods and read the attributes their adapters and
 # scripted models define (`wrap_tool_call` to `bind_tools`), and pass the parameters their
-# callbacks declare (`call_id`, `stop_sequences`, `tools_to_call_from`).
+# callbacks declare (`call_id`, `stop_sequences`, `tools_to_call_from`). Typer reads rich's
+# help-panel style globals when it renders help, so the module-level restyle reads as a write
+# that is never read.
 ignore_names = [
     "pytestmark", "__getattr__", "model_config", "use_deterministic_compute",
     "graph_optimization_level", "normalizer", "pre_tokenizer", "ir_version", "output_names",
     "input_feed", "_check_*", "mask", "output_tokens", "mimirai", "measured_at",
+    "STYLE_OPTIONS_PANEL_BORDER", "STYLE_COMMANDS_PANEL_BORDER",
     "wrap_tool_call", "awrap_tool_call", "forward", "skip_forward_signature_validation",
     "skip_summarization", "_inner_get_response", "generate_content_async", "generate",
     "bind_tools", "call_id", "stop_sequences", "tools_to_call_from",

@@ -21,7 +21,7 @@ model = Mimir.from_pretrained("Mythologic/MIMIR-1")
 
 `mimir.Mimir` requires `mimirai[local]` (CPU) or `mimirai[local-gpu]` (CUDA). Both extras install the same `onnxruntime` module, so keep only one in any given environment. `mimir doctor` reports the active runtime and names any conflict.
 
-Before loading the ONNX session, `from_pretrained` checks the pinned revision, verifies the manifest's Sigstore signature against the Mythologic release identity, verifies each file's SHA-256 against the manifest, and checks the ONNX graph against its operator allowlist and signature. Nothing is read until every check passes.
+Before loading the ONNX session, `from_pretrained` checks the pinned revision, verifies the manifest's Sigstore signature against the release identity of `abderahmane-ai/mimir`, verifies each file's SHA-256 against the manifest, and checks the ONNX graph against its operator allowlist and signature. Nothing is read until every check passes.
 
 For offline use, fetch once with `mimir download` and then load with `offline=True` (or set `HF_HUB_OFFLINE=1`).
 

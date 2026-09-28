@@ -332,7 +332,7 @@ def build_policy(
 
 def local_fingerprint(root: Path, *, hardware: str | None = None) -> Fingerprint:
     return Fingerprint(
-        model="Mythologic/mimir-test",
+        model="mimir-test",
         revision="local",
         variant="fp32",
         graph_sha256=sha256(root / "onnx" / "model.onnx"),

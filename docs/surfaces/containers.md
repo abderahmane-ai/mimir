@@ -1,15 +1,15 @@
 # Containers
 
 ```bash
-docker run -p 8000:8000 -e MIMIR_API_KEYS=... -v mimir-models:/models ghcr.io/mythologic/mimir:1.0.0-cpu
-docker run --gpus all -p 8000:8000 -e MIMIR_API_KEYS=... -v mimir-models:/models ghcr.io/mythologic/mimir:1.0.0-cuda
+docker run -p 8000:8000 -e MIMIR_API_KEYS=... -v mimir-models:/models ghcr.io/abderahmane-ai/mimir:1.0.0-cpu
+docker run --gpus all -p 8000:8000 -e MIMIR_API_KEYS=... -v mimir-models:/models ghcr.io/abderahmane-ai/mimir:1.0.0-cuda
 ```
 
 Images carry the runtime, never the model weights. On first start, the model is downloaded from the Hugging Face Hub at the revision the image's package version pins, verified, and cached in `/models`. To run entirely offline after that first fetch:
 
 ```bash
 docker run -p 8000:8000 -e MIMIR_API_KEYS=... -v mimir-models:/models \
-  ghcr.io/mythologic/mimir:1.0.0-cpu \
+  ghcr.io/abderahmane-ai/mimir:1.0.0-cpu \
   serve --host 0.0.0.0 --model-cache /models --offline
 ```
 
@@ -25,7 +25,7 @@ docker run -p 8000:8000 -e MIMIR_API_KEYS=... -v mimir-models:/models \
 Images are signed with Sigstore by the release workflow. Verify before running in production:
 
 ```bash
-cosign verify ghcr.io/mythologic/mimir:1.0.0-cpu \
-  --certificate-identity https://github.com/Mythologic/mimir/.github/workflows/release.yml@refs/heads/main \
+cosign verify ghcr.io/abderahmane-ai/mimir:1.0.0-cpu \
+  --certificate-identity https://github.com/abderahmane-ai/mimir/.github/workflows/release.yml@refs/heads/main \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```

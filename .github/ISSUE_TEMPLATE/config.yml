@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
   - name: Documentation
-    url: https://mythologic.github.io/mimir/
+    url: https://abderahmane-ai.github.io/mimir/
     about: Read the docs before opening an issue — the answer may already be there.
   - name: Security vulnerability
-    url: https://github.com/Mythologic/mimir/security/advisories/new
+    url: https://github.com/abderahmane-ai/mimir/security/advisories/new
     about: Report security vulnerabilities privately. Do not open a public issue.

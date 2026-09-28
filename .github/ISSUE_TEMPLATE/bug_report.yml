@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Before filing: run `mimir doctor --verify` and check [Troubleshooting](https://mythologic.github.io/mimir/guide/troubleshooting/).
+        Before filing: run `mimir doctor --verify` and check [Troubleshooting](https://abderahmane-ai.github.io/mimir/guide/troubleshooting/).
 
   - type: textarea
     id: what-happened

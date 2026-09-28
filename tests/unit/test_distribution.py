@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Final
 
 ROOT: Final = Path(__file__).parents[2]
-SERVER_NAME: Final = "io.github.Mythologic/mimir"
+SERVER_NAME: Final = "io.github.abderahmane-ai/mimir"
 LABEL: Final = re.compile(r'io\.modelcontextprotocol\.server\.name="([^"]+)"')
 
 
@@ -27,7 +27,7 @@ def test_the_registry_entry_matches_the_package_version() -> None:
     pypi, oci = packages
     assert (pypi["identifier"], pypi["version"]) == ("mimirai", version)
     assert pypi["runtimeArguments"][0]["value"] == f"mimirai[local,mcp]=={version}"
-    assert oci["identifier"] == f"ghcr.io/mythologic/mimir:{version}-cpu"
+    assert oci["identifier"] == f"ghcr.io/abderahmane-ai/mimir:{version}-cpu"
 
 
 def test_every_ownership_proof_names_the_registry_entry() -> None:

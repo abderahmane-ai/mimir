@@ -88,4 +88,4 @@ mimir serve --mcp --tools tools.yaml                                          # 
     }
     ```
 
-The server is registered in the MCP Registry as `io.github.Mythologic/mimir`.
+The server is registered in the MCP Registry as `io.github.abderahmane-ai/mimir`.

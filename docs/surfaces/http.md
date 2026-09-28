@@ -19,7 +19,7 @@ MIMIR_API_KEYS=key-one,key-two mimir serve --host 0.0.0.0 --tools tools.yaml
 | `GET /readyz` | readiness — 200 once the model has loaded and been verified |
 | `GET /metrics` | Prometheus: request counts, latency histograms, batch sizes, status codes |
 
-The OpenAPI 3.1 document is [`openapi.json`](https://github.com/Mythologic/mimir/blob/main/openapi.json).
+The OpenAPI 3.1 document is [`openapi.json`](https://github.com/abderahmane-ai/mimir/blob/main/openapi.json).
 
 ## Tools file
 

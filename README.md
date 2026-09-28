@@ -15,7 +15,7 @@ pip install "mimirai[local-gpu]"    # CUDA engine
 pip install mimirai                  # data models and HTTP client only
 ```
 
-Python 3.11+. Documentation: <https://mythologic.github.io/mimir/>
+Python 3.11+. Documentation: <https://abderahmane-ai.github.io/mimir/>
 
 ---
 
@@ -224,17 +224,17 @@ claude mcp add mimir -- uvx --from "mimirai[local,mcp]" mimirai mcp --tools /pat
 claude mcp add --transport http mimir https://mimir.internal/mcp --header "Authorization: Bearer ..."
 ```
 
-Claude Desktop, Cursor, and VS Code take the same command or the same URL and header in their MCP configuration. The server is registered in the MCP Registry as `io.github.Mythologic/mimir`.
+Claude Desktop, Cursor, and VS Code take the same command or the same URL and header in their MCP configuration. The server is registered in the MCP Registry as `io.github.abderahmane-ai/mimir`.
 
-<!-- mcp-name: io.github.Mythologic/mimir -->
+<!-- mcp-name: io.github.abderahmane-ai/mimir -->
 
 ---
 
 ## Containers
 
 ```bash
-docker run -p 8000:8000 -e MIMIR_API_KEYS=... -v mimir-models:/models ghcr.io/mythologic/mimir:1.0.0-cpu
-docker run --gpus all -p 8000:8000 -e MIMIR_API_KEYS=... -v mimir-models:/models ghcr.io/mythologic/mimir:1.0.0-cuda
+docker run -p 8000:8000 -e MIMIR_API_KEYS=... -v mimir-models:/models ghcr.io/abderahmane-ai/mimir:1.0.0-cpu
+docker run --gpus all -p 8000:8000 -e MIMIR_API_KEYS=... -v mimir-models:/models ghcr.io/abderahmane-ai/mimir:1.0.0-cuda
 ```
 
 Images carry the runtime, never the model weights. On first start, the model is downloaded at the revision the package version pins, verified, and cached in `/models`. To run from that cache with no network access, append `serve --host 0.0.0.0 --model-cache /models --offline`.
@@ -242,8 +242,8 @@ Images carry the runtime, never the model weights. On first start, the model is 
 Images are signed with Sigstore by the release workflow:
 
 ```bash
-cosign verify ghcr.io/mythologic/mimir:1.0.0-cpu \
-  --certificate-identity https://github.com/Mythologic/mimir/.github/workflows/release.yml@refs/heads/main \
+cosign verify ghcr.io/abderahmane-ai/mimir:1.0.0-cpu \
+  --certificate-identity https://github.com/abderahmane-ai/mimir/.github/workflows/release.yml@refs/heads/main \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
 
@@ -266,13 +266,13 @@ cosign verify ghcr.io/mythologic/mimir:1.0.0-cpu \
 
 ## Integrity
 
-Releases are loaded from a pinned Hugging Face revision. Before any model file is read, the manifest's Sigstore signature is verified against the Mythologic release workflow, every file is checked against the manifest's SHA-256, and the ONNX graph is checked against its operator allowlist and signature. No pickle is used anywhere.
+Releases are loaded from a pinned Hugging Face revision. Before any model file is read, the manifest's Sigstore signature is verified against the `abderahmane-ai/mimir` release workflow, every file is checked against the manifest's SHA-256, and the ONNX graph is checked against its operator allowlist and signature. No pickle is used anywhere.
 
 ---
 
 ## Migrating
 
-`mimir.compat.systemone.v1` converts Jev `/v1/systemone` requests and responses, and `mimir.compat.laya.v1` exposes `load(...).predict(state, questions)` in Laya 0.3.20's shape. See the [migration guides](https://mythologic.github.io/mimir/migrating/jev/) for step-by-step instructions.
+`mimir.compat.systemone.v1` converts Jev `/v1/systemone` requests and responses, and `mimir.compat.laya.v1` exposes `load(...).predict(state, questions)` in Laya 0.3.20's shape. See the [migration guides](https://abderahmane-ai.github.io/mimir/migrating/jev/) for step-by-step instructions.
 
 ---
 

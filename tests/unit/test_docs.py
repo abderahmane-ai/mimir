@@ -7,7 +7,7 @@ ROOT: Final = Path(__file__).parents[2]
 DOCS: Final = ROOT / "docs"
 SNIPPET: Final = re.compile(r'^--8<-- "([^"]+)"$', re.MULTILINE)
 REFERENCE: Final = re.compile(r"^::: (\S+)$", re.MULTILINE)
-IMAGE_TAG: Final = re.compile(r"ghcr\.io/mythologic/mimir:([0-9][^\s-]*)-(?:cpu|cuda)")
+IMAGE_TAG: Final = re.compile(r"ghcr\.io/abderahmane-ai/mimir:([0-9][^\s-]*)-(?:cpu|cuda)")
 
 
 def _nav_pages(entries: list[object]) -> list[str]:

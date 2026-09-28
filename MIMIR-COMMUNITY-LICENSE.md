@@ -2,10 +2,7 @@
 
 **Version 1.0 — Draft for legal review before production use**
 
-Copyright © 2026 [VATHOSAI LEGAL ENTITY NAME]. All rights reserved except as expressly licensed below.
-
-Licensor notice address: [REGISTERED ADDRESS]
-Legal notice email: [LEGAL@VATHOSAI.DOMAIN]
+Copyright © 2026 Mythologic. All rights reserved except as expressly licensed below.
 
 > **Important:** This is a proprietary model license. It is **not** an OSI-approved open-source license, and the MIMIR weights are not released as “open source”. The public MIMIR software/SDK may be separately licensed under Apache License 2.0. Do not replace this file with an open-source license for the model weights unless the business and regulatory strategy is intentionally changed.
 
@@ -21,7 +18,7 @@ This License does **not** grant access to, license, disclose, or authorize use o
 
 ### 2.1 “Licensor”
 
-“Licensor” means [VATHOSAI LEGAL ENTITY NAME], and any successor entity that lawfully owns or controls the rights in the Model.
+“Licensor” means Mythologic, and any successor entity that lawfully owns or controls the rights in the Model.
 
 ### 2.2 “You” and “Licensee”
 
@@ -251,13 +248,13 @@ Circumvention includes, without limitation, using nominees, employees, contracto
 
 You must retain the following notice in any copy of the Model or MIMIR-Derived Model that You Distribute:
 
-> “This product includes or is derived from MIMIR, a model developed by [VATHOSAI LEGAL ENTITY NAME]. MIMIR is provided under the MIMIR Community Model License. See the applicable LICENSE.md for terms.”
+> “This product includes or is derived from MIMIR, a model developed by Mythologic. MIMIR is provided under the MIMIR Community Model License. See the applicable LICENSE.md for terms.”
 
 You are not required to display the notice on every end-user screen or in every generated output merely because the Model is used internally.
 
 ## 15. Trademark and branding
 
-This License grants no right to use the MIMIR, VathosAI, logos, product names, or other trademarks of Licensor except as reasonably necessary to make accurate factual statements about compatibility or derivation.
+This License grants no right to use the MIMIR, Mythologic, logos, product names, or other trademarks of Licensor except as reasonably necessary to make accurate factual statements about compatibility or derivation.
 
 You may state that an application “uses MIMIR” or is “compatible with MIMIR” when that statement is accurate and not misleading. You may not use Licensor's marks in a manner that implies endorsement, certification, partnership, sponsorship, affiliation, or official status without prior written permission.
 
@@ -349,11 +346,11 @@ Licensor may assign this License and its rights in the Model to a successor or a
 
 ## 27. Governing law and dispute resolution
 
-**Recommended production setting for a French VathosAI entity:** This License is governed by the laws of France, excluding conflict-of-law rules to the extent permitted by law. Subject to mandatory jurisdiction rules, the competent courts of Paris, France, have exclusive jurisdiction over disputes arising from or relating to this License.
+This License is governed by the laws of the European Union and, for Licensees domiciled in the United States, the laws of the United States, excluding conflict-of-law rules to the extent permitted by law. Subject to mandatory jurisdiction rules, disputes are heard by the competent courts of the Licensee's domicile within the EU or the US.
 
 Before commencing proceedings, the parties will attempt in good faith to resolve the dispute through written notice and senior-level discussion for at least fifteen (15) calendar days, except where urgent injunctive or protective relief is reasonably necessary.
 
-If the Licensor's final legal entity or principal place of business is outside France, this Section must be reviewed and replaced by counsel before publication.
+If the Licensor's final legal entity or principal place of business is outside the EU and the US, this Section must be reviewed and replaced by counsel before publication.
 
 ## 28. Mandatory law; consumer and non-waivable rights
 
@@ -369,12 +366,7 @@ No purchase order, procurement portal, click-through term, or vendor form submit
 
 ## 30. Contact
 
-Legal notices and commercial licensing requests:
-
-**[VATHOSAI LEGAL ENTITY NAME]**  
-[REGISTERED ADDRESS]  
-[LEGAL EMAIL]  
-[WEB DOMAIN]
+Legal notices and commercial licensing requests: contact Mythologic.
 
 ---
 

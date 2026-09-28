@@ -22,4 +22,4 @@ Initial release, targeting `Mythologic/MIMIR-1`.
 - **`mimir download`**, **`mimir doctor`**, **`mimir schema`** — offline model fetch, environment diagnostics with optional equivalence verification, and JSON Schema export.
 - **`mimir.compat.systemone.v1`** — request and response translation for Jev `/v1/systemone`.
 - **`mimir.compat.laya.v1`** — `load(...).predict(state, questions)` in Laya 0.3.20's shape.
-- **Container images** — `ghcr.io/mythologic/mimir:{version}-cpu` and `:{version}-cuda`. Images carry the runtime only; the model is downloaded, verified, and cached on first start. Images are signed with Sigstore by the release workflow.
+- **Container images** — `ghcr.io/abderahmane-ai/mimir:{version}-cpu` and `:{version}-cuda`. Images carry the runtime only; the model is downloaded, verified, and cached on first start. Images are signed with Sigstore by the release workflow.

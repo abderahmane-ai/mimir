@@ -2,7 +2,7 @@
 
 Each adapter turns decision tools into its framework's own tools, and a tool-call check
 into the framework's own approval hook where it has one. Every framework also reaches
-MIMIR through its own MCP client; [`examples/`](https://github.com/Mythologic/mimir/tree/main/examples)
+MIMIR through its own MCP client; [`examples/`](https://github.com/abderahmane-ai/mimir/tree/main/examples)
 has a native, an MCP and a checked agent for each one.
 
 | Framework | Install | Tools | Tool-call check |

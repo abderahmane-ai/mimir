@@ -1,9 +1,9 @@
 [project]
 site_name = "MIMIR"
 site_description = "Typed, calibrated and certified decisions from MIMIR, a non-generative decision model"
-site_url = "https://mythologic.github.io/mimir/"
-repo_url = "https://github.com/Mythologic/mimir"
-repo_name = "Mythologic/mimir"
+site_url = "https://abderahmane-ai.github.io/mimir/"
+repo_url = "https://github.com/abderahmane-ai/mimir"
+repo_name = "abderahmane-ai/mimir"
 copyright = "Copyright Mythologic"
 docs_dir = "docs"
 site_dir = "site"

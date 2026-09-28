@@ -12,7 +12,7 @@ Security patches are issued as patch releases on the latest minor. We do not bac
 
 **Do not open a public GitHub issue for a security vulnerability.**
 
-Report it privately using GitHub's [private vulnerability reporting](https://github.com/Mythologic/mimir/security/advisories/new).
+Report it privately using GitHub's [private vulnerability reporting](https://github.com/abderahmane-ai/mimir/security/advisories/new).
 
 Include as much of the following as you have:
 
@@ -31,7 +31,7 @@ We treat responsible disclosure seriously and will credit reporters in the relea
 
 ## Supply chain
 
-- Model weights are loaded from a pinned Hugging Face revision. The manifest's Sigstore signature is verified against the Mythologic release identity before any file is read.
+- Model weights are loaded from a pinned Hugging Face revision. The manifest's Sigstore signature is verified against the `abderahmane-ai/mimir` release identity before any file is read.
 - Container images are signed with Sigstore by the release workflow and can be verified with `cosign`.
 - PyPI packages are published via OIDC trusted publishing with build provenance attestations.
 - No pickle is used anywhere in the model loading path.

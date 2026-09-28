@@ -3,7 +3,7 @@
 Certify thresholds on your own labelled decisions, and score results against labels.
 The file format both read is one JSON object per line —
 `{"context": ..., "decision": <spec>, "label": ...}` — with the labels
-[The certificate](../guide/certificate.md#your-own-certificate) lists.
+[The certificate](../guide/certificate.md#certifying-on-your-own-data) lists.
 
 ```python
 from mimir import Mimir

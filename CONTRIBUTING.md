@@ -1,4 +1,4 @@
-# Contributing to mimirai
+# Contributing to mimir
 
 Thank you for your interest in contributing. This document covers everything you need to get your environment running, the conventions the codebase follows, and how to submit a change.
 
@@ -13,7 +13,7 @@ Security vulnerabilities must be reported privately. See [SECURITY.md](SECURITY.
 You need Python 3.11 or later and [uv](https://docs.astral.sh/uv/).
 
 ```bash
-git clone https://github.com/Mythologic/mimir.git
+git clone https://github.com/abderahmane-ai/mimir.git
 cd mimir
 make install
 ```
@@ -29,7 +29,7 @@ make test
 
 | Command | What it runs |
 |---|---|
-| `make check` | ruff (lint + format), mypy, vulture |
+| `make check` | ruff (lint + format), mypy, vulture, the strict docs build, unit tests |
 | `make test` | pytest unit tests |
 | `make test TASK=integration` | integration tests (needs the released artifact and network) |
 | `make test TASK=minimum` | tests against the minimum declared dependency versions |
@@ -58,14 +58,14 @@ All of these must pass before a pull request is merged.
 src/mimir/         core package
   core/            data models: specs, contexts, results
   runtime/         local engine (ONNX Runtime, Sigstore, hardware)
-  client.py        HTTP client
+  client/          HTTP client
   integrations/    framework adapters
   cli/             Typer CLI
   compat/          Jev and Laya compatibility shims
 tests/
   unit/            fast, no network, no model
   integration/     needs the release artifact or a running server
-docs/              MkDocs source
+docs/              Zensical source
 examples/          one native, one MCP and one checked agent per framework
 tools/             release and Hub management scripts
 ```

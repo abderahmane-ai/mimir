@@ -4,7 +4,7 @@
 
 This MIMIR Commercial Model License Agreement (the “Agreement”) is entered into between:
 
-**Licensor:** [VATHOSAI LEGAL ENTITY NAME], a company organized under the laws of [JURISDICTION], with registered office at [ADDRESS] (“Licensor”); and
+**Licensor:** Mythologic (“Licensor”); and
 
 **Licensee:** [CUSTOMER LEGAL NAME], a company organized under the laws of [JURISDICTION], with registered office at [ADDRESS] (“Licensee”).
 
@@ -14,7 +14,7 @@ Effective Date: [DATE]
 
 The licensed model(s) are:
 
-- Model identifier: [vathosai/mimir-1]
+- Model identifier: [Mythologic/MIMIR-1]
 - Version / SHA256: [HASH]
 - Permitted deployment formats: [ONNX / other]
 - Territory: Worldwide, subject to applicable law and export controls.
@@ -178,7 +178,7 @@ The Model may be operated locally and does not by itself transfer personal data 
 
 ## 23. Governing law and courts
 
-This Agreement is governed by the laws of France, excluding conflict-of-law rules to the extent permitted by law. Subject to mandatory jurisdiction rules, the competent courts of Paris, France have exclusive jurisdiction.
+This Agreement is governed by the laws of the European Union and, for Licensees domiciled in the United States, the laws of the United States, excluding conflict-of-law rules to the extent permitted by law. Subject to mandatory jurisdiction rules, disputes are heard by the competent courts of the Licensee's domicile within the EU or the US.
 
 ## 24. Entire agreement; order of precedence
 
