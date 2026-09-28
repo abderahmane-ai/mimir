@@ -1,0 +1,51 @@
+---
+name: Bug report
+description: Something is not working as documented.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before filing: run `mimir doctor --verify` and check [Troubleshooting](https://mythologic.github.io/mimir/guide/troubleshooting/).
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the unexpected behaviour.
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Minimal code or commands that trigger the issue.
+      render: python
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+      description: What you expected to happen instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: doctor
+    attributes:
+      label: mimir doctor output
+      description: Paste the full output of `mimir doctor` here.
+      render: shell
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: mimirai version
+      description: Output of `pip show mimirai | grep Version`.
+    validations:
+      required: true

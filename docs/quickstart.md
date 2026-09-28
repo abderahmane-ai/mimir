@@ -15,8 +15,7 @@ result = model.choose(
 )
 ```
 
-The first call downloads the model from the Hugging Face Hub at the revision this package
-version pins, verifies its signature and every file, and loads it.
+The first call downloads the model from the Hugging Face Hub at the revision this package version pins, verifies the manifest's Sigstore signature, checks every file against the SHA-256 in the manifest, and loads it. Nothing is read until every check passes.
 
 ```python
 result.status            # Status.DECIDED, Status.ABSTAINED or Status.DEFERRED
@@ -28,14 +27,12 @@ result.certificate       # the certified threshold the decision was checked agai
 
 `answer` is what the model thinks. `status` is what you may do with it:
 
-- `DECIDED`: act on `answer`; it is certified at the requested risk.
-- `ABSTAINED`: no listed option applies, and that is certified.
-- `DEFERRED`: do not act; escalate. `result.deferral.reason` says why.
+- `DECIDED` — act on `answer`; it is certified at the requested risk level.
+- `ABSTAINED` — no listed option applies, and that conclusion is certified.
+- `DEFERRED` — do not act; escalate. `result.deferral.reason` says why: `below_threshold`, `out_of_distribution`, or `no_certified_threshold`.
 
 ## Next
 
-- [Decisions](guide/decisions.md): yes/no questions, claims, rankings, ratings and estimates, over
-  passages, tables and JSON.
-- [The certificate](guide/certificate.md): what the risk level means, and how to certify on your
-  own data.
-- [Python](surfaces/python.md): batching, async, offline use and the HTTP client.
+- [Decisions](guide/decisions.md) — yes/no questions, claim verification, rankings, ratings, and estimates, over passages, tables, and JSON.
+- [The certificate](guide/certificate.md) — what the risk level guarantees, and how to certify thresholds on your own data.
+- [Python](surfaces/python.md) — batching, async, offline use, and the HTTP client.

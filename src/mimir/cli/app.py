@@ -15,6 +15,12 @@ from typing import TYPE_CHECKING, Annotated, Final, Literal
 
 import typer
 from pydantic import JsonValue, ValidationError
+from rich.console import Console
+from rich.highlighter import NullHighlighter
+from rich.json import JSON
+from rich.logging import RichHandler
+from rich.text import Text
+from typer import rich_utils
 
 from mimir.core.context import Context, Field
 from mimir.core.decider import Decider
@@ -41,46 +47,122 @@ DEFAULT_MODEL: Final = "Mythologic/MIMIR-1"
 MCP_LOAD_WAIT_S: Final = 60.0
 SpecType = Literal["choice", "multi_choice", "yes_no", "verify", "rank", "rate"]
 
+# --- Presentation ---------------------------------------------------------------------------
+# Rich detects the terminal on its own: colour depth, width, Unicode support, legacy Windows
+# consoles, and the NO_COLOR, FORCE_COLOR, COLUMNS and TERM=dumb conventions. Nothing below
+# hard-codes a width, a colour system or an emoji, so output degrades cleanly everywhere.
+#
+# stdout carries data only (JSON); everything meant for a person goes to stderr.
+out_console: Final = Console(highlight=False)
+err_console: Final = Console(stderr=True, highlight=False)
+
+# Help panels: one heading per concern, so long option lists stay scannable.
+MODEL_PANEL: Final = "Model"
+NETWORK_PANEL: Final = "Network"
+BATCHING_PANEL: Final = "Batching"
+TOOLS_PANEL: Final = "Tools"
+DECISIONS_PANEL: Final = "Decisions"
+SERVING_PANEL: Final = "Serving"
+SETUP_PANEL: Final = "Setup and diagnostics"
+
+# Understated help styling: quiet borders, and content that carries the emphasis.
+rich_utils.STYLE_OPTIONS_PANEL_BORDER = "dim"
+rich_utils.STYLE_COMMANDS_PANEL_BORDER = "dim"
+
 app = typer.Typer(
     name="mimir",
     help="Typed, calibrated and certified decisions with MIMIR.",
+    epilog="Commands print JSON to stdout. Errors print `error: <message>` to stderr and exit "
+    "with status 1.",
+    rich_markup_mode="markdown",
     no_args_is_help=True,
     add_completion=False,
     pretty_exceptions_enable=False,
 )
 
-Model = Annotated[str, typer.Option(help="Hub repository id or local release directory.")]
-Revision = Annotated[str | None, typer.Option(help="Hub revision; defaults to the pinned one.")]
-DeviceOption = Annotated[str, typer.Option(help="auto, cpu or cuda.")]
-VariantOption = Annotated[str | None, typer.Option(help="Graph variant, e.g. fp32 or fp16.")]
-PolicyOption = Annotated[Path | None, typer.Option(help="Custom policy JSON from `calibrate`.")]
+Model = Annotated[
+    str,
+    typer.Option(help="Hub repository id or local release directory.", rich_help_panel=MODEL_PANEL),
+]
+Revision = Annotated[
+    str | None,
+    typer.Option(help="Hub revision; defaults to the pinned one.", rich_help_panel=MODEL_PANEL),
+]
+DeviceOption = Annotated[str, typer.Option(help="auto, cpu or cuda.", rich_help_panel=MODEL_PANEL)]
+VariantOption = Annotated[
+    str | None,
+    typer.Option(help="Graph variant, e.g. fp32 or fp16.", rich_help_panel=MODEL_PANEL),
+]
+PolicyOption = Annotated[
+    Path | None,
+    typer.Option(help="Custom policy JSON from `calibrate`.", rich_help_panel=MODEL_PANEL),
+]
 Unsigned = Annotated[
-    bool, typer.Option(help="Accept a local release directory without a manifest signature.")
+    bool,
+    typer.Option(
+        help="Accept a local release directory without a manifest signature.",
+        rich_help_panel=MODEL_PANEL,
+    ),
 ]
 Server = Annotated[
-    str | None, typer.Option(help="Use a MIMIR server at this URL instead of a local model.")
+    str | None,
+    typer.Option(
+        help="Use a MIMIR server at this URL instead of a local model.",
+        rich_help_panel=MODEL_PANEL,
+    ),
 ]
-ModelCache = Annotated[Path | None, typer.Option(help="Hub cache directory for the model.")]
-Offline = Annotated[bool, typer.Option(help="Load only from the model cache, with no network.")]
-Host = Annotated[str, typer.Option(help="Address to listen on.")]
-Port = Annotated[int, typer.Option(help="Port to listen on.")]
-ToolsFile = Annotated[Path | None, typer.Option("--tools", help="YAML file of decision tools.")]
+ModelCache = Annotated[
+    Path | None,
+    typer.Option(help="Hub cache directory for the model.", rich_help_panel=MODEL_PANEL),
+]
+Offline = Annotated[
+    bool,
+    typer.Option(
+        help="Load only from the model cache, with no network.", rich_help_panel=MODEL_PANEL
+    ),
+]
+Host = Annotated[str, typer.Option(help="Address to listen on.", rich_help_panel=NETWORK_PANEL)]
+Port = Annotated[int, typer.Option(help="Port to listen on.", rich_help_panel=NETWORK_PANEL)]
+ToolsFile = Annotated[
+    Path | None,
+    typer.Option("--tools", help="YAML file of decision tools.", rich_help_panel=TOOLS_PANEL),
+]
 GenericTools = Annotated[
-    bool, typer.Option(help="Add mimir_choose, mimir_verify, mimir_rank and mimir_rate to MCP.")
+    bool,
+    typer.Option(
+        help="Add mimir_choose, mimir_verify, mimir_rank and mimir_rate to MCP.",
+        rich_help_panel=TOOLS_PANEL,
+    ),
 ]
-GenericRisk = Annotated[float, typer.Option(help="Certified risk level of the generic tools.")]
-MaxBodyBytes = Annotated[int, typer.Option(help="Largest request body, in bytes.")]
+GenericRisk = Annotated[
+    float,
+    typer.Option(help="Certified risk level of the generic tools.", rich_help_panel=TOOLS_PANEL),
+]
+MaxBodyBytes = Annotated[
+    int, typer.Option(help="Largest request body, in bytes.", rich_help_panel=NETWORK_PANEL)
+]
 AllowNoAuth = Annotated[
-    bool, typer.Option(help="Serve a non-loopback address without $MIMIR_API_KEYS.")
+    bool,
+    typer.Option(
+        help="Serve a non-loopback address without $MIMIR_API_KEYS.",
+        rich_help_panel=NETWORK_PANEL,
+    ),
 ]
 
 
 def _emit(value: JsonValue) -> None:
-    typer.echo(json.dumps(value, indent=2, ensure_ascii=False))
+    text = json.dumps(value, indent=2, ensure_ascii=False)
+    if out_console.is_terminal:
+        # Syntax-highlighted for a person at a terminal; soft_wrap keeps long strings unbroken.
+        out_console.print(JSON(text), soft_wrap=True)
+    else:
+        # Piped or redirected: byte-for-byte plain JSON, exactly what scripts expect.
+        typer.echo(text)
 
 
 def _fail(message: str) -> typer.Exit:
-    typer.echo(f"error: {message}", err=True)
+    # A Text object, not markup: error messages may contain square brackets.
+    err_console.print(Text.assemble(("error:", "bold red"), f" {message}"), soft_wrap=True)
     return typer.Exit(code=1)
 
 
@@ -130,7 +212,7 @@ def _read_json(path: Path | None) -> JsonValue:
     return loaded
 
 
-@app.command()
+@app.command(rich_help_panel=DECISIONS_PANEL)
 def decide(
     question: Annotated[str | None, typer.Option(help="The question; omit to read JSON.")] = None,
     option: Annotated[list[str] | None, typer.Option(help="An option; repeat for each.")] = None,
@@ -188,7 +270,7 @@ def decide(
     _emit(result.model_dump(mode="json"))
 
 
-@app.command()
+@app.command(rich_help_panel=SETUP_PANEL)
 def schema(
     name: Annotated[
         str | None, typer.Argument(help="One schema by name; all when omitted.")
@@ -205,13 +287,15 @@ def schema(
     _emit(schemas[name])
 
 
-@app.command()
+@app.command(rich_help_panel=SETUP_PANEL)
 def download(
     model: Model = DEFAULT_MODEL,
     revision: Revision = None,
     device: DeviceOption = "auto",
     variant: VariantOption = None,
-    cache_dir: Annotated[Path | None, typer.Option(help="Hub cache directory.")] = None,
+    cache_dir: Annotated[
+        Path | None, typer.Option(help="Hub cache directory.", rich_help_panel=MODEL_PANEL)
+    ] = None,
 ) -> None:
     """Download and verify a release for offline use."""
     try:
@@ -268,7 +352,7 @@ def _environment() -> dict[str, JsonValue]:
     return found
 
 
-@app.command()
+@app.command(rich_help_panel=SETUP_PANEL)
 def doctor(
     verify: Annotated[bool, typer.Option(help="Load the model and run its checks.")] = False,
     model: Model = DEFAULT_MODEL,
@@ -294,7 +378,7 @@ def doctor(
     _emit(report)
 
 
-@app.command()
+@app.command(rich_help_panel=DECISIONS_PANEL)
 def bench(
     path: Annotated[Path, typer.Argument(help="Labelled JSONL file.")],
     risk: Annotated[float, typer.Option(help="Certified risk level.")] = DEFAULT_RISK,
@@ -328,7 +412,7 @@ def bench(
     _emit({"risk": risk, **report.model_dump(mode="json")})
 
 
-@app.command()
+@app.command(rich_help_panel=DECISIONS_PANEL)
 def calibrate(
     path: Annotated[Path, typer.Argument(help="Labelled JSONL file.")],
     out: Annotated[Path, typer.Option(help="Policy JSON to write; the .npz goes alongside.")],
@@ -416,6 +500,26 @@ def _served(
 
 
 def _log_to_stderr() -> None:
+    if err_console.is_terminal:
+        # Interactive: aligned, levelled, timestamped lines. Highlighting is off so that log
+        # text is shown as written, and markup is off so brackets in messages are safe.
+        logging.basicConfig(
+            level=logging.INFO,
+            format="%(name)s  %(message)s",
+            handlers=[
+                RichHandler(
+                    console=err_console,
+                    show_path=False,
+                    markup=False,
+                    rich_tracebacks=False,
+                    highlighter=NullHighlighter(),
+                    log_time_format="[%Y-%m-%d %H:%M:%S]",
+                )
+            ],
+        )
+        return
+    # Not a terminal (container, systemd, file): one plain, unwrapped line per record, which is
+    # what log collectors and grep expect.
     logging.basicConfig(
         level=logging.INFO,
         stream=sys.stderr,
@@ -423,7 +527,7 @@ def _log_to_stderr() -> None:
     )
 
 
-@app.command()
+@app.command(rich_help_panel=SERVING_PANEL)
 def serve(
     host: Host = "127.0.0.1",
     port: Port = 8000,
@@ -433,13 +537,24 @@ def serve(
     risk: GenericRisk = DEFAULT_RISK,
     max_body_bytes: MaxBodyBytes = MAX_BODY_BYTES,
     max_batch_items: Annotated[
-        int, typer.Option(help="Most items in one POST /v1/decide/batch.")
+        int,
+        typer.Option(
+            help="Most items in one POST /v1/decide/batch.", rich_help_panel=BATCHING_PANEL
+        ),
     ] = MAX_BATCH_ITEMS,
     batch_tokens: Annotated[
-        int | None, typer.Option(help="Encoder tokens that fill a batch; the release's budget.")
+        int | None,
+        typer.Option(
+            help="Encoder tokens that fill a batch; the release's budget.",
+            rich_help_panel=BATCHING_PANEL,
+        ),
     ] = None,
     batch_wait_ms: Annotated[
-        float, typer.Option(help="Longest wait for a batch to fill, in milliseconds.")
+        float,
+        typer.Option(
+            help="Longest wait for a batch to fill, in milliseconds.",
+            rich_help_panel=BATCHING_PANEL,
+        ),
     ] = BATCH_WAIT_S * 1000,
     allow_no_auth: AllowNoAuth = False,
     model: Model = DEFAULT_MODEL,
@@ -525,7 +640,7 @@ async def _run_mcp(
         await uvicorn.Server(config).serve()
 
 
-@app.command("mcp")
+@app.command("mcp", rich_help_panel=SERVING_PANEL)
 def mcp_command(
     tools: ToolsFile = None,
     generic_tools: GenericTools = False,
@@ -539,7 +654,10 @@ def mcp_command(
     allow_no_auth: AllowNoAuth = False,
     remote: Annotated[
         str | None,
-        typer.Option(help="Forward every call to a MIMIR HTTP server at this URL."),
+        typer.Option(
+            help="Forward every call to a MIMIR HTTP server at this URL.",
+            rich_help_panel=MODEL_PANEL,
+        ),
     ] = None,
     model: Model = DEFAULT_MODEL,
     revision: Revision = None,

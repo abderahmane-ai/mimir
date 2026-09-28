@@ -5,16 +5,19 @@ pip install "mimirai[local,server]"
 MIMIR_API_KEYS=key-one,key-two mimir serve --host 0.0.0.0 --tools tools.yaml
 ```
 
+## Routes
+
 | Route | Does |
 |---|---|
 | `POST /v1/decide` | one certified decision: `{context, decision, risk, alpha}` |
-| `POST /v1/decide/uncertified` | the model's raw answer: `{context, decision}` |
+| `POST /v1/decide/uncertified` | the model's raw answer with no policy applied: `{context, decision}` |
 | `POST /v1/decide/batch` | up to 64 decisions in one call (`--max-batch-items`) |
-| `POST /v1/tools/{name}` | a tool from `--tools`, given only `{context}` |
+| `POST /v1/tools/{name}` | a named tool from `--tools`, given only `{context}` |
 | `POST /v1/systemone` | Jev's request and response format ([Migrating from Jev](../migrating/jev.md)) |
-| `GET /v1/models` | model, revision, variant, runtime fingerprint, certified risk levels |
-| `GET /healthz`, `GET /readyz` | liveness, and readiness once the model is loaded and verified |
-| `GET /metrics` | Prometheus: requests, latency, batch sizes, statuses |
+| `GET /v1/models` | model id, revision, variant, runtime fingerprint, certified risk levels |
+| `GET /healthz` | liveness — always 200 once the process is up |
+| `GET /readyz` | readiness — 200 once the model has loaded and been verified |
+| `GET /metrics` | Prometheus: request counts, latency histograms, batch sizes, status codes |
 
 The OpenAPI 3.1 document is [`openapi.json`](https://github.com/Mythologic/mimir/blob/main/openapi.json).
 
@@ -32,25 +35,21 @@ tools:
         security: "Security: account access, passwords and fraud"
 ```
 
-The same file configures the MCP server.
+The same file configures the MCP server, so both servers expose the same tools with no duplication.
 
 ## Behaviour
 
-- **Loading.** The server listens at once and loads the model in the background; decisions
-  answer 503 `not_ready` with `Retry-After` until it is ready, and `/readyz` turns ready.
-- **Batching.** Concurrent requests of equal risk and alpha share an engine call, run when their
-  tokens fill the release's batch budget or the oldest has waited 5 ms (`--batch-tokens`,
-  `--batch-wait-ms`).
-- **Authentication.** Keys come from `MIMIR_API_KEYS`, comma-separated; every route but the
-  probes needs `Authorization: Bearer <key>`. A server without keys starts only on a loopback
-  address unless given `--allow-no-auth`.
-- **Limits.** Bodies over 4 MiB (`--max-body-bytes`) get 413 before they are read. Option, level
-  and context-token limits are the release's.
+**Loading.** The server binds and starts accepting connections immediately, then loads the model in the background. Decision endpoints answer 503 `not_ready` with a `Retry-After` header until the model is ready. `/readyz` turns 200 at the same moment.
+
+**Batching.** Concurrent requests with the same risk level and alpha are batched into a single engine call. A batch is dispatched when its accumulated tokens fill the release's batch budget or when the oldest request has waited 5 ms. Both limits are tunable with `--batch-tokens` and `--batch-wait-ms`.
+
+**Authentication.** Keys are read from `MIMIR_API_KEYS`, comma-separated. Every route except `/healthz` and `/readyz` requires `Authorization: Bearer <key>`. A server started without keys will only bind a loopback address (`127.0.0.1`, `::1`) unless started with `--allow-no-auth`.
+
+**Body limit.** Requests over 4 MiB (`--max-body-bytes`) are rejected with 413 before the body is read.
 
 ## Errors
 
-Every error body is `{"error": {"type", "message"}}`, and each message names the value and the
-limit.
+Every error response body is `{"error": {"type": "...", "message": "..."}}`. The message names the specific value and limit that caused the error.
 
 | Status | `type` |
 |---|---|

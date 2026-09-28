@@ -11,6 +11,7 @@ keywords = ["decision-model", "classification", "abstention", "calibration", "on
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
@@ -19,12 +20,14 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development :: Libraries :: Python Modules",
     "Typing :: Typed",
 ]
 dependencies = [
     "httpx>=0.28.1,<1",
     "packaging>=24",
     "pydantic>=2.11,<3",
+    "rich>=13.9,<16",
     "typer>=0.16,<1",
 ]
 
@@ -73,7 +76,10 @@ mimirai = "mimir.cli.app:main"
 
 [project.urls]
 Homepage = "https://github.com/Mythologic/mimir"
+Documentation = "https://mythologic.github.io/mimir/"
+Changelog = "https://github.com/Mythologic/mimir/blob/main/CHANGELOG.md"
 Source = "https://github.com/Mythologic/mimir"
+Tracker = "https://github.com/Mythologic/mimir/issues"
 Model = "https://huggingface.co/Mythologic/MIMIR-1"
 
 [dependency-groups]

@@ -14,6 +14,8 @@ nav = [
     "guide/decisions.md",
     "guide/certificate.md",
     "guide/tool-call-checks.md",
+    "guide/usecases.md",
+    "guide/troubleshooting.md",
   ] },
   { "Surfaces" = [
     "surfaces/python.md",
@@ -41,6 +43,7 @@ nav = [
     "reference/core.md",
     "reference/engine.md",
     "reference/client.md",
+    "reference/calibration.md",
     "reference/integrations.md",
     "reference/compat.md",
     "reference/errors.md",

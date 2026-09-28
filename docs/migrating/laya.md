@@ -1,7 +1,6 @@
 # Migrating from Laya
 
-`mimir.compat.laya.v1` offers Laya 0.3.20's `load(...).predict(state, questions)`, answering in
-Laya's shape:
+`mimir.compat.laya.v1` provides Laya 0.3.20's `load(...).predict(state, questions)` interface, answering in Laya's shape. Existing Laya callers can migrate by changing what they import.
 
 ```python
 from mimir.compat.laya.v1 import load
@@ -19,12 +18,15 @@ answers = agent.predict(
 )
 ```
 
-- Questions are Laya's: Jev's format plus list-valued choice criteria and noul `labels`.
-- `predict_batch(states, questions)` answers the same questions about each state.
-- Values are rounded to 4 decimals, as Laya rounds them.
-- MIMIR has no separate act head: `action.act_probability` is 1.0 when the certified decision
-  may be acted on (`DECIDED` or `ABSTAINED`) and 0.0 when it is deferred, at the risk given to
-  `load` (1% by default).
+## Differences from Laya
 
-The shim makes no promise to follow later Laya versions. For the certificate, the deferral
-reason and the relevant context, call [`Mimir`](../surfaces/python.md) directly.
+- Questions follow Jev's format, extended with list-valued choice criteria and `noul` `labels`.
+- `predict_batch(states, questions)` answers the same set of questions about each state in the batch.
+- Probability values are rounded to 4 decimal places, matching Laya's rounding.
+- MIMIR has no separate act head. `action.act_probability` is `1.0` when the certified decision may be acted on (`DECIDED` or `ABSTAINED`), and `0.0` when it defers — evaluated at the risk level passed to `load` (1% by default).
+
+## Limitations
+
+The shim makes no commitment to track later Laya versions. It provides a migration path, not a long-term compatibility guarantee.
+
+For access to the full MIMIR result — the certificate, the deferral reason, and the relevant context slices — call [`Mimir`](../surfaces/python.md) directly rather than going through the compat shim.

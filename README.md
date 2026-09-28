@@ -1,17 +1,35 @@
 # mimirai
 
-Typed, calibrated and certified decisions from **MIMIR**, a non-generative decision model by
-Mythologic. Give it a context, a question and the options; get back a typed answer, calibrated
-probabilities, the parts of the context it relied on, and a certified signal for when to act
-and when to escalate.
+**Decisions your agents can act on.** MIMIR is a non-generative decision model: give it
+a context, a question and the options, and get back a typed answer with calibrated
+probabilities, the evidence behind it, and a certified verdict on whether to act or
+escalate. No text generated. Nothing to parse. Nothing to hallucinate.
+
+It beats Laya and GLiNER2.5-Decide head-to-head on six of ten tasks — by 54.7 points on
+Banking77, 42.3 on MASSIVE, 36.3 on typed decisions — and where it cannot back an
+answer, it abstains instead of guessing.
 
 ```bash
 pip install "mimirai[local]"        # CPU engine
 pip install "mimirai[local-gpu]"    # CUDA engine
-pip install mimirai                 # data models and the HTTP client only
+pip install mimirai                  # data models and HTTP client only
 ```
 
-Python 3.11 or later. Documentation: <https://mythologic.github.io/mimir/>.
+Python 3.11+. Documentation: <https://mythologic.github.io/mimir/>
+
+---
+
+## Why MIMIR
+
+Most agents route, classify, and verify using a general-purpose language model: slow, expensive, and impossible to audit. MIMIR is built for structured decisions. It runs on ONNX Runtime in milliseconds, returns calibrated probabilities with every answer, and issues a mathematical certificate — a formal guarantee that its realised error rate stays at or below the risk level you ask for, measured on held-out data.
+
+- **No generation.** Answers are drawn from the options you supply, not synthesised. The model cannot hallucinate an answer that wasn't on the list.
+- **Calibrated confidence.** Probabilities are not softmax scores; they are calibrated to match realised accuracy on held-out data.
+- **Certified deferral.** When confidence falls short of the certified threshold, the decision defers rather than guessing. The coverage and the error rate of taken decisions are proven.
+- **One typed contract.** Seven decision types — choice, multi-choice, yes/no, verify, rank, rate, estimate — all returning the same result shape, over any context.
+- **Portable.** The same Python interface works locally on CPU or GPU, over HTTP, and over MCP. Framework adapters exist for eight agent SDKs.
+
+---
 
 ## Quickstart
 
@@ -31,24 +49,27 @@ result.probabilities  # calibrated probability of each option id
 result.certificate    # the certified threshold the decision was checked against
 ```
 
-`answer` is the model's prediction. `status` is the policy's verdict on it:
+`answer` is the model's prediction. `status` is the policy's verdict:
 
-- `DECIDED`: the answer is an option and is certified at the requested risk.
-- `ABSTAINED`: the answer is "none of the options" and is certified.
-- `DEFERRED`: not certified; `result.deferral.reason` is `below_threshold`,
-  `out_of_distribution` or `no_certified_threshold`.
+- `DECIDED` — the answer is an option and is certified at the requested risk level.
+- `ABSTAINED` — no listed option applies, and that is certified.
+- `DEFERRED` — not certified; `result.deferral.reason` is `below_threshold`, `out_of_distribution`, or `no_certified_threshold`.
 
-## Decisions
+The first call downloads the model from the Hugging Face Hub at the revision this package version pins, verifies its Sigstore signature, checks every file against the manifest's SHA-256, and loads it.
+
+---
+
+## Decision types
 
 | Spec | Answer |
 |---|---|
-| `Choice(question, options)` | an option id, or None |
+| `Choice(question, options)` | an option id, or `None` |
 | `MultiChoice(question, options)` | the option ids that apply |
 | `YesNo(question)` | `True` or `False` |
-| `Verify(claim)` | `supported`, `contradicted` or `not_enough_information` |
+| `Verify(claim)` | `supported`, `contradicted`, or `not_enough_information` |
 | `Rank(question, candidates)` | candidate ids, best first |
-| `Rate(question, levels)` | a level id, levels given lowest first |
-| `Estimate(question, low, high, unit)` | a number in `[low, high]` with an interval |
+| `Rate(question, levels)` | a level id; levels given lowest first |
+| `Estimate(question, low, high, unit)` | a number in `[low, high]`, with a confidence interval |
 
 ```python
 from mimir import Context, Field, Passage, Rate, Table
@@ -61,23 +82,15 @@ context = Context(
 result = model.decide(context, Rate("How urgent is this?", ["low", "medium", "high"]), risk=0.01)
 ```
 
-A context can also be a string, a list of strings, or a dict read as a JSON state. Numbers and
-dates in tables and fields are typed. `Table.from_dataframe(frame)` reads a pandas or polars
-DataFrame: its columns are the header and missing values are blank cells. `decide_many` batches many decisions, and every method
-has an async form (`adecide`, `adecide_many`, ...).
+A context can be a string, a list of strings, a dict read as a JSON state, or a `Context` of typed passages, tables, and fields. `Table.from_dataframe(frame)` reads a pandas or polars DataFrame. `decide_many` batches multiple decisions, and every method has an async counterpart (`adecide`, `adecide_many`, …).
+
+---
 
 ## Certification
 
-`decide` takes a risk level certified by the loaded policy (`model.info().risk_levels`). A
-decision is taken only when its calibrated confidence reaches a threshold certified on held-out
-data to keep the error rate of taken decisions at or below that risk with 95% confidence, and
-when the context passes the out-of-distribution gate. `decide_uncertified` returns the raw
-model answer with no policy applied.
+`decide` takes a risk level certified by the loaded policy (`model.info().risk_levels`). A decision is taken only when its calibrated confidence clears a threshold certified on held-out data to keep the realised error rate at or below that risk with 95% confidence, and when the context passes the out-of-distribution gate. `decide_uncertified` returns the raw model answer with no policy applied.
 
-A certificate covers one exact configuration: model files, variant, ONNX Runtime version,
-execution provider and options. On hardware the certificate does not list, the first load runs
-the release's equivalence set and requires every decision to match. To certify thresholds on
-your own labelled data:
+A certificate covers one exact configuration: model files, variant, ONNX Runtime version, execution provider, and options. On hardware not listed in the certificate, the first load runs the release's equivalence set and requires every decision to match. To certify thresholds on your own labelled data:
 
 ```bash
 mimir calibrate labelled.jsonl --risk 0.01 --confidence 0.95 --out policy.json
@@ -86,6 +99,8 @@ mimir calibrate labelled.jsonl --risk 0.01 --confidence 0.95 --out policy.json
 ```python
 model = Mimir.from_pretrained("Mythologic/MIMIR-1", policy="policy.json")
 ```
+
+---
 
 ## Remote use
 
@@ -96,7 +111,9 @@ remote = MimirClient("https://mimir.internal", api_key="...")
 remote.choose("...", "Which team?", options=["billing", "security"])
 ```
 
-`MimirClient` has the same interface as `Mimir`, so code and tools accept either.
+`MimirClient` has the same interface as `Mimir`, so all code, decision tools, and framework adapters accept either. It requires only the base install. Connection errors, timeouts, and 429/502/503/504/529 responses are retried with exponential backoff that honours `Retry-After`.
+
+---
 
 ## Decision tools
 
@@ -124,11 +141,11 @@ tools:
       options: [billing, security]
 ```
 
+---
+
 ## Tool-call checks
 
-A tool-call check decides, against rules you write, whether an agent's pending tool call may
-run. A certified yes allows it, a certified no denies it, and anything else escalates it to a
-person.
+A tool-call check decides, against rules you write, whether an agent's pending tool call may run. A certified yes allows it, a certified no denies it, and anything else escalates to a person.
 
 ```python
 check = model.tool_call_check(
@@ -139,23 +156,22 @@ outcome.permission    # Permission.ALLOW, Permission.DENY or Permission.ESCALATE
 outcome.reason        # one sentence for the agent or the approver
 ```
 
-Write the rules the call is judged against; without them the check has nothing to decide by.
+---
 
 ## Agent frameworks
 
-Each adapter turns decision tools into the framework's own tools, and a tool-call check into
-its own approval hook where it has one.
+Each adapter turns decision tools into the framework's native tool type and wires a tool-call check into that framework's own approval hook.
 
 | Framework | Install | Tools | Tool-call check |
 |---|---|---|---|
 | OpenAI Agents SDK | `mimirai[openai-agents]` | `as_function_tool` | `guard`: escalations pause the run for approval |
-| LangChain, LangGraph | `mimirai[langchain]` | `as_structured_tool` | `ToolCallCheckMiddleware`: escalations interrupt with the human-in-the-loop request |
+| LangChain / LangGraph | `mimirai[langchain]` | `as_structured_tool` | `ToolCallCheckMiddleware`: escalations interrupt with the human-in-the-loop request |
 | PydanticAI | `mimirai[pydantic-ai]` | `as_toolset` | `guard`: escalations end the run with `DeferredToolRequests` |
 | CrewAI | `mimirai[crewai]` | `as_crewai_tool` | `tool_call_hook`: escalations go to your approver |
 | Google ADK | `mimirai[adk]` | `as_adk_tool` | `tool_call_callback`: escalations ask for ADK confirmation |
 | Microsoft Agent Framework | `mimirai[agent-framework]` | `as_function_tool` | `ToolCallCheckMiddleware`: only certified calls run |
-| LlamaIndex | `mimirai[llamaindex]` | `as_llamaindex_tool` | none: no hook before a tool call |
-| smolagents | `mimirai[smolagents]` | `as_smolagents_tool` | none: no hook before a tool call |
+| LlamaIndex | `mimirai[llamaindex]` | `as_llamaindex_tool` | none |
+| smolagents | `mimirai[smolagents]` | `as_smolagents_tool` | none |
 
 ```python
 from agents import Agent
@@ -164,9 +180,9 @@ from mimir.integrations.openai_agents import as_function_tool
 agent = Agent(name="support", tools=[as_function_tool(route_ticket)])
 ```
 
-Every framework also reaches MIMIR through its own MCP client, and so does any other language:
-[`examples/`](examples) has a native, an MCP and a checked agent for each framework, and a
-Vercel AI SDK agent in TypeScript.
+Every framework also reaches MIMIR through its own MCP client. [`examples/`](examples) has a native, an MCP, and a checked agent for each framework, plus a Vercel AI SDK agent in TypeScript.
+
+---
 
 ## HTTP server
 
@@ -186,15 +202,13 @@ MIMIR_API_KEYS=key-one,key-two mimir serve --host 0.0.0.0 --tools tools.yaml
 | `GET /healthz`, `GET /readyz` | liveness, and readiness once the model is loaded |
 | `GET /metrics` | Prometheus metrics |
 
-Concurrent requests are batched. With keys in `MIMIR_API_KEYS`, every route but the probes
-needs `Authorization: Bearer <key>`; a server without keys listens only on loopback unless
-started with `--allow-no-auth`. The OpenAPI 3.1 document is `openapi.json`.
+Concurrent requests are batched. With keys in `MIMIR_API_KEYS`, every route except the probes requires `Authorization: Bearer <key>`. A server with no keys listens only on loopback unless started with `--allow-no-auth`. The OpenAPI 3.1 document is [`openapi.json`](openapi.json).
+
+---
 
 ## MCP server
 
-Each configured tool becomes an MCP tool that takes only a context; `--generic-tools` adds
-`mimir_choose`, `mimir_verify`, `mimir_rank` and `mimir_rate`. A deferred decision is a normal
-result telling the agent to escalate.
+Each configured tool becomes an MCP tool that takes only a context; `--generic-tools` adds `mimir_choose`, `mimir_verify`, `mimir_rank`, and `mimir_rate`. A deferred decision is a normal result telling the agent to escalate.
 
 ```bash
 uvx --from "mimirai[local,mcp]" mimirai mcp --tools tools.yaml               # stdio
@@ -210,10 +224,11 @@ claude mcp add mimir -- uvx --from "mimirai[local,mcp]" mimirai mcp --tools /pat
 claude mcp add --transport http mimir https://mimir.internal/mcp --header "Authorization: Bearer ..."
 ```
 
-Claude Desktop, Cursor and VS Code take the same command, or the same URL and header, in their
-MCP server configuration.
+Claude Desktop, Cursor, and VS Code take the same command or the same URL and header in their MCP configuration. The server is registered in the MCP Registry as `io.github.Mythologic/mimir`.
 
 <!-- mcp-name: io.github.Mythologic/mimir -->
+
+---
 
 ## Containers
 
@@ -222,9 +237,17 @@ docker run -p 8000:8000 -e MIMIR_API_KEYS=... -v mimir-models:/models ghcr.io/my
 docker run --gpus all -p 8000:8000 -e MIMIR_API_KEYS=... -v mimir-models:/models ghcr.io/mythologic/mimir:1.0.0-cuda
 ```
 
-Images carry the runtime, never the model: it is downloaded and verified into `/models` on
-first start. To run from that cache with no network, end the command with
-`serve --host 0.0.0.0 --model-cache /models --offline`.
+Images carry the runtime, never the model weights. On first start, the model is downloaded at the revision the package version pins, verified, and cached in `/models`. To run from that cache with no network access, append `serve --host 0.0.0.0 --model-cache /models --offline`.
+
+Images are signed with Sigstore by the release workflow:
+
+```bash
+cosign verify ghcr.io/mythologic/mimir:1.0.0-cpu \
+  --certificate-identity https://github.com/Mythologic/mimir/.github/workflows/release.yml@refs/heads/main \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+```
+
+---
 
 ## Command line
 
@@ -237,21 +260,22 @@ first start. To run from that cache with no network, end the command with
 | `mimir calibrate FILE` | certify thresholds on labelled decisions |
 | `mimir schema` | JSON Schemas of every spec, result and request |
 | `mimir download` | download and verify a release for offline use |
-| `mimir doctor` | report the environment; `--verify` loads the model |
+| `mimir doctor` | report the environment; `--verify` loads the model and runs the equivalence check |
+
+---
 
 ## Integrity
 
-Releases are loaded from a pinned Hugging Face revision. Before anything is read, the
-manifest's Sigstore signature is verified against the Mythologic release workflow, every file is
-checked against the manifest's SHA-256, and the ONNX graph is checked against its operator
-allowlist and signature. No pickle is used anywhere.
+Releases are loaded from a pinned Hugging Face revision. Before any model file is read, the manifest's Sigstore signature is verified against the Mythologic release workflow, every file is checked against the manifest's SHA-256, and the ONNX graph is checked against its operator allowlist and signature. No pickle is used anywhere.
+
+---
 
 ## Migrating
 
-`mimir.compat.systemone.v1` converts Jev `/v1/systemone` requests and answers, and
-`mimir.compat.laya.v1` offers `load(...).predict(state, questions)` in Laya 0.3.20's shape.
+`mimir.compat.systemone.v1` converts Jev `/v1/systemone` requests and responses, and `mimir.compat.laya.v1` exposes `load(...).predict(state, questions)` in Laya 0.3.20's shape. See the [migration guides](https://mythologic.github.io/mimir/migrating/jev/) for step-by-step instructions.
+
+---
 
 ## License
 
-The `mimirai` package is licensed under Apache 2.0. The MIMIR model weights are distributed
-under their own license on the Hugging Face Hub.
+The `mimirai` package is licensed under [Apache 2.0](LICENSE). The MIMIR model weights are distributed under their own license on the [Hugging Face Hub](https://huggingface.co/Mythologic/MIMIR-1).

@@ -5,15 +5,9 @@ pip install "mimirai[local,mcp]"
 mimir mcp --tools tools.yaml
 ```
 
-Each tool in the [tools file](http.md#tools-file) becomes an MCP tool that takes only a
-context: the server owns the question and the options, so the agent cannot invent them.
-`--generic-tools` adds `mimir_choose`, `mimir_verify`, `mimir_rank` and `mimir_rate`, which take
-the question and options as arguments and decide at `--risk`.
+Each tool in the [tools file](http.md#tools-file) becomes an MCP tool whose only argument is a context. The server owns the question and the options, so the agent cannot invent them at call time. `--generic-tools` adds `mimir_choose`, `mimir_verify`, `mimir_rank`, and `mimir_rate`, which take the question and options as arguments and decide at `--risk`.
 
-Every tool declares its output schema, returns structured content, and is annotated read-only,
-idempotent and closed-world. Its description tells the agent to act only on `decided` or
-`abstained` and to escalate `deferred`. A deferral is a normal result; invalid arguments, a
-model still loading and engine failures are tool errors naming the cause.
+Every tool declares its full output schema, returns structured content, and is annotated read-only, idempotent, and closed-world. Its description instructs the agent to act only on `decided` or `abstained` and to escalate `deferred`. A deferral is a normal result, not an error. Invalid arguments, a model still loading, and engine failures are tool errors that name the cause.
 
 ## Transports
 
@@ -24,9 +18,7 @@ MIMIR_API_KEY=... mimir mcp --tools tools.yaml --remote https://mimir.internal  
 mimir serve --mcp --tools tools.yaml                                          # HTTP API and /mcp together
 ```
 
-`--http` serves stateless Streamable HTTP with JSON responses, behind the HTTP server's keys and
-loopback rule. `--remote` forwards every call to a MIMIR HTTP server, so a laptop's MCP host can
-use a GPU server without installing the model.
+`--http` serves stateless Streamable HTTP with JSON responses, behind the HTTP server's key and loopback rules. `--remote` forwards every tool call to a MIMIR HTTP server, so a local MCP host can use a GPU server without installing the model locally.
 
 ## Clients
 
@@ -39,8 +31,7 @@ use a GPU server without installing the model.
 
 === "Claude Desktop"
 
-    In `claude_desktop_config.json` (macOS: `~/Library/Application Support/Claude/`, Windows:
-    `%APPDATA%\Claude\`):
+    In `claude_desktop_config.json` (macOS: `~/Library/Application Support/Claude/`, Windows: `%APPDATA%\Claude\`):
 
     ```json
     {
@@ -53,8 +44,7 @@ use a GPU server without installing the model.
     }
     ```
 
-    For a remote server, add `"--remote", "https://mimir.internal"` to `args` and
-    `"env": {"MIMIR_API_KEY": "..."}` beside them.
+    For a remote server, add `"--remote", "https://mimir.internal"` to `args` and `"env": {"MIMIR_API_KEY": "..."}` beside them.
 
 === "Cursor"
 
@@ -98,4 +88,4 @@ use a GPU server without installing the model.
     }
     ```
 
-The server is listed in the MCP Registry as `io.github.Mythologic/mimir`.
+The server is registered in the MCP Registry as `io.github.Mythologic/mimir`.

@@ -4,10 +4,11 @@
 pip install "mimirai[local,pydantic-ai]"
 ```
 
-`mimir.integrations.pydantic_ai.as_toolset` gives a `FunctionToolset` of decision tools with their
-typed results. `guard(toolset, check)` wraps any toolset: a denied call fails with the check's
-reason, and an escalated call ends the run with `DeferredToolRequests` (declare it in the
-agent's `output_type`). Tested from `pydantic-ai-slim` 2.16.
+`mimir.integrations.pydantic_ai.as_toolset` converts a collection of decision tools into a `FunctionToolset` with typed return values for use in a PydanticAI agent.
+
+`guard(toolset, check)` wraps any toolset with a tool-call check: a certified denial fails the tool call with the check's reason, and an escalated call ends the run by raising `DeferredToolRequests`. Declare `DeferredToolRequests` in the agent's `output_type` to handle escalations cleanly.
+
+Tested from `pydantic-ai-slim` 2.16.
 
 ## Native tools
 
@@ -26,4 +27,3 @@ agent's `output_type`). Tested from `pydantic-ai-slim` 2.16.
 ```python
 --8<-- "examples/pydantic_ai/mcp_agent.py"
 ```
-
