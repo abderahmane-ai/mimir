@@ -17,7 +17,10 @@ from llama_index.tools.mcp import BasicMCPClient, McpToolSpec
 
 MODEL: Final = "gpt-5.5"
 TOOLS: Final = Path(__file__).parents[1] / "tools.yaml"
-SERVER: Final = ("uvx", ("--from", "mimir-decisions[local,mcp]", "mimir-decisions", "mcp", "--tools", str(TOOLS)))
+SERVER: Final = (
+    "uvx",
+    ("--from", "mimir-decisions[local,mcp]", "mimir-decisions", "mcp", "--tools", str(TOOLS)),
+)
 INSTRUCTIONS: Final = (
     "Route the customer's ticket with route_ticket, then tell the customer which team will "
     "answer. If the decision is deferred, say that a person will review the ticket."

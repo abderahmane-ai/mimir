@@ -66,6 +66,10 @@ def test_config_parses_the_private_release_shape() -> None:
 
 def test_manifest_parses() -> None:
     manifest = Manifest.model_validate(
-        {"format_version": 1, "files": {"a": "b" * 64}, "loadable_by": {"mimir-decisions": ">=1,<2"}}
+        {
+            "format_version": 1,
+            "files": {"a": "b" * 64},
+            "loadable_by": {"mimir-decisions": ">=1,<2"},
+        }
     )
     assert manifest.files == {"a": "b" * 64}

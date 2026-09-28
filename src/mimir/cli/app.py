@@ -334,7 +334,9 @@ def _environment() -> dict[str, JsonValue]:
         from mimir.runtime.hardware import hardware_name
         from mimir.runtime.session import installed_runtimes, resolve_device, runtime_version
     except ModuleNotFoundError as error:
-        found["local_engine"] = f"not installed ({error.name}): pip install 'mimir-decisions[local]'"
+        found["local_engine"] = (
+            f"not installed ({error.name}): pip install 'mimir-decisions[local]'"
+        )
         return found
     import onnxruntime
 

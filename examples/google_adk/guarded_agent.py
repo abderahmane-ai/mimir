@@ -2,7 +2,8 @@
 
 A certified yes runs the refund, a certified no skips it with the reason, and anything else
 asks for confirmation through ADK's own flow, answered here at the console. Install
-`mimir-decisions[local,adk]`, set `GOOGLE_API_KEY`, then run `make example NAME=google_adk/guarded_agent`.
+`mimir-decisions[local,adk]`, set `GOOGLE_API_KEY`, then run
+`make example NAME=google_adk/guarded_agent`.
 """
 
 import asyncio
