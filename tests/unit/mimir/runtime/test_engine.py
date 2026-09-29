@@ -23,6 +23,7 @@ from mimir.core.errors import (
     PolicyError,
     PolicyMismatchError,
     RiskLevelError,
+    UncertifiedRuntimeError,
 )
 from mimir.core.results import ChoiceResult, EstimateResult, Status
 from mimir.policy.assessment import assess
@@ -31,9 +32,9 @@ from mimir.runtime import engine as engine_module
 from mimir.runtime.engine import Mimir
 from mimir.runtime.layout import collate, tokenize
 from mimir.runtime.readout import OUTPUTS, as_float64, readout_at
-from mimir.runtime.release import ReleaseConfig
+from mimir.runtime.release import ReleaseConfig, Variant
 from mimir.runtime.rendering import render
-from mimir.runtime.session import open_session
+from mimir.runtime.session import Device, GraphSession, open_session, resolve_device
 from tests.conftest import SPECIAL, build_policy, local_fingerprint, write_manifest, write_npz
 
 TEXT = "my card was charged twice"
@@ -229,3 +230,35 @@ def test_unlisted_hardware_with_different_decisions_is_refused(
     with pytest.raises(EquivalenceError, match="1 of 7 equivalence decisions differ"):
         load(root)
     assert not (isolated_cache / "equivalence").exists()
+
+
+def test_auto_falls_back_to_cpu_when_cuda_cannot_open(
+    release: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config = ReleaseConfig.model_validate_json((release / "config.json").read_bytes())
+    variants = dict(config.variants)
+    variants["fp16"] = Variant(graph="onnx/model.onnx", policy="policy/fp32", devices=("cuda",))
+    (release / "config.json").write_text(
+        config.model_copy(update={"variants": variants}).model_dump_json(indent=2),
+        encoding="utf-8",
+    )
+    write_manifest(release)
+
+    def resolve(device: str) -> Device:
+        return "cuda" if device == "auto" else resolve_device(device)
+
+    opened: list[Device] = []
+
+    def open_strict(path: Path, device: Device) -> GraphSession:
+        opened.append(device)
+        if device == "cuda":
+            message = f"{path}: opened on ['CPUExecutionProvider'], not CUDAExecutionProvider"
+            raise UncertifiedRuntimeError(message)
+        return open_session(path, device)
+
+    monkeypatch.setattr(engine_module, "resolve_device", resolve)
+    monkeypatch.setattr(engine_module, "open_session", open_strict)
+    engine = Mimir.from_pretrained(str(release), device="auto", allow_unsigned=True)
+    assert opened == ["cuda", "cpu"]
+    assert (engine.info().device, engine.info().variant) == ("cpu", "fp32")
+    assert engine.info().certification == "certified"

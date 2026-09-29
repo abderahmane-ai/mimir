@@ -1,5 +1,6 @@
 """`Mimir`, the local decision engine on ONNX Runtime."""
 
+import logging
 import time
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -11,7 +12,7 @@ from tokenizers import Tokenizer
 from mimir.core.context import Context, ContextLike
 from mimir.core.decider import Decider, Items
 from mimir.core.decisions import DecisionSpec
-from mimir.core.errors import PolicyError, RiskLevelError
+from mimir.core.errors import PolicyError, RiskLevelError, UncertifiedRuntimeError
 from mimir.core.results import DecisionResult
 from mimir.core.wire import InputLimits, ModelInfo, RuntimeInfo
 from mimir.policy.assessment import Assessment, assess
@@ -38,6 +39,8 @@ from mimir.runtime.session import (
     runtime_version,
 )
 from mimir.runtime.signature import ManifestVerifier
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -102,6 +105,34 @@ def load_policy(
     return LoadedPolicy(policy, "equivalent")
 
 
+def _load_session(
+    model: str,
+    *,
+    revision: str | None,
+    cache_dir: Path | None,
+    variant: str | None,
+    device: Device,
+    verifier: ManifestVerifier | None,
+    allow_unsigned: bool,
+    offline: bool,
+) -> tuple[Snapshot, GraphSession]:
+    """Load and verify one variant for a device, and open its session."""
+    snapshot = load_snapshot(
+        model,
+        revision=revision,
+        cache_dir=cache_dir,
+        variant=variant,
+        device=device,
+        verifier=verifier,
+        allow_unsigned=allow_unsigned,
+        offline=offline,
+    )
+    graph = snapshot.path(snapshot.config.variants[snapshot.variant].graph)
+    authenticated = {snapshot.path(relative).resolve() for relative in snapshot.digests}
+    check_graph(graph, snapshot.config.graph, authenticated)
+    return snapshot, open_session(graph, device)
+
+
 class Mimir(Decider):
     """Local MIMIR engine. Create one with `Mimir.from_pretrained`.
 
@@ -158,21 +189,37 @@ class Mimir(Decider):
             EquivalenceError: the equivalence check failed on unlisted hardware.
         """
         check_single_runtime()
+        cache = None if cache_dir is None else Path(cache_dir)
         resolved = resolve_device(device)
-        snapshot = load_snapshot(
-            model,
-            revision=revision,
-            cache_dir=None if cache_dir is None else Path(cache_dir),
-            variant=variant,
-            device=resolved,
-            verifier=verifier,
-            allow_unsigned=allow_unsigned,
-            offline=offline,
-        )
-        graph = snapshot.path(snapshot.config.variants[snapshot.variant].graph)
-        authenticated = {snapshot.path(relative).resolve() for relative in snapshot.digests}
-        check_graph(graph, snapshot.config.graph, authenticated)
-        session = open_session(graph, resolved)
+        try:
+            snapshot, session = _load_session(
+                model,
+                revision=revision,
+                cache_dir=cache,
+                variant=variant,
+                device=resolved,
+                verifier=verifier,
+                allow_unsigned=allow_unsigned,
+                offline=offline,
+            )
+        except UncertifiedRuntimeError:
+            if device != "auto" or resolved != "cuda":
+                raise
+            logger.warning(
+                "device 'auto': the CUDA execution provider is listed but cannot open a "
+                "session; loading the CPU release instead"
+            )
+            resolved = "cpu"
+            snapshot, session = _load_session(
+                model,
+                revision=revision,
+                cache_dir=cache,
+                variant=variant,
+                device=resolved,
+                verifier=verifier,
+                allow_unsigned=allow_unsigned,
+                offline=offline,
+            )
         tokenizer = Tokenizer.from_file(str(snapshot.path(snapshot.config.tokenizer)))
         runtime = loaded_runtime(snapshot, resolved)
         custom = None if policy is None else Path(policy)

@@ -8,19 +8,19 @@
     "source": "github"
   },
   "websiteUrl": "https://github.com/abderahmane-ai/mimir",
-  "version": "1.0.0",
+      "version": "1.0.1",
   "packages": [
     {
       "registryType": "pypi",
       "registryBaseUrl": "https://pypi.org",
       "identifier": "mimir-decisions",
-      "version": "1.0.0",
+  "version": "1.0.1",
       "runtimeHint": "uvx",
       "runtimeArguments": [
         {
           "type": "named",
           "name": "--from",
-          "value": "mimir-decisions[local,mcp]==1.0.0",
+          "value": "mimir-decisions[local,mcp]==1.0.1",
           "description": "Install the CPU engine and the MCP server with the package."
         }
       ],
@@ -43,7 +43,7 @@
     },
     {
       "registryType": "oci",
-      "identifier": "ghcr.io/abderahmane-ai/mimir:1.0.0-cpu",
+      "identifier": "ghcr.io/abderahmane-ai/mimir:1.0.1-cpu",
       "transport": {
         "type": "stdio"
       },

@@ -4,6 +4,14 @@ All notable changes to `mimir-decisions` are documented here. The format follows
 
 ---
 
+## 1.0.1
+
+### Fixed
+
+- `device="auto"` falls back to the CPU release when the CUDA execution provider is listed but
+  cannot open a session, instead of failing the load; `device="cuda"` still raises, naming the
+  cause and the fix.
+
 ## 1.0.0
 
 Initial release, targeting `Mythologic/MIMIR-1`.

@@ -2279,7 +2279,7 @@
   "info": {
     "summary": "Typed, calibrated and certified decisions.",
     "title": "MIMIR",
-    "version": "1.0.0"
+    "version": "1.0.1"
   },
   "openapi": "3.1.0",
   "paths": {

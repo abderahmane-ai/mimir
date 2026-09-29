@@ -1,6 +1,8 @@
 import json
+import re
 import shutil
 import socket
+from importlib import metadata
 from pathlib import Path
 
 import pytest
@@ -113,7 +115,11 @@ def test_a_release_for_other_package_versions_is_refused(release: Path) -> None:
     manifest["loadable_by"] = {"mimir-decisions": ">=2,<3"}
     (release / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
     with pytest.raises(
-        FormatVersionError, match=r"requires mimir-decisions >=2,<3; 1\.0\.0 is installed"
+        FormatVersionError,
+        match=(
+            r"requires mimir-decisions >=2,<3; "
+            rf"{re.escape(metadata.version('mimir-decisions'))} is installed"
+        ),
     ):
         load(release, allow_unsigned=True)
     manifest["loadable_by"] = {"mimir-decisions": "not a specifier"}

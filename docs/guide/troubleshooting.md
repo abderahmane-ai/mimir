@@ -15,7 +15,7 @@ pip install "mimir-decisions[local,mcp]"        # engine plus the MCP server
 
 `ArtifactError` (and its subclasses `IntegrityError`, `SignatureError`, `GraphContractError`, `FormatVersionError`) means a download, signature, or integrity check failed before any model file was read. Run `mimir doctor --verify`: it reports the environment, loads the model, and runs the equivalence check.
 
-`UncertifiedRuntimeError` means the runtime does not match the policy's certified configuration — most commonly the wrong variant for the device (`fp32` on CPU, `fp16` on CUDA). See the `device` and `variant` arguments in [Python](../surfaces/python.md#the-local-engine).
+`UncertifiedRuntimeError` means the runtime does not match the policy's certified configuration — most commonly the wrong variant for the device (`fp32` on CPU, `fp16` on CUDA). See the `device` and `variant` arguments in [Python](../surfaces/python.md#the-local-engine). If the CUDA provider is listed but cannot open a session, `device="auto"` falls back to the CPU release; `device="cuda"` raises instead.
 
 `EquivalenceError` means the hardware is not listed in the certificate, so the first load ran the release's equivalence set and found a decision that differed. Either run `mimir calibrate` on that hardware's decisions, or confirm that the CPU execution provider is listed in the certificate and route the load there.
 

@@ -1,6 +1,6 @@
 [project]
 name = "mimir-decisions"
-version = "1.0.0"
+version = "1.0.1"
 description = "Typed, calibrated and certified decisions from MIMIR, a non-generative decision model"
 readme = "README.md"
 license = "Apache-2.0"

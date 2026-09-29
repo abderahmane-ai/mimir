@@ -1,6 +1,7 @@
 import subprocess
 import sys
 import textwrap
+from importlib import metadata
 
 import mimir
 
@@ -50,4 +51,4 @@ def test_the_contract_and_client_import_without_extras() -> None:
 def test_public_names_resolve() -> None:
     for name in mimir.__all__:
         assert getattr(mimir, name) is not None
-    assert mimir.__version__ == "1.0.0"
+    assert mimir.__version__ == metadata.version("mimir-decisions")

@@ -126,7 +126,12 @@ def open_session(path: Path, device: Device) -> GraphSession:
     )
     active: list[str] = session.get_providers()
     if not active or active[0] != provider:
-        message = f"{path}: ONNX Runtime opened the session on {active}, not {provider}"
+        message = (
+            f"{path}: ONNX Runtime opened the session on {active}, not {provider}: the provider "
+            "is listed but failed to initialise (its missing library or driver is logged "
+            "above). Use device='cpu' for the CPU release, or install an ONNX Runtime build "
+            f"that can use {provider} on this machine"
+        )
         raise UncertifiedRuntimeError(message)
     opened: GraphSession = session
     return opened

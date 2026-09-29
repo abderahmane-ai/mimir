@@ -235,8 +235,8 @@ Claude Desktop, Cursor, and VS Code take the same command or the same URL and he
 ## Containers
 
 ```bash
-docker run -p 8000:8000 -e MIMIR_API_KEYS=... -v mimir-models:/models ghcr.io/abderahmane-ai/mimir:1.0.0-cpu
-docker run --gpus all -p 8000:8000 -e MIMIR_API_KEYS=... -v mimir-models:/models ghcr.io/abderahmane-ai/mimir:1.0.0-cuda
+docker run -p 8000:8000 -e MIMIR_API_KEYS=... -v mimir-models:/models ghcr.io/abderahmane-ai/mimir:1.0.1-cpu
+docker run --gpus all -p 8000:8000 -e MIMIR_API_KEYS=... -v mimir-models:/models ghcr.io/abderahmane-ai/mimir:1.0.1-cuda
 ```
 
 Images carry the runtime, never the model weights. On first start, the model is downloaded at the revision the package version pins, verified, and cached in `/models`. To run from that cache with no network access, append `serve --host 0.0.0.0 --model-cache /models --offline`.
@@ -244,7 +244,7 @@ Images carry the runtime, never the model weights. On first start, the model is 
 Images are signed with Sigstore by the release workflow:
 
 ```bash
-cosign verify ghcr.io/abderahmane-ai/mimir:1.0.0-cpu \
+cosign verify ghcr.io/abderahmane-ai/mimir:1.0.1-cpu \
   --certificate-identity https://github.com/abderahmane-ai/mimir/.github/workflows/release.yml@refs/heads/main \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
