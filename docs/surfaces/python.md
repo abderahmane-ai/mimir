@@ -21,7 +21,7 @@ model = Mimir.from_pretrained("Mythologic/MIMIR-1")
 
 `mimir.Mimir` requires `mimir-decisions[local]` (CPU) or `mimir-decisions[local-gpu]` (CUDA). Both extras install the same `onnxruntime` module, so keep only one in any given environment. `mimir doctor` reports the active runtime and names any conflict.
 
-Certified decisions come from the fp32 graph with the release policy. The fp16 (CUDA) graph ships without a policy in this release, so `decide` raises `PolicyError` there and `decide_uncertified` is the only path.
+Certified decisions come from the fp32 graph with the release policy. The fp16 (CUDA) graph ships without a policy in this release, so `decide` raises `PolicyError` there and `decide_uncertified` is the only path. `device="auto"` falls back to the CPU release when no certified GPU configuration is available; `device="cuda"` loads the fp16 graph explicitly.
 
 Before loading the ONNX session, `from_pretrained` checks the pinned revision, verifies the manifest's Sigstore signature against the release identity of `abderahmane-ai/mimir`, verifies each file's SHA-256 against the manifest, and checks the ONNX graph against its operator allowlist and signature. Nothing is read until every check passes.
 

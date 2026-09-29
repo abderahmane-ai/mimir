@@ -4,6 +4,15 @@ All notable changes to `mimir-decisions` are documented here. The format follows
 
 ---
 
+## 1.0.2
+
+### Fixed
+
+- `device="auto"` serves the best configuration that can decide: the device's variant when it
+  carries a policy, else the certified CPU release. A CUDA machine whose GPU variant has no
+  policy, or whose CUDA provider cannot open a session, loads fp32 on CPU instead of failing;
+  an explicit `device` or `variant` stays strict and raises.
+
 ## 1.0.1
 
 ### Fixed

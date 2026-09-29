@@ -12,7 +12,12 @@ from tokenizers import Tokenizer
 from mimir.core.context import Context, ContextLike
 from mimir.core.decider import Decider, Items
 from mimir.core.decisions import DecisionSpec
-from mimir.core.errors import PolicyError, RiskLevelError, UncertifiedRuntimeError
+from mimir.core.errors import (
+    EquivalenceError,
+    PolicyError,
+    RiskLevelError,
+    UncertifiedRuntimeError,
+)
 from mimir.core.results import DecisionResult
 from mimir.core.wire import InputLimits, ModelInfo, RuntimeInfo
 from mimir.policy.assessment import Assessment, assess
@@ -133,6 +138,34 @@ def _load_session(
     return snapshot, open_session(graph, device)
 
 
+def _prepare(
+    model: str,
+    *,
+    revision: str | None,
+    cache_dir: Path | None,
+    variant: str | None,
+    device: Device,
+    verifier: ManifestVerifier | None,
+    allow_unsigned: bool,
+    offline: bool,
+    custom: Path | None,
+) -> tuple[Snapshot, GraphSession, LoadedRuntime, LoadedPolicy | None]:
+    """Load one variant, open its session, and bind its policy."""
+    snapshot, session = _load_session(
+        model,
+        revision=revision,
+        cache_dir=cache_dir,
+        variant=variant,
+        device=device,
+        verifier=verifier,
+        allow_unsigned=allow_unsigned,
+        offline=offline,
+    )
+    runtime = loaded_runtime(snapshot, device)
+    loaded = load_policy(snapshot, session, runtime, custom)
+    return snapshot, session, runtime, loaded
+
+
 class Mimir(Decider):
     """Local MIMIR engine. Create one with `Mimir.from_pretrained`.
 
@@ -175,7 +208,8 @@ class Mimir(Decider):
         Args:
             model: Hub repository id or local directory.
             revision: Hub revision; defaults to the revision pinned by this package version.
-            device: `auto`, `cpu` or `cuda`.
+            device: `auto`, `cpu` or `cuda`. `auto` serves the best configuration that can
+                decide: the device's variant when it carries a policy, else the CPU release.
             variant: Graph variant; defaults to the variant listed for the device.
             policy: Path to a custom policy JSON from `mimir calibrate` (its `.npz` alongside).
             cache_dir: Hub cache directory.
@@ -190,9 +224,10 @@ class Mimir(Decider):
         """
         check_single_runtime()
         cache = None if cache_dir is None else Path(cache_dir)
+        custom = None if policy is None else Path(policy)
         resolved = resolve_device(device)
         try:
-            snapshot, session = _load_session(
+            snapshot, session, runtime, loaded = _prepare(
                 model,
                 revision=revision,
                 cache_dir=cache,
@@ -201,16 +236,17 @@ class Mimir(Decider):
                 verifier=verifier,
                 allow_unsigned=allow_unsigned,
                 offline=offline,
+                custom=custom,
             )
-        except UncertifiedRuntimeError:
+        except (UncertifiedRuntimeError, EquivalenceError):
             if device != "auto" or resolved != "cuda":
                 raise
             logger.warning(
-                "device 'auto': the CUDA execution provider is listed but cannot open a "
-                "session; loading the CPU release instead"
+                "device 'auto': the CUDA release cannot serve this machine; loading the "
+                "CPU release instead"
             )
             resolved = "cpu"
-            snapshot, session = _load_session(
+            snapshot, session, runtime, loaded = _prepare(
                 model,
                 revision=revision,
                 cache_dir=cache,
@@ -219,11 +255,33 @@ class Mimir(Decider):
                 verifier=verifier,
                 allow_unsigned=allow_unsigned,
                 offline=offline,
+                custom=custom,
             )
+        else:
+            if (
+                loaded is None
+                and custom is None
+                and variant is None
+                and device == "auto"
+                and resolved == "cuda"
+            ):
+                logger.warning(
+                    "device 'auto': the CUDA variant ships without a policy; loading the "
+                    "certified CPU release instead"
+                )
+                resolved = "cpu"
+                snapshot, session, runtime, loaded = _prepare(
+                    model,
+                    revision=revision,
+                    cache_dir=cache,
+                    variant=variant,
+                    device=resolved,
+                    verifier=verifier,
+                    allow_unsigned=allow_unsigned,
+                    offline=offline,
+                    custom=custom,
+                )
         tokenizer = Tokenizer.from_file(str(snapshot.path(snapshot.config.tokenizer)))
-        runtime = loaded_runtime(snapshot, resolved)
-        custom = None if policy is None else Path(policy)
-        loaded = load_policy(snapshot, session, runtime, custom)
         return cls(
             snapshot=snapshot,
             session=session,

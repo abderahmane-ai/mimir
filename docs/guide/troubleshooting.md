@@ -23,7 +23,7 @@ pip install "mimir-decisions[local,mcp]"        # engine plus the MCP server
 
 ## A certified call raises `PolicyError`
 
-The loaded variant has no policy. In this release that is the fp16 (CUDA) graph: use `decide_uncertified` for the raw answer, or pass `device="cpu"` to load the fp32 graph with the release policy. A server in the same state answers 409 `no_policy` on the certified routes.
+The loaded variant has no policy. In this release that is the fp16 (CUDA) graph, reached only with an explicit `device="cuda"` or `variant`: use `decide_uncertified` for the raw answer, or pass `device="cpu"` (or leave the default `auto`) to load the fp32 graph with the release policy. A server in the same state answers 409 `no_policy` on the certified routes.
 
 ## The server answers 503 `not_ready`
 

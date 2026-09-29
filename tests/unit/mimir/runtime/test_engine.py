@@ -232,17 +232,21 @@ def test_unlisted_hardware_with_different_decisions_is_refused(
     assert not (isolated_cache / "equivalence").exists()
 
 
-def test_auto_falls_back_to_cpu_when_cuda_cannot_open(
-    release: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def _add_cuda_variant(release: Path, policy: str) -> None:
     config = ReleaseConfig.model_validate_json((release / "config.json").read_bytes())
     variants = dict(config.variants)
-    variants["fp16"] = Variant(graph="onnx/model.onnx", policy="policy/fp32", devices=("cuda",))
+    variants["fp16"] = Variant(graph="onnx/model.onnx", policy=policy, devices=("cuda",))
     (release / "config.json").write_text(
         config.model_copy(update={"variants": variants}).model_dump_json(indent=2),
         encoding="utf-8",
     )
     write_manifest(release)
+
+
+def test_auto_falls_back_to_cpu_when_cuda_cannot_open(
+    release: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _add_cuda_variant(release, "policy/fp32")
 
     def resolve(device: str) -> Device:
         return "cuda" if device == "auto" else resolve_device(device)
@@ -262,3 +266,46 @@ def test_auto_falls_back_to_cpu_when_cuda_cannot_open(
     assert opened == ["cuda", "cpu"]
     assert (engine.info().device, engine.info().variant) == ("cpu", "fp32")
     assert engine.info().certification == "certified"
+
+
+def test_auto_prefers_the_certified_release_when_cuda_has_no_policy(
+    release: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _add_cuda_variant(release, "policy/fp16")
+
+    def resolve(device: str) -> Device:
+        return "cuda" if device == "auto" else resolve_device(device)
+
+    opened: list[Device] = []
+
+    def open_any(path: Path, device: Device) -> GraphSession:
+        opened.append(device)
+        return open_session(path, "cpu")
+
+    monkeypatch.setattr(engine_module, "resolve_device", resolve)
+    monkeypatch.setattr(engine_module, "open_session", open_any)
+    engine = Mimir.from_pretrained(str(release), device="auto", allow_unsigned=True)
+    assert opened == ["cuda", "cpu"]
+    assert (engine.info().device, engine.info().variant) == ("cpu", "fp32")
+    assert engine.info().certification == "certified"
+    assert engine.info().risk_levels == (0.01,)
+
+
+def test_an_explicit_cuda_variant_stays_strict(
+    release: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _add_cuda_variant(release, "policy/fp16")
+
+    def resolve(device: str) -> Device:
+        return "cuda" if device == "auto" else resolve_device(device)
+
+    def open_any(path: Path, _device: Device) -> GraphSession:
+        return open_session(path, "cpu")
+
+    monkeypatch.setattr(engine_module, "resolve_device", resolve)
+    monkeypatch.setattr(engine_module, "open_session", open_any)
+    engine = Mimir.from_pretrained(str(release), device="auto", variant="fp16", allow_unsigned=True)
+    assert (engine.info().device, engine.info().variant) == ("cuda", "fp16")
+    assert engine.info().certification == "none"
+    with pytest.raises(PolicyError, match="no policy for variant fp16"):
+        engine.decide(TEXT, YesNo("q"))
