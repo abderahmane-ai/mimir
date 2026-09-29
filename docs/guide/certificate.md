@@ -33,7 +33,7 @@ Thresholds are tested from the strictest down, each with an exact binomial test,
 
 ## One exact configuration
 
-A certificate is a property of the specific numbers that produced the probabilities. It records the model files, the variant (`fp32` on CPU, `fp16` on CUDA), the ONNX Runtime version, the execution provider and its options, and the hardware it was measured on.
+A certificate is a property of the specific numbers that produced the probabilities. It records the model files, the variant (`fp32` on CPU, `fp16` on CUDA), the ONNX Runtime version, the execution provider and its options, and the hardware it was measured on. This release certifies the fp32 CPU configuration; the fp16 (CUDA) graph ships without a policy, and only `decide_uncertified` answers there.
 
 Loading a policy into a configuration it was not made for raises immediately. On hardware that is not listed in the certificate, the first load runs the release's equivalence set and requires every decision to match; `mimir doctor --verify` runs the same check on demand.
 
@@ -64,4 +64,4 @@ mimir bench held-out.jsonl --policy policy.json --risk 0.01
 model = Mimir.from_pretrained("Mythologic/MIMIR-1", policy="policy.json")
 ```
 
-A custom policy keeps the release's calibration intact and replaces its thresholds with ones certified on your data at one risk level. Each decision type is tested at an equal share of `1 - confidence`. The policy is bound to the model, runtime, and hardware it was made on — run `mimir calibrate` where you run the model. `mimir bench` reports accuracy, coverage, and realised risk per decision type, each with a 95% Wilson interval.
+A custom policy keeps the release's calibration intact and replaces its thresholds with ones certified on your data at one risk level. Each decision type is tested at an equal share of `1 - confidence`. The policy is bound to the model, runtime, and hardware it was made on — run `mimir calibrate` where you run the model. Calibration starts from the release policy, so it runs on the fp32 CPU configuration; the fp16 graph has none. `mimir bench` reports accuracy, coverage, and realised risk per decision type, each with a 95% Wilson interval.

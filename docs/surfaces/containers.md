@@ -17,7 +17,7 @@ docker run -p 8000:8000 -e MIMIR_API_KEYS=... -v mimir-models:/models \
 
 - **Entry point.** The entry point is `mimir` and the default command is `serve --host 0.0.0.0 --port 8000 --model-cache /models`. Pass any other `mimir` subcommand (e.g. `mcp`) to override it.
 - **Security.** Both images run as a non-root user. They bind on every interface by default and therefore require keys in `MIMIR_API_KEYS`.
-- **CUDA image.** The CUDA image requires a host driver compatible with CUDA 13.0.
+- **CUDA image.** The CUDA image requires a host driver compatible with CUDA 13.0. It serves the fp16 graph, which ships without a policy in this release: `/v1/decide` answers 409 `no_policy`. Use `/v1/decide/uncertified`, or the CPU image for certified decisions.
 - **Tags.** Tags follow `{version}-{variant}`, e.g. `1.0.0-cpu` and `1.0.0-cuda`. There is no `latest` tag; pin the version.
 
 ## Verifying images

@@ -17,6 +17,8 @@ pip install mimir-decisions                  # data models and HTTP client only
 
 Python 3.11+. Documentation: <https://abderahmane-ai.github.io/mimir/>
 
+The shipped policy certifies the fp32 CPU configuration; the CUDA (fp16) graph ships without a policy in this release.
+
 ---
 
 ## Why MIMIR

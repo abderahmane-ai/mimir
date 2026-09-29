@@ -21,6 +21,10 @@ pip install "mimir-decisions[local,mcp]"        # engine plus the MCP server
 
 `PolicyMismatchError` means a custom policy was certified on a different model, runtime, or hardware than the one being loaded. Policies are bound to the exact configuration they were made on — run `mimir calibrate` where you run the model.
 
+## A certified call raises `PolicyError`
+
+The loaded variant has no policy. In this release that is the fp16 (CUDA) graph: use `decide_uncertified` for the raw answer, or pass `device="cpu"` to load the fp32 graph with the release policy. A server in the same state answers 409 `no_policy` on the certified routes.
+
 ## The server answers 503 `not_ready`
 
 The server starts listening immediately and loads the model in the background. Decision endpoints answer 503 until the model is ready. Poll `GET /readyz`, or configure your load balancer's readiness probe to wait for it before routing traffic.

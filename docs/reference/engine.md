@@ -5,7 +5,9 @@ downloads the release at the revision this package version pins, verifies the ma
 Sigstore signature and every file's SHA-256, checks the graph against its contract, and
 loads it — or raises `ArtifactError` before anything is read. Safe to share across
 threads. Needs `mimir-decisions[local]` (CPU) or `mimir-decisions[local-gpu]` (CUDA); the two install
-the same `onnxruntime` module, so keep one of them.
+the same `onnxruntime` module, so keep one of them. The fp16 (CUDA) graph ships without a
+policy in this release, so `decide` raises `PolicyError` there; `decide_uncertified`
+returns the raw answer.
 
 | Argument | Default | Does |
 |---|---|---|

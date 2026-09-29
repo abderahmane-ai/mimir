@@ -10,7 +10,7 @@ Initial release, targeting `Mythologic/MIMIR-1`.
 
 ### Added
 
-- **`Mimir`** — local inference engine on ONNX Runtime. `fp32` on CPU, `fp16` on CUDA, each variant with its own certificate. Loads from the Hugging Face Hub at a pinned revision; verifies the Sigstore manifest signature, every file's SHA-256, and the ONNX graph against its operator allowlist before reading anything.
+- **`Mimir`** — local inference engine on ONNX Runtime. `fp32` on CPU with the shipped policy; `fp16` on CUDA ships without a policy in this release. Loads from the Hugging Face Hub at a pinned revision; verifies the Sigstore manifest signature, every file's SHA-256, and the ONNX graph against its operator allowlist before reading anything.
 - **Seven decision types** over passages, tables, and JSON fields: `Choice`, `MultiChoice`, `YesNo`, `Verify`, `Rank`, `Rate`, `Estimate`. Every result carries calibrated probabilities, the relevant context slices, and a certified deferral signal.
 - **`MimirClient`** — the same interface over HTTP, with exponential backoff and `Retry-After` support. No engine dependency; works from the base install.
 - **`mimir serve`** — FastAPI HTTP server with request batching, bearer authentication, Prometheus metrics, and Jev's `/v1/systemone` compat endpoint.

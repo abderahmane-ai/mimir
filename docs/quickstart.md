@@ -17,6 +17,8 @@ result = model.choose(
 
 The first call downloads the model from the Hugging Face Hub at the revision this package version pins, verifies the manifest's Sigstore signature, checks every file against the SHA-256 in the manifest, and loads it. Nothing is read until every check passes.
 
+On a machine with a CUDA GPU, `device="auto"` selects the fp16 graph, which ships without a policy in this release: `decide` raises `PolicyError` there. Pass `device="cpu"` for certified decisions, or use `decide_uncertified` for the raw answer.
+
 ```python
 result.status            # Status.DECIDED, Status.ABSTAINED or Status.DEFERRED
 result.answer            # "billing", or None when no option applies
