@@ -29,10 +29,12 @@ tools:
     description: Route a support ticket to the team that owns it.
     decision:
       type: choice
-      question: Which team should handle this ticket?
+      question: Which department should handle this request?
       options:
-        billing: "Billing: payments, refunds and invoices"
-        security: "Security: account access, passwords and fraud"
+        billing: "Billing: invoices, payments, refunds"
+        technical: "Technical: bugs, outages, system errors"
+        sales: "Sales: pricing, new contracts"
+        other: "Other: everything else"
 ```
 
 The same file configures the MCP server, so both servers expose the same tools with no duplication.

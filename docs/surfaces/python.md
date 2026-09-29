@@ -37,7 +37,16 @@ The engine is safe to share across threads.
 from mimir import MimirClient
 
 remote = MimirClient("https://mimir.internal", api_key="...")
-remote.choose("...", "Which team?", options=["billing", "security"])
+remote.choose(
+    "Hi, we were billed twice for March. Please refund the duplicate today or we will cancel our plan.",
+    "Which department should handle this request?",
+    options={
+        "billing": "Billing: invoices, payments, refunds",
+        "technical": "Technical: bugs, outages, system errors",
+        "sales": "Sales: pricing, new contracts",
+        "other": "Other: everything else",
+    },
+)
 ```
 
 `MimirClient` implements the same interface as `Mimir` — the same methods, the same signatures — so code, decision tools, and framework adapters accept either without modification. It requires only the base install.
@@ -48,7 +57,16 @@ Use `MimirClient` as a context manager to ensure the underlying connection pool 
 
 ```python
 with MimirClient("https://mimir.internal") as remote:
-    result = remote.choose("...", "Which team?", options=["billing", "security"])
+    result = remote.choose(
+        "Hi, we were billed twice for March. Please refund the duplicate today or we will cancel our plan.",
+        "Which department should handle this request?",
+        options={
+            "billing": "Billing: invoices, payments, refunds",
+            "technical": "Technical: bugs, outages, system errors",
+            "sales": "Sales: pricing, new contracts",
+            "other": "Other: everything else",
+        },
+    )
 ```
 
 ## Async and batches
@@ -64,10 +82,20 @@ from mimir import Choice
 
 route_ticket = model.tool(
     "route_ticket",
-    Choice("Which team should handle this ticket?", options=["billing", "security"]),
+    Choice(
+        "Which department should handle this request?",
+        {
+            "billing": "Billing: invoices, payments, refunds",
+            "technical": "Technical: bugs, outages, system errors",
+            "sales": "Sales: pricing, new contracts",
+            "other": "Other: everything else",
+        },
+    ),
     description="Route a support ticket to the team that owns it.",
 )
-route_ticket("My card was charged twice")
+route_ticket(
+    "Hi, we were billed twice for March. Please refund the duplicate today or we will cancel our plan."
+)
 route_ticket.input_schema, route_ticket.output_schema
 ```
 

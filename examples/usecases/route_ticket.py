@@ -6,20 +6,27 @@ Install `mimir-decisions[local]`, then run `make example NAME=usecases/route_tic
 from mimir import ChoiceResult, Decider, Mimir, Status
 
 TEAMS = {
-    "billing": "Billing: payments, refunds and invoices",
-    "security": "Security: account access, passwords and fraud",
-    "shipping": "Shipping: deliveries, tracking and returns",
+    "billing": "Billing: invoices, payments, refunds",
+    "technical": "Technical: bugs, outages, system errors",
+    "sales": "Sales: pricing, new contracts",
+    "other": "Other: everything else",
 }
 
 
 def route(decider: Decider, ticket: str) -> ChoiceResult:
     """Route one ticket; a deferred ticket goes to a person, never to a guessed team."""
-    return decider.choose(ticket, "Which team should handle this ticket?", options=TEAMS, risk=0.01)
+    return decider.choose(
+        ticket, "Which department should handle this request?", options=TEAMS, risk=0.01
+    )
 
 
 def main() -> None:
     model = Mimir.from_pretrained("Mythologic/MIMIR-1")
-    result = route(model, "I was charged twice for order 4412.")
+    result = route(
+        model,
+        "Hi, we were billed twice for March. Please refund the duplicate today or we will "
+        "cancel our plan.",
+    )
     if result.status is not Status.DECIDED:
         print("deferred: a person reviews the ticket")
     else:

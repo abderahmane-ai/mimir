@@ -6,10 +6,12 @@ tools:
     description: Route a support ticket to the team that owns it.
     decision:
       type: choice
-      question: Which team should handle this ticket?
+      question: Which department should handle this request?
       options:
-        billing: "Billing: payments, refunds and invoices"
-        security: "Security: account access and fraud"
+        billing: "Billing: invoices, payments, refunds"
+        technical: "Technical: bugs, outages, system errors"
+        sales: "Sales: pricing, new contracts"
+        other: "Other: everything else"
     risk: 0.01
 ```
 

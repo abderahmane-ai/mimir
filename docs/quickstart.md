@@ -9,9 +9,14 @@ from mimir import Mimir
 
 model = Mimir.from_pretrained("Mythologic/MIMIR-1")
 result = model.choose(
-    "My card was charged twice for the same order.",
-    "Which team should handle this ticket?",
-    options={"billing": "Billing: payments, refunds", "security": "Security: account access"},
+    "Hi, we were billed twice for March. Please refund the duplicate today or we will cancel our plan.",
+    "Which department should handle this request?",
+    options={
+        "billing": "Billing: invoices, payments, refunds",
+        "technical": "Technical: bugs, outages, system errors",
+        "sales": "Sales: pricing, new contracts",
+        "other": "Other: everything else",
+    },
 )
 ```
 
@@ -32,6 +37,8 @@ result.certificate       # the evidence, when the answer is certified
 - `DECIDED` — act on `answer`.
 - `ABSTAINED` — no listed option applies.
 - `DEFERRED` — the answer came in below the floor (`threshold` or `certified` mode); have a person review it. The answer is still there.
+
+The option text is what the model reads: give each option the phrase the answer would be, not a code, and describe it when the id is an abbreviation. [Decisions](guide/decisions.md) covers the shapes that decide.
 
 ## Next
 

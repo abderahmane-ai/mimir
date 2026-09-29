@@ -16,9 +16,18 @@ so every answer is actionable. In `threshold` mode the floor is your `min_confid
 ## Modes
 
 ```python
-model.choose(ticket, "Which team?", teams)                                     # standard
-model.choose(ticket, "Which team?", teams, mode="threshold", min_confidence=0.7)
-model.choose(ticket, "Which team?", teams, mode="certified", risk=0.01)
+ticket = "Hi, we were billed twice for March. Please refund the duplicate today or we will cancel our plan."
+question = "Which department should handle this request?"
+teams = {
+    "billing": "Billing: invoices, payments, refunds",
+    "technical": "Technical: bugs, outages, system errors",
+    "sales": "Sales: pricing, new contracts",
+    "other": "Other: everything else",
+}
+
+model.choose(ticket, question, teams)                                     # standard
+model.choose(ticket, question, teams, mode="threshold", min_confidence=0.7)
+model.choose(ticket, question, teams, mode="certified", risk=0.01)
 ```
 
 - `standard` (the default) answers every request: the calibrated argmax, never deferred
@@ -55,7 +64,7 @@ A certificate is a property of the specific numbers that produced the probabilit
 To certify thresholds on your own labelled decisions, write one JSON object per line:
 
 ```json
-{"context": "My card was charged twice", "decision": {"type": "choice", "question": "Which team?", "options": ["billing", "security"]}, "label": "billing"}
+{"context": "Hi, we were billed twice for March.", "decision": {"type": "choice", "question": "Which department should handle this request?", "options": {"billing": "Billing: invoices, payments, refunds", "technical": "Technical: bugs, outages, system errors", "sales": "Sales: pricing, new contracts", "other": "Other: everything else"}, "label": "billing"}
 ```
 
 | Spec | Label |

@@ -11,8 +11,13 @@ answers = agent.predict(
     {
         "department": {
             "type": "choice",
-            "instructions": "Which team should handle this?",
-            "criteria": ["billing", "technical", "sales"],
+            "instructions": "Which department should handle this request?",
+            "criteria": {
+                "billing": "invoices, payments, refunds",
+                "technical": "bugs, outages, system errors",
+                "sales": "pricing, new contracts",
+                "other": "everything else",
+            },
         }
     },
 )

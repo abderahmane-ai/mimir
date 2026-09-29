@@ -37,9 +37,14 @@ from mimir import Mimir
 
 model = Mimir.from_pretrained("Mythologic/MIMIR-1")
 result = model.choose(
-    "My card was charged twice for the same order.",
-    "Which team should handle this ticket?",
-    options={"billing": "Billing: payments, refunds", "security": "Security: account access"},
+    "Hi, we were billed twice for March. Please refund the duplicate today or we will cancel our plan.",
+    "Which department should handle this request?",
+    options={
+        "billing": "Billing: invoices, payments, refunds",
+        "technical": "Technical: bugs, outages, system errors",
+        "sales": "Sales: pricing, new contracts",
+        "other": "Other: everything else",
+    },
 )
 
 result.status         # Status.DECIDED, Status.ABSTAINED or Status.DEFERRED
@@ -53,6 +58,8 @@ result.certificate    # the evidence, when the answer is certified
 - `DECIDED` — act on `answer`.
 - `ABSTAINED` — no listed option applies.
 - `DEFERRED` — the answer came in below the floor; have a person review it. The answer is still there.
+
+Option text is what the model reads: give each option the phrase the answer would be, not a code. The [Decisions guide](https://abderahmane-ai.github.io/mimir/guide/decisions/) covers the shapes that decide.
 
 The first call downloads the model from the Hugging Face Hub at the revision this package version pins, verifies its Sigstore signature, checks every file against the manifest's SHA-256, and loads it.
 
@@ -107,7 +114,16 @@ model = Mimir.from_pretrained("Mythologic/MIMIR-1", policy="policy.json")
 from mimir import MimirClient
 
 remote = MimirClient("https://mimir.internal", api_key="...")
-remote.choose("...", "Which team?", options=["billing", "security"])
+remote.choose(
+    "Hi, we were billed twice for March. Please refund the duplicate today or we will cancel our plan.",
+    "Which department should handle this request?",
+    options={
+        "billing": "Billing: invoices, payments, refunds",
+        "technical": "Technical: bugs, outages, system errors",
+        "sales": "Sales: pricing, new contracts",
+        "other": "Other: everything else",
+    },
+)
 ```
 
 `MimirClient` has the same interface as `Mimir`, so all code, decision tools, and framework adapters accept either. It requires only the base install. Connection errors, timeouts, and 429/502/503/504/529 responses are retried with exponential backoff that honours `Retry-After`.
@@ -121,10 +137,20 @@ from mimir import Choice
 
 route_ticket = model.tool(
     "route_ticket",
-    Choice("Which team should handle this ticket?", options=["billing", "security"]),
+    Choice(
+        "Which department should handle this request?",
+        {
+            "billing": "Billing: invoices, payments, refunds",
+            "technical": "Technical: bugs, outages, system errors",
+            "sales": "Sales: pricing, new contracts",
+            "other": "Other: everything else",
+        },
+    ),
     description="Route a support ticket to the team that owns it.",
 )
-route_ticket("My card was charged twice")
+route_ticket(
+    "Hi, we were billed twice for March. Please refund the duplicate today or we will cancel our plan."
+)
 route_ticket.input_schema, route_ticket.output_schema
 ```
 
@@ -136,8 +162,12 @@ tools:
     description: Route a support ticket to the team that owns it.
     decision:
       type: choice
-      question: Which team should handle this ticket?
-      options: [billing, security]
+      question: Which department should handle this request?
+      options:
+        billing: "Billing: invoices, payments, refunds"
+        technical: "Technical: bugs, outages, system errors"
+        sales: "Sales: pricing, new contracts"
+        other: "Other: everything else"
 ```
 
 ---

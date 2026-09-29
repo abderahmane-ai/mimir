@@ -17,12 +17,17 @@
 
 ```bash
 # One decision from flags
-mimir decide --type choice --question "Which team?" --option billing --option security \
-  --text "My card was charged twice"
+mimir decide --type choice --question "What is the customer reporting?" \
+  --option "Transaction charged twice" --option "Request a refund" \
+  --option "Card not working" --option "Change PIN" \
+  --text "There are two identical charges from your company on my statement."
 
 # One decision with a confidence floor
-mimir decide --type choice --question "Which team?" --option billing --option security \
-  --text "My card was charged twice" --mode threshold --min-confidence 0.7
+mimir decide --type choice --question "What is the customer reporting?" \
+  --option "Transaction charged twice" --option "Request a refund" \
+  --option "Card not working" --option "Change PIN" \
+  --text "There are two identical charges from your company on my statement." \
+  --mode threshold --min-confidence 0.7
 
 # One decision from stdin
 echo '{"context": "...", "decision": {"type": "yes_no", "question": "Is this urgent?"}}' | mimir decide

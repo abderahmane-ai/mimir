@@ -66,9 +66,13 @@ Start with the simplest shape that carries the evidence. `decide_many` batches a
 ## Writing the question and options
 
 - One question per decision; it is read with every option.
-- The option text is what the model reads, and the id is what comes back, so give a mapping with descriptions when the ids alone are codes: `{"billing": "Billing: payments and refunds"}`.
+- The option text is what the model reads, and the id is what comes back. Give the answer phrase as the text — `{"transaction_charged_twice": "Transaction charged twice"}` — not a bare word: a code alone (`"billing"`) is weak evidence even when the answer is obvious to a person.
+- Describe options whose ids are abbreviations: `{"billing": "Billing: invoices, payments, refunds"}`. A routing question reads best with a catch-all option, `{"other": "Other: everything else"}`.
+- Give the context the text a person would read. A ticket's subject and body decide; the same options over a one-line summary can come back `ABSTAINED`.
+- Two-option booleans read better with phrase texts (`{"no": "No: the user does not ask for a refund", "yes": "Yes: the user asks for a refund"}`) than with `true` and `false`.
+- Do not ask `YesNo` about dates or numbers; the values belong in typed table cells or fields, with the question asked as a `Choice`, `Rate`, or `Estimate`.
 - `Verify` takes the claim, and its verdicts are fixed; `YesNo` fixes `yes` and `no`. A two-point scale belongs in `Choice` or `YesNo`, not `Rate`, which needs at least three levels.
-- `ABSTAINED` is a normal answer — "no listed option applies" — so an option only belongs in the list if it can genuinely apply.
+- `ABSTAINED` is a normal answer — "no listed option applies" — so an option only belongs in the list if it can genuinely apply, and the probabilities read after an abstain are not a decision.
 
 When a result is not what you expected, read `relevant_context` first: if the evidence is not listed, the context did not carry it.
 

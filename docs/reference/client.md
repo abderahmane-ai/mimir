@@ -11,7 +11,16 @@ as a context manager; close it when done.
 from mimir import MimirClient
 
 with MimirClient("https://mimir.internal") as remote:
-    result = remote.choose("...", "Which team?", options=["billing", "security"])
+    result = remote.choose(
+        "Hi, we were billed twice for March. Please refund the duplicate today or we will cancel our plan.",
+        "Which department should handle this request?",
+        options={
+            "billing": "Billing: invoices, payments, refunds",
+            "technical": "Technical: bugs, outages, system errors",
+            "sales": "Sales: pricing, new contracts",
+            "other": "Other: everything else",
+        },
+    )
 ```
 
 ::: mimir.client.http.MimirClient
