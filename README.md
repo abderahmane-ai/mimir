@@ -59,7 +59,7 @@ result.certificate    # the evidence, when the answer is certified
 - `ABSTAINED` — no listed option applies.
 - `DEFERRED` — the answer came in below the floor; have a person review it. The answer is still there.
 
-Option text is what the model reads: give each option the phrase the answer would be, not a code. The [Decisions guide](https://abderahmane-ai.github.io/mimir/guide/decisions/) covers the shapes that decide.
+Give the model the ticket as a person wrote it — the same options over a one-line summary can come back `ABSTAINED`. The [Decisions guide](https://abderahmane-ai.github.io/mimir/guide/decisions/) covers the question and option shapes that decide.
 
 The first call downloads the model from the Hugging Face Hub at the revision this package version pins, verifies its Sigstore signature, checks every file against the manifest's SHA-256, and loads it.
 

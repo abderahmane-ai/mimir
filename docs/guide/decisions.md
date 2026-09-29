@@ -66,9 +66,9 @@ Start with the simplest shape that carries the evidence. `decide_many` batches a
 ## Writing the question and options
 
 - One question per decision; it is read with every option.
-- The option text is what the model reads, and the id is what comes back. Give the answer phrase as the text — `{"transaction_charged_twice": "Transaction charged twice"}` — not a bare word: a code alone (`"billing"`) is weak evidence even when the answer is obvious to a person.
-- Describe options whose ids are abbreviations: `{"billing": "Billing: invoices, payments, refunds"}`. A routing question reads best with a catch-all option, `{"other": "Other: everything else"}`.
-- Give the context the text a person would read. A ticket's subject and body decide; the same options over a one-line summary can come back `ABSTAINED`.
+- Give the context the text a person would read. A ticket's subject and body decide in every option style; the same options over a one-line summary can come back `ABSTAINED`. This is the strongest lever.
+- The option text is what the model reads, and the id is what comes back. Write it in the words the evidence uses — the wording the answer would appear as: an option whose words are absent from the context scores below the floor. `{"transaction_charged_twice": "Transaction charged twice"}` does this, and a description on an abbreviated id, `{"billing": "Billing: invoices, payments, refunds"}`, raises confidence further.
+- A routing question reads best with a catch-all option, `{"other": "Other: everything else"}`. Descriptions, the catch-all and the question's wording shift confidence, but the context carries the decision.
 - Two-option booleans read better with phrase texts (`{"no": "No: the user does not ask for a refund", "yes": "Yes: the user asks for a refund"}`) than with `true` and `false`.
 - Do not ask `YesNo` about dates or numbers; the values belong in typed table cells or fields, with the question asked as a `Choice`, `Rate`, or `Estimate`.
 - `Verify` takes the claim, and its verdicts are fixed; `YesNo` fixes `yes` and `no`. A two-point scale belongs in `Choice` or `YesNo`, not `Rate`, which needs at least three levels.

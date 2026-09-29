@@ -38,7 +38,7 @@ result.certificate       # the evidence, when the answer is certified
 - `ABSTAINED` — no listed option applies.
 - `DEFERRED` — the answer came in below the floor (`threshold` or `certified` mode); have a person review it. The answer is still there.
 
-The option text is what the model reads: give each option the phrase the answer would be, not a code, and describe it when the id is an abbreviation. [Decisions](guide/decisions.md) covers the shapes that decide.
+A ticket's real text decides; the same options over a one-line summary can come back `ABSTAINED`. [Decisions](guide/decisions.md) covers the question and option shapes that decide.
 
 ## Next
 
