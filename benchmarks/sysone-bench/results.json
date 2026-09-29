@@ -1,0 +1,52 @@
+{
+  "benchmark": "sysone-bench v2.0.0",
+  "benchmark_repository": "https://github.com/instax-dutta/sysone-bench",
+  "benchmark_commit": "9447a17fccb524957d1211ecdf46153821ff0810",
+  "manifest_logical_digest": "4272a7a25ebcb324235696ad808544e157a31e3f9c04421da731a08dfb9d5768",
+  "manifest_raw_sha256": "a938cc2483a592dc84e0d5baac12594491bcaa5b4ceb6b7c3b0def71b36297bd",
+  "seed": 42,
+  "split": "evaluation",
+  "cases": 952,
+  "decisions": 1240,
+  "accuracy": 0.6596774193548387,
+  "model": {
+    "name": "Mythologic/MIMIR-1",
+    "release_commit": "cb3cfca6887c5ee5b23ea7c58f73249e1b961dc8",
+    "variant": "fp32",
+    "certification": "certified",
+    "risk": 0.01,
+    "projection": "deferred or abstained decisions projected to the argmax option"
+  },
+  "environment": {
+    "device": "cpu",
+    "provider": "CPUExecutionProvider",
+    "onnxruntime": "1.30.0",
+    "hardware": "arm64 Apple M4",
+    "mimir_decisions": "1.0.0"
+  },
+  "adapter_version": "1",
+  "suites": {
+    "agnews": 0.85,
+    "banking77_12": 0.8125,
+    "emotion": 0.5885416666666666,
+    "guardrails": 0.84375,
+    "mnli": 0.7166666666666667,
+    "moderation": 0.7777777777777778,
+    "multilingual_intent": 0.11666666666666667,
+    "sst5": 0.4166666666666667,
+    "triage": 0.7708333333333334
+  },
+  "english_suites": {
+    "decisions": 1120,
+    "mimir": 0.7178571428571429,
+    "laya": 0.7116071428571429,
+    "note": "The eight suites excluding multilingual_intent; Laya from the published report"
+  },
+  "published_totals": {
+    "jev-1.13.0": 0.9065,
+    "laya-0.3.11": 0.6863,
+    "qwen-pcd-15b": 0.6048,
+    "source": "results/v2/report-20260926/REPORT.md in the benchmark repository"
+  },
+  "reproduce": "bash reproduce.sh"
+}
