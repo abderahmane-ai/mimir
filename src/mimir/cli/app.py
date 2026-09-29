@@ -28,7 +28,7 @@ from mimir.core.decisions import Choice, DecisionSpec, MultiChoice, Rank, Rate, 
 from mimir.core.errors import MimirError
 from mimir.core.labels import LabelError, read_labelled
 from mimir.core.schema import json_schemas
-from mimir.core.wire import DEFAULT_RISK, MAX_BATCH_ITEMS, MAX_BODY_BYTES, DecideRequest
+from mimir.core.wire import DEFAULT_RISK, MAX_BATCH_ITEMS, MAX_BODY_BYTES, DecideRequest, Mode
 from mimir.evaluation.bench import bench as bench_results
 from mimir.extras import MCP_MODULES, SERVER_MODULES, engine_class, require_extra
 from mimir.server.batcher import BATCH_WAIT_S
@@ -91,7 +91,7 @@ Revision = Annotated[
 DeviceOption = Annotated[str, typer.Option(help="auto, cpu or cuda.", rich_help_panel=MODEL_PANEL)]
 VariantOption = Annotated[
     str | None,
-    typer.Option(help="Graph variant, e.g. fp32 or fp16.", rich_help_panel=MODEL_PANEL),
+    typer.Option(help="Weights variant, e.g. fp32.", rich_help_panel=MODEL_PANEL),
 ]
 PolicyOption = Annotated[
     Path | None,
@@ -136,7 +136,31 @@ GenericTools = Annotated[
 ]
 GenericRisk = Annotated[
     float,
-    typer.Option(help="Certified risk level of the generic tools.", rich_help_panel=TOOLS_PANEL),
+    typer.Option(
+        help="Risk level the generic tools' certificates use.", rich_help_panel=TOOLS_PANEL
+    ),
+]
+GenericMode = Annotated[
+    Mode,
+    typer.Option(help="Operating mode of the generic tools.", rich_help_panel=TOOLS_PANEL),
+]
+GenericFloor = Annotated[
+    float | None,
+    typer.Option(
+        help="Confidence floor of the generic tools in threshold mode.",
+        rich_help_panel=TOOLS_PANEL,
+    ),
+]
+ModeOption = Annotated[
+    Mode,
+    typer.Option(
+        help="standard answers; threshold defers below --min-confidence; "
+        "certified defers below the policy threshold."
+    ),
+]
+FloorOption = Annotated[
+    float | None,
+    typer.Option(help="Confidence floor, required in threshold mode."),
 ]
 MaxBodyBytes = Annotated[
     int, typer.Option(help="Largest request body, in bytes.", rich_help_panel=NETWORK_PANEL)
@@ -224,7 +248,9 @@ def decide(
     request: Annotated[
         Path | None, typer.Option(help="DecideRequest JSON file; stdin when omitted.")
     ] = None,
-    risk: Annotated[float, typer.Option(help="Certified risk level.")] = DEFAULT_RISK,
+    risk: Annotated[float, typer.Option(help="Risk level the certificate uses.")] = DEFAULT_RISK,
+    mode: ModeOption = Mode.STANDARD,
+    min_confidence: FloorOption = None,
     uncertified: Annotated[bool, typer.Option(help="Skip the policy.")] = False,
     model: Model = DEFAULT_MODEL,
     revision: Revision = None,
@@ -251,6 +277,7 @@ def decide(
                 parsed.risk,
                 parsed.alpha,
             )
+            mode, min_confidence = parsed.mode, parsed.min_confidence
         decider = _decider(
             model=model,
             revision=revision,
@@ -263,7 +290,9 @@ def decide(
         result = (
             decider.decide_uncertified(context, spec)
             if uncertified
-            else decider.decide(context, spec, risk=risk, alpha=alpha)
+            else decider.decide(
+                context, spec, mode=mode, min_confidence=min_confidence, risk=risk, alpha=alpha
+            )
         )
     except (MimirError, ValidationError, ValueError, OSError) as error:
         raise _fail(str(error)) from error
@@ -332,21 +361,18 @@ def _environment() -> dict[str, JsonValue]:
     try:
         from mimir.runtime.equivalence import cache_directory
         from mimir.runtime.hardware import hardware_name
-        from mimir.runtime.session import installed_runtimes, resolve_device, runtime_version
+        from mimir.runtime.session import resolve_device, torch_version
     except ModuleNotFoundError as error:
         found["local_engine"] = (
             f"not installed ({error.name}): pip install 'mimir-decisions[local]'"
         )
         return found
-    import onnxruntime
+    import torch
 
-    runtimes = installed_runtimes()
     device = resolve_device("auto")
     found |= {
-        "onnxruntime": runtime_version(),
-        "runtime_distributions": list(runtimes),
-        "runtime_conflict": len(runtimes) > 1,
-        "providers": list(onnxruntime.get_available_providers()),
+        "torch": torch_version(),
+        "cuda_available": torch.cuda.is_available(),
         "device": device,
         "hardware": hardware_name(device),
         "cache": str(cache_directory()),
@@ -383,7 +409,9 @@ def doctor(
 @app.command(rich_help_panel=DECISIONS_PANEL)
 def bench(
     path: Annotated[Path, typer.Argument(help="Labelled JSONL file.")],
-    risk: Annotated[float, typer.Option(help="Certified risk level.")] = DEFAULT_RISK,
+    risk: Annotated[float, typer.Option(help="Risk level the certificates use.")] = DEFAULT_RISK,
+    mode: ModeOption = Mode.STANDARD,
+    min_confidence: FloorOption = None,
     batch_size: Annotated[int | None, typer.Option(help="Requests per batch.")] = None,
     model: Model = DEFAULT_MODEL,
     revision: Revision = None,
@@ -393,7 +421,7 @@ def bench(
     allow_unsigned: Unsigned = False,
     server: Server = None,
 ) -> None:
-    """Report accuracy, coverage and realised risk on labelled decisions."""
+    """Report accuracy, coverage, certified share and realised risk on labelled decisions."""
     try:
         labelled = read_labelled(path)
         decider = _decider(
@@ -406,12 +434,16 @@ def bench(
             server=server,
         )
         results = decider.decide_many(
-            [(item.context, item.decision) for item in labelled], risk=risk, batch_size=batch_size
+            [(item.context, item.decision) for item in labelled],
+            mode=mode,
+            min_confidence=min_confidence,
+            risk=risk,
+            batch_size=batch_size,
         )
     except (MimirError, LabelError, OSError) as error:
         raise _fail(str(error)) from error
     report = bench_results(results, [item.label for item in labelled])
-    _emit({"risk": risk, **report.model_dump(mode="json")})
+    _emit({"risk": risk, "mode": mode.value, **report.model_dump(mode="json")})
 
 
 @app.command(rich_help_panel=DECISIONS_PANEL)
@@ -454,7 +486,6 @@ def calibrate(
             "types": {
                 item.model_type: {
                     "records": item.records,
-                    "passed_gate": item.passed_gate,
                     "needed": item.needed,
                     **item.certified.model_dump(mode="json"),
                 }
@@ -537,6 +568,8 @@ def serve(
     mcp: Annotated[bool, typer.Option(help="Also serve the MCP endpoint at /mcp.")] = False,
     generic_tools: GenericTools = False,
     risk: GenericRisk = DEFAULT_RISK,
+    mode: GenericMode = Mode.STANDARD,
+    min_confidence: GenericFloor = None,
     max_body_bytes: MaxBodyBytes = MAX_BODY_BYTES,
     max_batch_items: Annotated[
         int,
@@ -607,7 +640,14 @@ def serve(
             from mimir.mcp.server import create_server
             from mimir.mcp.transport import streamable_http_app
 
-            mcp_server = create_server(served, bound, with_generic_tools=generic_tools, risk=risk)
+            mcp_server = create_server(
+                served,
+                bound,
+                with_generic_tools=generic_tools,
+                mode=mode,
+                min_confidence=min_confidence,
+                risk=risk,
+            )
             mcp_app = streamable_http_app(mcp_server, host=host, max_body_bytes=max_body_bytes)
         server_app = create_app(
             served,
@@ -647,6 +687,8 @@ def mcp_command(
     tools: ToolsFile = None,
     generic_tools: GenericTools = False,
     risk: GenericRisk = DEFAULT_RISK,
+    mode: GenericMode = Mode.STANDARD,
+    min_confidence: GenericFloor = None,
     http: Annotated[
         bool, typer.Option(help="Serve Streamable HTTP at /mcp instead of stdio.")
     ] = False,
@@ -700,7 +742,14 @@ def mcp_command(
             )
             decider = served
         bound = () if definitions is None else definitions.bind(decider)
-        server = create_server(decider, bound, with_generic_tools=generic_tools, risk=risk)
+        server = create_server(
+            decider,
+            bound,
+            with_generic_tools=generic_tools,
+            mode=mode,
+            min_confidence=min_confidence,
+            risk=risk,
+        )
         http_app = None
         if http:
             keys = api_keys_from_environment()

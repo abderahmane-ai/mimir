@@ -22,9 +22,15 @@ def test_a_missing_module_outside_the_extras_is_not_disguised(
 
 
 def test_local_modules_are_the_local_extra() -> None:
-    assert {"onnxruntime", "numpy", "tokenizers", "sigstore", "huggingface_hub", "onnx"} == (
-        LOCAL_MODULES
-    )
+    assert {
+        "torch",
+        "transformers",
+        "safetensors",
+        "numpy",
+        "tokenizers",
+        "sigstore",
+        "huggingface_hub",
+    } == (LOCAL_MODULES)
 
 
 def test_server_and_mcp_modules_are_their_extras() -> None:

@@ -6,16 +6,14 @@ import pytest
 from mimir.policy.binding import LoadedRuntime
 from mimir.policy.document import Configuration, Fingerprint
 from mimir.runtime.equivalence import cache_directory, equivalence_key, is_cached, record_pass
+from mimir.runtime.session import torch_version
 from tests.conftest import build_policy
 
 RUNTIME = LoadedRuntime(
     variant="fp32",
-    graph_sha256="a" * 64,
     weights_sha256="b" * 64,
-    opset=20,
-    onnxruntime="1.30.0",
-    provider="CPUExecutionProvider",
-    options_sha256="c" * 64,
+    torch=torch_version(),
+    device="cpu",
     hardware="arm64 Apple M4",
 )
 POLICY = build_policy(
@@ -23,13 +21,9 @@ POLICY = build_policy(
         model="m",
         revision="r",
         variant="fp32",
-        graph_sha256="a" * 64,
         weights_sha256="b" * 64,
-        opset=20,
-        onnxruntime="1.30.0",
-        configurations=(
-            Configuration(provider="CPUExecutionProvider", options_sha256="c" * 64, hardware="x"),
-        ),
+        torch=torch_version(),
+        configurations=(Configuration(device="cpu", hardware="x"),),
     )
 )
 
@@ -49,8 +43,9 @@ def test_key_changes_with_anything_that_changes_numerics() -> None:
     assert base == equivalence_key(RUNTIME, POLICY)
     for changed in (
         dataclasses.replace(RUNTIME, hardware="x86_64 Xeon"),
-        dataclasses.replace(RUNTIME, onnxruntime="1.31.0"),
-        dataclasses.replace(RUNTIME, graph_sha256="d" * 64),
+        dataclasses.replace(RUNTIME, torch="0.0.0"),
+        dataclasses.replace(RUNTIME, device="cuda"),
+        dataclasses.replace(RUNTIME, weights_sha256="d" * 64),
     ):
         assert equivalence_key(changed, POLICY) != base
     stricter = build_policy(POLICY.document.fingerprint, threshold=0.9)

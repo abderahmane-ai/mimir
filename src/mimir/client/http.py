@@ -36,6 +36,7 @@ from mimir.core.wire import (
     BatchResponse,
     DecideRequest,
     ErrorBody,
+    Mode,
     ModelInfo,
     UncertifiedRequest,
 )
@@ -206,6 +207,8 @@ class MimirClient(Decider):
         self,
         requests: Sequence[tuple[Context, DecisionSpec]],
         *,
+        mode: Mode,
+        min_confidence: float | None,
         risk: float | None,
         alpha: float | None,
         batch_size: int | None,
@@ -223,12 +226,25 @@ class MimirClient(Decider):
             ]
         if len(requests) == 1:
             context, spec = requests[0]
-            body = DecideRequest(context=context, decision=spec, risk=risk, alpha=alpha)
+            body = DecideRequest(
+                context=context,
+                decision=spec,
+                mode=mode,
+                min_confidence=min_confidence,
+                risk=risk,
+                alpha=alpha,
+            )
             return [RESULT.validate_json(self._send("POST", "/v1/decide", body).content)]
         items = [BatchItem(context=context, decision=spec) for context, spec in requests]
         results: list[DecisionResult] = []
         for chunk in _chunks(items, batch_size):
-            body_batch = BatchRequest(items=list(chunk), risk=risk, alpha=alpha)
+            body_batch = BatchRequest(
+                items=list(chunk),
+                mode=mode,
+                min_confidence=min_confidence,
+                risk=risk,
+                alpha=alpha,
+            )
             response = self._send("POST", "/v1/decide/batch", body_batch)
             results.extend(BatchResponse.model_validate_json(response.content).results)
         return results
@@ -237,6 +253,8 @@ class MimirClient(Decider):
         self,
         requests: Sequence[tuple[Context, DecisionSpec]],
         *,
+        mode: Mode,
+        min_confidence: float | None,
         risk: float | None,
         alpha: float | None,
         batch_size: int | None,
@@ -255,13 +273,26 @@ class MimirClient(Decider):
             return [RESULT.validate_json(response.content) for response in responses]
         if len(requests) == 1:
             context, spec = requests[0]
-            body = DecideRequest(context=context, decision=spec, risk=risk, alpha=alpha)
+            body = DecideRequest(
+                context=context,
+                decision=spec,
+                mode=mode,
+                min_confidence=min_confidence,
+                risk=risk,
+                alpha=alpha,
+            )
             response = await self._asend("POST", "/v1/decide", body)
             return [RESULT.validate_json(response.content)]
         items = [BatchItem(context=context, decision=spec) for context, spec in requests]
         results: list[DecisionResult] = []
         for chunk in _chunks(items, batch_size):
-            body_batch = BatchRequest(items=list(chunk), risk=risk, alpha=alpha)
+            body_batch = BatchRequest(
+                items=list(chunk),
+                mode=mode,
+                min_confidence=min_confidence,
+                risk=risk,
+                alpha=alpha,
+            )
             batch_response = await self._asend("POST", "/v1/decide/batch", body_batch)
             results.extend(BatchResponse.model_validate_json(batch_response.content).results)
         return results

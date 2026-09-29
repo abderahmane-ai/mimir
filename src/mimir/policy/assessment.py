@@ -1,4 +1,4 @@
-"""Applying a policy to one request's graph outputs."""
+"""Applying a policy to one request's model outputs."""
 
 from dataclasses import dataclass
 
@@ -14,7 +14,6 @@ from mimir.policy.distributions import (
     probabilities,
 )
 from mimir.policy.document import CertifiedThreshold, Policy, risk_key
-from mimir.policy.gate import nearest_distance, p_value
 
 Floats = npt.NDArray[np.float64]
 
@@ -25,7 +24,7 @@ class Assessment:
 
     Attributes:
         certificate: The policy entry for this decision type and risk, or None.
-        taken: The entry has a threshold, the gate passes and the score reaches the threshold.
+        certified: The entry has a threshold and the score reaches it.
         prediction_set: Label indices in the conformal set (abstain is index K for binary and
             categorical; intervals list every level or bin they cover), or None if the policy
             has no conformal scores for this type.
@@ -33,10 +32,8 @@ class Assessment:
 
     probabilities: Floats
     decision: Decision
-    gate_p_value: float
-    passes_gate: bool
     certificate: CertifiedThreshold | None
-    taken: bool
+    certified: bool
     prediction_set: tuple[int, ...] | None
 
 
@@ -46,22 +43,9 @@ def assess(readout: Readout, policy: Policy, risk: float, alpha: float) -> Asses
     scaling = type_policy.scaling_of(readout.count)
     probs = probabilities(readout, scaling.parameters)
     decision = decide(kind, probs)
-    arrays = policy.arrays
-    distance = nearest_distance(
-        readout.workspace.astype(np.float64),
-        arrays[f"gate/{kind}/centroids"],
-        arrays[f"gate/{kind}/precision"],
-    )
-    gate = p_value(arrays[f"gate/{kind}/reference"], distance)
-    passes_gate = gate > policy.document.gate_level
     certificate = type_policy.thresholds.get(risk_key(risk))
     threshold = None if certificate is None else certificate.threshold
-    taken = (
-        threshold is not None
-        and passes_gate
-        and decision.score is not None
-        and decision.score >= threshold
-    )
+    certified = threshold is not None and decision.score is not None and decision.score >= threshold
     scores = policy.conformal_scores(kind, scaling.bucket)
     prediction_set: tuple[int, ...] | None = None
     if scores is not None:
@@ -74,9 +58,7 @@ def assess(readout: Readout, policy: Policy, risk: float, alpha: float) -> Asses
     return Assessment(
         probabilities=probs,
         decision=decision,
-        gate_p_value=gate,
-        passes_gate=passes_gate,
         certificate=certificate,
-        taken=taken,
+        certified=certified,
         prediction_set=prediction_set,
     )

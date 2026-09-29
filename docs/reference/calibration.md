@@ -19,9 +19,9 @@ report = bench(results, [item.label for item in labelled])
 ```
 
 `calibrate` replaces the release thresholds with ones certified on your data at one risk
-level; `calibration.types` reports each decision type's records, taken count and
-certified threshold. Certifiable types are binary, categorical, multilabel, ranking and
-ordinal. `bench` reports accuracy, coverage and realised risk per spec type,
+level; `calibration.types` reports each decision type's records and certified threshold.
+Certifiable types are binary, categorical, multilabel, ranking and
+ordinal. `bench` reports accuracy, coverage, certified share and realised risk per spec type,
 each with a 95% Wilson interval. The `mimir calibrate` and `mimir bench` commands do the
 same over files; see [Command line](../surfaces/cli.md).
 

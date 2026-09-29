@@ -58,12 +58,14 @@ def test_unsigned_local_release_loads_only_when_allowed(release: Path) -> None:
     assert set(snapshot.digests) == {
         "config.json",
         "tokenizer.json",
-        "onnx/model.onnx",
-        "onnx/model.onnx_data",
+        "encoder_config.json",
+        "weights/model.safetensors",
         "policy/fp32.json",
         "policy/fp32.npz",
     }
-    assert snapshot.digests["onnx/model.onnx"] == file_sha256(release / "onnx" / "model.onnx")
+    assert snapshot.digests["weights/model.safetensors"] == file_sha256(
+        release / "weights" / "model.safetensors"
+    )
 
 
 def test_signed_release_is_verified_with_the_manifest_bytes(release: Path) -> None:
@@ -81,7 +83,8 @@ def test_a_bad_signature_stops_loading(release: Path) -> None:
 
 
 @pytest.mark.parametrize(
-    "relative", ["onnx/model.onnx_data", "onnx/model.onnx", "tokenizer.json", "policy/fp32.npz"]
+    "relative",
+    ["weights/model.safetensors", "tokenizer.json", "policy/fp32.npz", "encoder_config.json"],
 )
 def test_a_tampered_file_is_refused(release: Path, relative: str) -> None:
     path = release / relative
@@ -158,9 +161,8 @@ def test_variant_files_select_only_what_the_variant_reads(release: Path) -> None
     files = {
         "config.json": "",
         "tokenizer.json": "",
-        "onnx/model.onnx": "",
-        "onnx/model.onnx_data": "",
-        "onnx/model_fp16.onnx": "",
+        "encoder_config.json": "",
+        "weights/model.safetensors": "",
         "policy/fp32.json": "",
         "policy/fp16.json": "",
         "equivalence/inputs.npz": "",
@@ -169,11 +171,11 @@ def test_variant_files_select_only_what_the_variant_reads(release: Path) -> None
     manifest = Manifest(format_version=1, files=files, loadable_by={})
     assert variant_files(manifest, config, "fp32") == [
         "config.json",
+        "encoder_config.json",
         "equivalence/inputs.npz",
-        "onnx/model.onnx",
-        "onnx/model.onnx_data",
         "policy/fp32.json",
         "tokenizer.json",
+        "weights/model.safetensors",
     ]
 
 
@@ -214,7 +216,7 @@ def test_offline_loads_a_cached_release_without_the_network(
         True,
     )
     assert verifier.seen == [((release / "manifest.json").read_bytes(), b"bundle")]
-    assert "onnx/model.onnx" in snapshot.digests
+    assert "weights/model.safetensors" in snapshot.digests
 
 
 def test_offline_names_the_cache_it_could_not_read(tmp_path: Path) -> None:

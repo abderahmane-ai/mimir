@@ -17,7 +17,7 @@ from mimir.core.decider import Decider
 from mimir.core.decisions import DecisionSpec
 from mimir.core.errors import MimirError
 from mimir.core.results import DecisionResult
-from mimir.core.wire import ModelInfo
+from mimir.core.wire import Mode, ModelInfo
 from mimir.server.batcher import BATCH_WAIT_S, Batcher, BatchObserver
 
 if TYPE_CHECKING:
@@ -143,6 +143,8 @@ class ServedModel(Decider):
         self,
         requests: Sequence[tuple[Context, DecisionSpec]],
         *,
+        mode: Mode,
+        min_confidence: float | None,
         risk: float | None,
         alpha: float | None,
         batch_size: int | None,
@@ -150,12 +152,21 @@ class ServedModel(Decider):
         engine = self.engine
         if risk is None:
             return engine.decide_uncertified_many(requests, batch_size=batch_size)
-        return engine.decide_many(requests, risk=risk, alpha=alpha, batch_size=batch_size)
+        return engine.decide_many(
+            requests,
+            mode=mode,
+            min_confidence=min_confidence,
+            risk=risk,
+            alpha=alpha,
+            batch_size=batch_size,
+        )
 
     async def _arun(
         self,
         requests: Sequence[tuple[Context, DecisionSpec]],
         *,
+        mode: Mode,
+        min_confidence: float | None,
         risk: float | None,
         alpha: float | None,
         batch_size: int | None,
@@ -167,4 +178,6 @@ class ServedModel(Decider):
                 await asyncio.wait_for(self._settled.wait(), self._load_wait_s)
         if self._batcher is None:
             raise NotReadyError(self._not_ready())
-        return await self._batcher.submit(requests, risk=risk, alpha=alpha)
+        return await self._batcher.submit(
+            requests, mode=mode, min_confidence=min_confidence, risk=risk, alpha=alpha
+        )

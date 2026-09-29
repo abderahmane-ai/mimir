@@ -1,8 +1,8 @@
 """`Batcher`, which gathers concurrent requests into engine calls.
 
-Requests are grouped by risk and alpha. A group runs as one engine call when it holds
-`token_budget` encoder tokens or its oldest request has waited `wait_s`. One engine call runs
-at a time, and `graph_batch_size` caps the requests in each graph run within it.
+Requests are grouped by mode, floor, risk and alpha. A group runs as one engine call when it
+holds `token_budget` encoder tokens or its oldest request has waited `wait_s`. One engine
+call runs at a time, and `graph_batch_size` caps the requests in each model run within it.
 """
 
 import asyncio
@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Final, Protocol
 from mimir.core.context import Context
 from mimir.core.decisions import DecisionSpec
 from mimir.core.results import DecisionResult
+from mimir.core.wire import Mode
 
 if TYPE_CHECKING:
     from mimir.runtime.engine import Mimir
@@ -20,7 +21,7 @@ if TYPE_CHECKING:
 BATCH_WAIT_S: Final = 0.005
 
 Requests = Sequence[tuple[Context, DecisionSpec]]
-GroupKey = tuple[float | None, float | None]
+GroupKey = tuple[Mode, float | None, float | None, float | None]
 
 
 class BatchObserver(Protocol):
@@ -62,7 +63,13 @@ class Batcher:
         self._wake = asyncio.Event()
 
     async def submit(
-        self, requests: Requests, *, risk: float | None, alpha: float | None
+        self,
+        requests: Requests,
+        *,
+        mode: Mode,
+        min_confidence: float | None,
+        risk: float | None,
+        alpha: float | None,
     ) -> list[DecisionResult]:
         """Queue requests and return their results in order. `risk=None` skips the policy.
 
@@ -71,7 +78,7 @@ class Batcher:
         """
         tokens = await asyncio.to_thread(self._count_tokens, requests)
         loop = asyncio.get_running_loop()
-        key: GroupKey = (risk, alpha)
+        key: GroupKey = (mode, min_confidence, risk, alpha)
         group = self._groups.get(key)
         if group is None:
             group = self._groups[key] = _Group(deadline=loop.time() + self._wait_s)
@@ -118,17 +125,31 @@ class Batcher:
                 continue
 
     def _call_engine(
-        self, group: _Group, risk: float | None, alpha: float | None
+        self,
+        group: _Group,
+        mode: Mode,
+        min_confidence: float | None,
+        risk: float | None,
+        alpha: float | None,
     ) -> list[DecisionResult]:
         size = self._graph_batch_size
         if risk is None:
             return self._engine.decide_uncertified_many(group.requests, batch_size=size)
-        return self._engine.decide_many(group.requests, risk=risk, alpha=alpha, batch_size=size)
+        return self._engine.decide_many(
+            group.requests,
+            mode=mode,
+            min_confidence=min_confidence,
+            risk=risk,
+            alpha=alpha,
+            batch_size=size,
+        )
 
     async def _decide(self, key: GroupKey, group: _Group) -> None:
-        risk, alpha = key
+        mode, min_confidence, risk, alpha = key
         try:
-            results = await asyncio.to_thread(self._call_engine, group, risk, alpha)
+            results = await asyncio.to_thread(
+                self._call_engine, group, mode, min_confidence, risk, alpha
+            )
         except asyncio.CancelledError:
             for future in group.futures:
                 future.cancel()

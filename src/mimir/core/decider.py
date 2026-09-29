@@ -33,7 +33,7 @@ from mimir.core.results import (
     YesNoResult,
 )
 from mimir.core.tools import DecisionTool
-from mimir.core.wire import DEFAULT_RISK, ModelInfo
+from mimir.core.wire import DEFAULT_RISK, Mode, ModelInfo, check_mode
 
 Items = Sequence[tuple[ContextLike, DecisionSpec]]
 Requests = Sequence[tuple[Context, DecisionSpec]]
@@ -54,6 +54,8 @@ class Decider(abc.ABC):
         self,
         requests: Requests,
         *,
+        mode: Mode,
+        min_confidence: float | None,
         risk: float | None,
         alpha: float | None,
         batch_size: int | None,
@@ -64,12 +66,20 @@ class Decider(abc.ABC):
         self,
         requests: Requests,
         *,
+        mode: Mode,
+        min_confidence: float | None,
         risk: float | None,
         alpha: float | None,
         batch_size: int | None,
     ) -> list[DecisionResult]:
         return await asyncio.to_thread(
-            self._run, requests, risk=risk, alpha=alpha, batch_size=batch_size
+            self._run,
+            requests,
+            mode=mode,
+            min_confidence=min_confidence,
+            risk=risk,
+            alpha=alpha,
+            batch_size=batch_size,
         )
 
     @abc.abstractmethod
@@ -78,7 +88,14 @@ class Decider(abc.ABC):
 
     @overload
     def decide(
-        self, context: ContextLike, spec: Choice, *, risk: float = ..., alpha: float | None = ...
+        self,
+        context: ContextLike,
+        spec: Choice,
+        *,
+        mode: Mode = ...,
+        min_confidence: float | None = ...,
+        risk: float = ...,
+        alpha: float | None = ...,
     ) -> ChoiceResult: ...
     @overload
     def decide(
@@ -86,61 +103,120 @@ class Decider(abc.ABC):
         context: ContextLike,
         spec: MultiChoice,
         *,
+        mode: Mode = ...,
+        min_confidence: float | None = ...,
         risk: float = ...,
         alpha: float | None = ...,
     ) -> MultiChoiceResult: ...
     @overload
     def decide(
-        self, context: ContextLike, spec: YesNo, *, risk: float = ..., alpha: float | None = ...
+        self,
+        context: ContextLike,
+        spec: YesNo,
+        *,
+        mode: Mode = ...,
+        min_confidence: float | None = ...,
+        risk: float = ...,
+        alpha: float | None = ...,
     ) -> YesNoResult: ...
     @overload
     def decide(
-        self, context: ContextLike, spec: Verify, *, risk: float = ..., alpha: float | None = ...
+        self,
+        context: ContextLike,
+        spec: Verify,
+        *,
+        mode: Mode = ...,
+        min_confidence: float | None = ...,
+        risk: float = ...,
+        alpha: float | None = ...,
     ) -> VerifyResult: ...
     @overload
     def decide(
-        self, context: ContextLike, spec: Rank, *, risk: float = ..., alpha: float | None = ...
+        self,
+        context: ContextLike,
+        spec: Rank,
+        *,
+        mode: Mode = ...,
+        min_confidence: float | None = ...,
+        risk: float = ...,
+        alpha: float | None = ...,
     ) -> RankResult: ...
     @overload
     def decide(
-        self, context: ContextLike, spec: Rate, *, risk: float = ..., alpha: float | None = ...
+        self,
+        context: ContextLike,
+        spec: Rate,
+        *,
+        mode: Mode = ...,
+        min_confidence: float | None = ...,
+        risk: float = ...,
+        alpha: float | None = ...,
     ) -> RateResult: ...
     @overload
     def decide(
-        self, context: ContextLike, spec: Estimate, *, risk: float = ..., alpha: float | None = ...
+        self,
+        context: ContextLike,
+        spec: Estimate,
+        *,
+        mode: Mode = ...,
+        min_confidence: float | None = ...,
+        risk: float = ...,
+        alpha: float | None = ...,
     ) -> EstimateResult: ...
     def decide(
         self,
         context: ContextLike,
         spec: DecisionSpec,
         *,
+        mode: Mode = Mode.STANDARD,
+        min_confidence: float | None = None,
         risk: float = DEFAULT_RISK,
         alpha: float | None = None,
     ) -> DecisionResult:
-        """Make a certified decision.
+        """Make a decision.
 
-        `risk` must be one of `info().risk_levels`. `alpha` is the miscoverage of the conformal
-        prediction set; None uses the release default.
+        `standard` answers every request. `threshold` defers answers below
+        `min_confidence`. `certified` defers answers below the policy's threshold at `risk`.
+        `risk` must be one of `info().risk_levels`; it annotates the certificate. `alpha` is
+        the miscoverage of the conformal prediction set; None uses the release default.
         """
+        check_mode(mode, min_confidence)
         requests = [(Context.coerce(context), spec)]
-        found = self._run(requests, risk=_certified_risk(risk), alpha=alpha, batch_size=None)
+        found = self._run(
+            requests,
+            mode=mode,
+            min_confidence=min_confidence,
+            risk=_certified_risk(risk),
+            alpha=alpha,
+            batch_size=None,
+        )
         return found[0]
 
     def decide_many(
         self,
         items: Items,
         *,
+        mode: Mode = Mode.STANDARD,
+        min_confidence: float | None = None,
         risk: float = DEFAULT_RISK,
         alpha: float | None = None,
         batch_size: int | None = None,
     ) -> list[DecisionResult]:
-        """Make certified decisions for many `(context, spec)` pairs, returned in order.
+        """Make decisions for many `(context, spec)` pairs, returned in order.
 
         Requests are sorted by length and packed into batches up to the release's token budget.
         `batch_size` additionally caps the number of requests per batch.
         """
+        check_mode(mode, min_confidence)
         requests = [(Context.coerce(context), spec) for context, spec in items]
-        return self._run(requests, risk=_certified_risk(risk), alpha=alpha, batch_size=batch_size)
+        return self._run(
+            requests,
+            mode=mode,
+            min_confidence=min_confidence,
+            risk=_certified_risk(risk),
+            alpha=alpha,
+            batch_size=batch_size,
+        )
 
     @overload
     def decide_uncertified(self, context: ContextLike, spec: Choice) -> ChoiceResult: ...
@@ -157,20 +233,41 @@ class Decider(abc.ABC):
     @overload
     def decide_uncertified(self, context: ContextLike, spec: Estimate) -> EstimateResult: ...
     def decide_uncertified(self, context: ContextLike, spec: DecisionSpec) -> DecisionResult:
-        """Return the raw model answer, without calibration, gating or certificate."""
+        """Return the raw model answer, without calibration or certificate."""
         requests = [(Context.coerce(context), spec)]
-        return self._run(requests, risk=None, alpha=None, batch_size=None)[0]
+        return self._run(
+            requests,
+            mode=Mode.STANDARD,
+            min_confidence=None,
+            risk=None,
+            alpha=None,
+            batch_size=None,
+        )[0]
 
     def decide_uncertified_many(
         self, items: Items, *, batch_size: int | None = None
     ) -> list[DecisionResult]:
         """Return raw model answers for many `(context, spec)` pairs, batched as `decide_many`."""
         requests = [(Context.coerce(context), spec) for context, spec in items]
-        return self._run(requests, risk=None, alpha=None, batch_size=batch_size)
+        return self._run(
+            requests,
+            mode=Mode.STANDARD,
+            min_confidence=None,
+            risk=None,
+            alpha=None,
+            batch_size=batch_size,
+        )
 
     @overload
     async def adecide(
-        self, context: ContextLike, spec: Choice, *, risk: float = ..., alpha: float | None = ...
+        self,
+        context: ContextLike,
+        spec: Choice,
+        *,
+        mode: Mode = ...,
+        min_confidence: float | None = ...,
+        risk: float = ...,
+        alpha: float | None = ...,
     ) -> ChoiceResult: ...
     @overload
     async def adecide(
@@ -178,54 +275,109 @@ class Decider(abc.ABC):
         context: ContextLike,
         spec: MultiChoice,
         *,
+        mode: Mode = ...,
+        min_confidence: float | None = ...,
         risk: float = ...,
         alpha: float | None = ...,
     ) -> MultiChoiceResult: ...
     @overload
     async def adecide(
-        self, context: ContextLike, spec: YesNo, *, risk: float = ..., alpha: float | None = ...
+        self,
+        context: ContextLike,
+        spec: YesNo,
+        *,
+        mode: Mode = ...,
+        min_confidence: float | None = ...,
+        risk: float = ...,
+        alpha: float | None = ...,
     ) -> YesNoResult: ...
     @overload
     async def adecide(
-        self, context: ContextLike, spec: Verify, *, risk: float = ..., alpha: float | None = ...
+        self,
+        context: ContextLike,
+        spec: Verify,
+        *,
+        mode: Mode = ...,
+        min_confidence: float | None = ...,
+        risk: float = ...,
+        alpha: float | None = ...,
     ) -> VerifyResult: ...
     @overload
     async def adecide(
-        self, context: ContextLike, spec: Rank, *, risk: float = ..., alpha: float | None = ...
+        self,
+        context: ContextLike,
+        spec: Rank,
+        *,
+        mode: Mode = ...,
+        min_confidence: float | None = ...,
+        risk: float = ...,
+        alpha: float | None = ...,
     ) -> RankResult: ...
     @overload
     async def adecide(
-        self, context: ContextLike, spec: Rate, *, risk: float = ..., alpha: float | None = ...
+        self,
+        context: ContextLike,
+        spec: Rate,
+        *,
+        mode: Mode = ...,
+        min_confidence: float | None = ...,
+        risk: float = ...,
+        alpha: float | None = ...,
     ) -> RateResult: ...
     @overload
     async def adecide(
-        self, context: ContextLike, spec: Estimate, *, risk: float = ..., alpha: float | None = ...
+        self,
+        context: ContextLike,
+        spec: Estimate,
+        *,
+        mode: Mode = ...,
+        min_confidence: float | None = ...,
+        risk: float = ...,
+        alpha: float | None = ...,
     ) -> EstimateResult: ...
     async def adecide(
         self,
         context: ContextLike,
         spec: DecisionSpec,
         *,
+        mode: Mode = Mode.STANDARD,
+        min_confidence: float | None = None,
         risk: float = DEFAULT_RISK,
         alpha: float | None = None,
     ) -> DecisionResult:
         """Async version of `decide`."""
+        check_mode(mode, min_confidence)
         requests = [(Context.coerce(context), spec)]
-        found = await self._arun(requests, risk=_certified_risk(risk), alpha=alpha, batch_size=None)
+        found = await self._arun(
+            requests,
+            mode=mode,
+            min_confidence=min_confidence,
+            risk=_certified_risk(risk),
+            alpha=alpha,
+            batch_size=None,
+        )
         return found[0]
 
     async def adecide_many(
         self,
         items: Items,
         *,
+        mode: Mode = Mode.STANDARD,
+        min_confidence: float | None = None,
         risk: float = DEFAULT_RISK,
         alpha: float | None = None,
         batch_size: int | None = None,
     ) -> list[DecisionResult]:
         """Async version of `decide_many`."""
+        check_mode(mode, min_confidence)
         requests = [(Context.coerce(context), spec) for context, spec in items]
         return await self._arun(
-            requests, risk=_certified_risk(risk), alpha=alpha, batch_size=batch_size
+            requests,
+            mode=mode,
+            min_confidence=min_confidence,
+            risk=_certified_risk(risk),
+            alpha=alpha,
+            batch_size=batch_size,
         )
 
     @overload
@@ -247,7 +399,14 @@ class Decider(abc.ABC):
     async def adecide_uncertified(self, context: ContextLike, spec: DecisionSpec) -> DecisionResult:
         """Async version of `decide_uncertified`."""
         requests = [(Context.coerce(context), spec)]
-        found = await self._arun(requests, risk=None, alpha=None, batch_size=None)
+        found = await self._arun(
+            requests,
+            mode=Mode.STANDARD,
+            min_confidence=None,
+            risk=None,
+            alpha=None,
+            batch_size=None,
+        )
         return found[0]
 
     async def adecide_uncertified_many(
@@ -255,7 +414,14 @@ class Decider(abc.ABC):
     ) -> list[DecisionResult]:
         """Async version of `decide_uncertified_many`."""
         requests = [(Context.coerce(context), spec) for context, spec in items]
-        return await self._arun(requests, risk=None, alpha=None, batch_size=batch_size)
+        return await self._arun(
+            requests,
+            mode=Mode.STANDARD,
+            min_confidence=None,
+            risk=None,
+            alpha=None,
+            batch_size=batch_size,
+        )
 
     def choose(
         self,
@@ -263,20 +429,45 @@ class Decider(abc.ABC):
         question: str,
         options: Sequence[str] | Mapping[str, str],
         *,
+        mode: Mode = Mode.STANDARD,
+        min_confidence: float | None = None,
         risk: float = DEFAULT_RISK,
         alpha: float | None = None,
     ) -> ChoiceResult:
-        return self.decide(context, Choice(question, options), risk=risk, alpha=alpha)
+        return self.decide(
+            context,
+            Choice(question, options),
+            mode=mode,
+            min_confidence=min_confidence,
+            risk=risk,
+            alpha=alpha,
+        )
 
     def yes_no(
-        self, context: ContextLike, question: str, *, risk: float = DEFAULT_RISK
+        self,
+        context: ContextLike,
+        question: str,
+        *,
+        mode: Mode = Mode.STANDARD,
+        min_confidence: float | None = None,
+        risk: float = DEFAULT_RISK,
     ) -> YesNoResult:
-        return self.decide(context, YesNo(question), risk=risk)
+        return self.decide(
+            context, YesNo(question), mode=mode, min_confidence=min_confidence, risk=risk
+        )
 
     def verify(
-        self, context: ContextLike, claim: str, *, risk: float = DEFAULT_RISK
+        self,
+        context: ContextLike,
+        claim: str,
+        *,
+        mode: Mode = Mode.STANDARD,
+        min_confidence: float | None = None,
+        risk: float = DEFAULT_RISK,
     ) -> VerifyResult:
-        return self.decide(context, Verify(claim), risk=risk)
+        return self.decide(
+            context, Verify(claim), mode=mode, min_confidence=min_confidence, risk=risk
+        )
 
     def rank(
         self,
@@ -284,9 +475,17 @@ class Decider(abc.ABC):
         question: str,
         candidates: Sequence[str] | Mapping[str, str],
         *,
+        mode: Mode = Mode.STANDARD,
+        min_confidence: float | None = None,
         risk: float = DEFAULT_RISK,
     ) -> RankResult:
-        return self.decide(context, Rank(question, candidates), risk=risk)
+        return self.decide(
+            context,
+            Rank(question, candidates),
+            mode=mode,
+            min_confidence=min_confidence,
+            risk=risk,
+        )
 
     def rate(
         self,
@@ -294,10 +493,19 @@ class Decider(abc.ABC):
         question: str,
         levels: Sequence[str] | Mapping[str, str],
         *,
+        mode: Mode = Mode.STANDARD,
+        min_confidence: float | None = None,
         risk: float = DEFAULT_RISK,
         alpha: float | None = None,
     ) -> RateResult:
-        return self.decide(context, Rate(question, levels), risk=risk, alpha=alpha)
+        return self.decide(
+            context,
+            Rate(question, levels),
+            mode=mode,
+            min_confidence=min_confidence,
+            risk=risk,
+            alpha=alpha,
+        )
 
     def estimate(
         self,
@@ -307,10 +515,19 @@ class Decider(abc.ABC):
         high: float,
         *,
         unit: str | None = None,
+        mode: Mode = Mode.STANDARD,
+        min_confidence: float | None = None,
         risk: float = DEFAULT_RISK,
         alpha: float | None = None,
     ) -> EstimateResult:
-        return self.decide(context, Estimate(question, low, high, unit), risk=risk, alpha=alpha)
+        return self.decide(
+            context,
+            Estimate(question, low, high, unit),
+            mode=mode,
+            min_confidence=min_confidence,
+            risk=risk,
+            alpha=alpha,
+        )
 
     async def achoose(
         self,
@@ -318,20 +535,45 @@ class Decider(abc.ABC):
         question: str,
         options: Sequence[str] | Mapping[str, str],
         *,
+        mode: Mode = Mode.STANDARD,
+        min_confidence: float | None = None,
         risk: float = DEFAULT_RISK,
         alpha: float | None = None,
     ) -> ChoiceResult:
-        return await self.adecide(context, Choice(question, options), risk=risk, alpha=alpha)
+        return await self.adecide(
+            context,
+            Choice(question, options),
+            mode=mode,
+            min_confidence=min_confidence,
+            risk=risk,
+            alpha=alpha,
+        )
 
     async def ayes_no(
-        self, context: ContextLike, question: str, *, risk: float = DEFAULT_RISK
+        self,
+        context: ContextLike,
+        question: str,
+        *,
+        mode: Mode = Mode.STANDARD,
+        min_confidence: float | None = None,
+        risk: float = DEFAULT_RISK,
     ) -> YesNoResult:
-        return await self.adecide(context, YesNo(question), risk=risk)
+        return await self.adecide(
+            context, YesNo(question), mode=mode, min_confidence=min_confidence, risk=risk
+        )
 
     async def averify(
-        self, context: ContextLike, claim: str, *, risk: float = DEFAULT_RISK
+        self,
+        context: ContextLike,
+        claim: str,
+        *,
+        mode: Mode = Mode.STANDARD,
+        min_confidence: float | None = None,
+        risk: float = DEFAULT_RISK,
     ) -> VerifyResult:
-        return await self.adecide(context, Verify(claim), risk=risk)
+        return await self.adecide(
+            context, Verify(claim), mode=mode, min_confidence=min_confidence, risk=risk
+        )
 
     async def arank(
         self,
@@ -339,9 +581,17 @@ class Decider(abc.ABC):
         question: str,
         candidates: Sequence[str] | Mapping[str, str],
         *,
+        mode: Mode = Mode.STANDARD,
+        min_confidence: float | None = None,
         risk: float = DEFAULT_RISK,
     ) -> RankResult:
-        return await self.adecide(context, Rank(question, candidates), risk=risk)
+        return await self.adecide(
+            context,
+            Rank(question, candidates),
+            mode=mode,
+            min_confidence=min_confidence,
+            risk=risk,
+        )
 
     async def arate(
         self,
@@ -349,10 +599,19 @@ class Decider(abc.ABC):
         question: str,
         levels: Sequence[str] | Mapping[str, str],
         *,
+        mode: Mode = Mode.STANDARD,
+        min_confidence: float | None = None,
         risk: float = DEFAULT_RISK,
         alpha: float | None = None,
     ) -> RateResult:
-        return await self.adecide(context, Rate(question, levels), risk=risk, alpha=alpha)
+        return await self.adecide(
+            context,
+            Rate(question, levels),
+            mode=mode,
+            min_confidence=min_confidence,
+            risk=risk,
+            alpha=alpha,
+        )
 
     async def aestimate(
         self,
@@ -362,11 +621,18 @@ class Decider(abc.ABC):
         high: float,
         *,
         unit: str | None = None,
+        mode: Mode = Mode.STANDARD,
+        min_confidence: float | None = None,
         risk: float = DEFAULT_RISK,
         alpha: float | None = None,
     ) -> EstimateResult:
         return await self.adecide(
-            context, Estimate(question, low, high, unit), risk=risk, alpha=alpha
+            context,
+            Estimate(question, low, high, unit),
+            mode=mode,
+            min_confidence=min_confidence,
+            risk=risk,
+            alpha=alpha,
         )
 
     def tool(
@@ -375,12 +641,22 @@ class Decider(abc.ABC):
         spec: DecisionSpec,
         description: str,
         *,
+        mode: Mode = Mode.STANDARD,
+        min_confidence: float | None = None,
         risk: float = DEFAULT_RISK,
         alpha: float | None = None,
     ) -> DecisionTool:
         """Create a `DecisionTool` that applies `spec` to any context it is called with."""
+        check_mode(mode, min_confidence)
         return DecisionTool(
-            name=name, spec=spec, description=description, decider=self, risk=risk, alpha=alpha
+            name=name,
+            spec=spec,
+            description=description,
+            decider=self,
+            mode=mode,
+            min_confidence=min_confidence,
+            risk=risk,
+            alpha=alpha,
         )
 
     def tool_call_check(
@@ -389,14 +665,19 @@ class Decider(abc.ABC):
         *,
         question: str = DEFAULT_QUESTION,
         tools: Iterable[str] | None = None,
+        mode: Mode = Mode.THRESHOLD,
+        min_confidence: float | None = 0.5,
         risk: float = DEFAULT_RISK,
     ) -> ToolCallCheck:
         """Create a `ToolCallCheck` deciding pending calls of `tools` (every tool if None)
         against `rules`."""
+        check_mode(mode, min_confidence)
         return ToolCallCheck(
             decider=self,
             rules=(rules,) if isinstance(rules, str) else tuple(rules),
             question=question,
             tools=None if tools is None else frozenset(tools),
+            mode=mode,
+            min_confidence=min_confidence,
             risk=risk,
         )

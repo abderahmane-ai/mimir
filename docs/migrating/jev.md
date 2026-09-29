@@ -31,7 +31,7 @@ Answers carry calibrated probabilities at 1% risk, and `confidence` as Jev defin
 
 ## Going further
 
-`/v1/systemone` gives you the answer and the probabilities. Moving a question at a time to [`/v1/decide`](../surfaces/http.md) also gives you the decision status, the deferral reason, the certificate, and the relevant context — none of which Jev's format exposes.
+`/v1/systemone` gives you the answer and the probabilities. Moving a question at a time to [`/v1/decide`](../surfaces/http.md) also gives you the decision status, the certificate, and the relevant context — none of which Jev's format exposes.
 
 In Python, `mimir.compat.systemone.v1` converts in both directions:
 

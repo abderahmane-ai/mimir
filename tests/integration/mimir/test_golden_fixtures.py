@@ -1,7 +1,7 @@
 """The package against the golden fixtures of the released model.
 
-Each fixture holds a public record, the graph inputs the training pipeline laid out for it, the
-PyTorch model's outputs, and its calibrated result under a reference policy. The package must
+Each fixture holds a public record, the model inputs the training pipeline laid out for it,
+the Torch model's outputs, and its calibrated result under a reference policy. The package must
 reproduce the inputs exactly and the outputs and results within measured tolerances.
 
 Set `MIMIR_RELEASE_DIR` to the release directory and `MIMIR_FIXTURES_DIR` to the fixtures.
@@ -29,20 +29,21 @@ from mimir.core.results import (
     RateResult,
     Status,
 )
+from mimir.core.wire import Mode
 from mimir.policy.document import Policy, parse_policy, read_arrays
 from mimir.runtime.engine import LoadedPolicy, Mimir
 from mimir.runtime.layout import collate, tokenize
 from mimir.runtime.readout import OUTPUTS
 from mimir.runtime.rendering import render
-from mimir.runtime.session import open_session
+from mimir.runtime.session import run
 
 pytestmark = pytest.mark.integration
 
-# Measured through this package on all 104 fixtures (fp32 graph, ONNX Runtime 1.30 CPU,
-# Apple M4, 2026-09-27): worst output difference 4.5e-4 of max(1, |value|) (the workspace;
-# utilities 3.6e-4), worst probability difference 2.3e-5, worst gate p-value difference 7.3e-5,
-# and no decision or taken flag differed.
-OUTPUT_TOLERANCE: Final = 1e-3
+# Measured through this package on all 104 fixtures (Torch CPU, Apple M4): worst output
+# difference 1.7e-5 of max(1, |value|) across framework versions (the workspace;
+# utilities 1.1e-6), worst probability difference below 1e-6, and no decision or
+# taken flag differed.
+OUTPUT_TOLERANCE: Final = 1e-4
 PROBABILITY_TOLERANCE: Final = 1e-4
 RELEVANCE_TOLERANCE: Final = 1e-4
 FIXTURES: Final = 104
@@ -117,13 +118,9 @@ def golden() -> Golden:
         "model": "golden",
         "revision": "fixtures",
         "variant": "fp32",
-        "graph_sha256": "0" * 64,
         "weights_sha256": "0" * 64,
-        "opset": 20,
-        "onnxruntime": "1.30.0",
-        "configurations": [
-            {"provider": "CPUExecutionProvider", "options_sha256": "0" * 64, "hardware": "none"}
-        ],
+        "torch": "0",
+        "configurations": [{"device": "cpu", "hardware": "none"}],
     }
     policy = parse_policy(json.dumps(document).encode(), read_arrays(root / "policy.npz"), "golden")
     assert len(records) == FIXTURES
@@ -134,19 +131,17 @@ def golden() -> Golden:
 def engine(golden: Golden) -> Mimir:
     release = _directory(RELEASE_ENVIRONMENT)
     loaded = Mimir.from_pretrained(str(release), device="cpu", allow_unsigned=True)
-    snapshot = loaded.snapshot
-    graph = snapshot.path(snapshot.config.variants[snapshot.variant].graph)
     return Mimir(
-        snapshot=snapshot,
-        session=open_session(graph, "cpu"),
-        tokenizer=Tokenizer.from_file(str(snapshot.path(snapshot.config.tokenizer))),
+        snapshot=loaded.snapshot,
+        session=loaded._session,
+        tokenizer=Tokenizer.from_file(str(loaded.snapshot.path(loaded.snapshot.config.tokenizer))),
         device="cpu",
         runtime=loaded.runtime,
         policy=LoadedPolicy(golden.policy, "certified"),
     )
 
 
-def test_layout_reproduces_every_graph_input(golden: Golden, engine: Mimir) -> None:
+def test_layout_reproduces_every_model_input(golden: Golden, engine: Mimir) -> None:
     config = engine.snapshot.config
     tokenizer = Tokenizer.from_file(str(engine.snapshot.path(config.tokenizer)))
     mismatches: list[str] = []
@@ -167,16 +162,12 @@ def test_layout_reproduces_every_graph_input(golden: Golden, engine: Mimir) -> N
     assert mismatches == []
 
 
-def test_graph_outputs_match_the_model(golden: Golden, engine: Mimir) -> None:
+def test_model_outputs_match_the_reference(golden: Golden, engine: Mimir) -> None:
     config = engine.snapshot.config
-    session = open_session(
-        engine.snapshot.path(config.variants[engine.snapshot.variant].graph), "cpu"
-    )
-    names = [spec.name for spec in config.graph.inputs]
     worst = dict.fromkeys(OUTPUTS, 0.0)
     for record in golden.records:
-        feed = {name: golden.arrays[f"{record.id}/inputs/{name}"] for name in names}
-        found = dict(zip(OUTPUTS, session.run(list(OUTPUTS), feed), strict=True))
+        feed = {name: golden.arrays[f"{record.id}/inputs/{name}"] for name in _input_names(golden)}
+        found = run(engine._session, feed, config.layout.question_cap)
         for name in OUTPUTS:
             expected = golden.arrays[f"{record.id}/outputs/{name}"].astype(np.float64)
             value = np.asarray(found[name], dtype=np.float64)
@@ -185,12 +176,29 @@ def test_graph_outputs_match_the_model(golden: Golden, engine: Mimir) -> None:
     assert max(worst.values()) <= OUTPUT_TOLERANCE, worst
 
 
-def _check_result(record: GoldenRecord, result: DecisionResult) -> None:
+def _input_names(golden: Golden) -> list[str]:
+    names: list[str] = []
+    for key in golden.arrays:
+        parts = key.split("/")
+        if len(parts) == 3 and parts[1] == "inputs" and parts[2] not in names:
+            names.append(parts[2])
+    return names
+
+
+def _check_result(record: GoldenRecord, result: DecisionResult, policy: Policy) -> None:
     expected = record.result
     candidates = record.candidates
     chosen = expected.chosen
     probabilities = np.array(expected.probabilities)
-    assert (result.status != Status.DEFERRED) == expected.taken, record.id
+    assert result.certified == expected.taken, record.id
+    entry = policy.type_policy(record.decision_type).thresholds.get("0.01")
+    floor = None if entry is None else entry.threshold
+    if floor is None:
+        assert result.status != Status.DEFERRED, record.id
+    else:
+        assert (result.status == Status.DEFERRED) == (
+            result.confidence is not None and result.confidence < floor
+        ), record.id
     match result:
         case ChoiceResult():
             assert result.answer == (candidates[chosen[0]] if chosen else None)
@@ -231,10 +239,11 @@ def _check_result(record: GoldenRecord, result: DecisionResult) -> None:
 
 def test_results_match_the_reference_policy(golden: Golden, engine: Mimir) -> None:
     results = [
-        engine.decide(record.state, record.spec, risk=0.01, alpha=0.1) for record in golden.records
+        engine.decide(record.state, record.spec, mode=Mode.CERTIFIED, risk=0.01, alpha=0.1)
+        for record in golden.records
     ]
     for record, result in zip(golden.records, results, strict=True):
-        _check_result(record, result)
+        _check_result(record, result, golden.policy)
 
 
 def test_relevance_matches_the_model_evidence(golden: Golden, engine: Mimir) -> None:

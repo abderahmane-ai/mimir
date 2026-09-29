@@ -64,7 +64,7 @@ def test_records_become_the_specs_of_their_decision_type(tmp_path: Path) -> None
         Estimate("price", 0, 100),
     ]
     certified = json.loads(request_bodies(records, certified=True, seed=0)[0])
-    assert set(certified) == {"context", "decision", "risk", "alpha"}
+    assert set(certified) == {"context", "decision", "mode", "min_confidence", "risk", "alpha"}
     uncertified = json.loads(request_bodies(records, certified=False, seed=0)[0])
     assert set(uncertified) == {"context", "decision"}
 
@@ -98,8 +98,8 @@ def test_percentiles_use_the_nearest_rank() -> None:
     assert percentile([7.0], 0.95) == 7.0
 
 
-def _report(root: Path) -> Report:
-    served = ServedModel(lambda: load_engine(root))
+def _report(root: Path, monkeypatch: pytest.MonkeyPatch) -> Report:
+    served = ServedModel(lambda: load_engine(root, monkeypatch))
     app = create_app(served, metrics=Metrics())
 
     async def main() -> Report:
@@ -113,8 +113,10 @@ def _report(root: Path) -> Report:
     return asyncio.run(main())
 
 
-def test_a_run_measures_every_client_count_without_errors(release: Path) -> None:
-    report = _report(_release_records(release))
+def test_a_run_measures_every_client_count_without_errors(
+    release: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    report = _report(_release_records(release), monkeypatch)
     assert (report.route, report.records, report.seed) == ("/v1/decide", 6, 0)
     assert [(level.clients, level.requests, level.errors) for level in report.levels] == [
         (1, 4, 0),
@@ -128,8 +130,8 @@ def test_a_run_measures_every_client_count_without_errors(release: Path) -> None
 
 
 def test_a_server_without_a_policy_is_measured_uncertified(
-    release_builder: object,
+    release_builder: object, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     assert callable(release_builder)
-    report = _report(_release_records(release_builder("bare", with_policy=False)))
+    report = _report(_release_records(release_builder("bare", with_policy=False)), monkeypatch)
     assert report.route == "/v1/decide/uncertified"

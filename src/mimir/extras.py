@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     from mimir.runtime.engine import Mimir
 
 LOCAL_MODULES: Final = frozenset(
-    {"huggingface_hub", "numpy", "onnx", "onnxruntime", "sigstore", "tokenizers"}
+    {"huggingface_hub", "numpy", "safetensors", "sigstore", "tokenizers", "torch", "transformers"}
 )
 SERVER_MODULES: Final = frozenset({"fastapi", "prometheus_client", "uvicorn", "yaml"})
 MCP_MODULES: Final = frozenset({"mcp", "uvicorn", "yaml"})

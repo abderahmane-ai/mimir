@@ -26,7 +26,7 @@ class ScriptedChatModel(GenericFakeChatModel):
         return self
 
 
-def test_the_agent_routes_a_ticket_through_the_server(release: Path) -> None:
+def test_the_agent_routes_a_ticket_through_the_server(hub_release: Path) -> None:
     call = {"name": "route_ticket", "args": {"context": TEXT}, "id": "call-1"}
     replies: Iterator[AIMessage | str] = iter(
         [AIMessage(content="", tool_calls=[call]), AIMessage(content="done")]
@@ -34,7 +34,9 @@ def test_the_agent_routes_a_ticket_through_the_server(release: Path) -> None:
     model = ScriptedChatModel(messages=replies)
 
     async def main() -> dict[str, Any]:
-        async with mcp_agent.mimir_server(MIMIR_SERVER, mcp_server_arguments(release)) as server:
+        async with mcp_agent.mimir_server(
+            MIMIR_SERVER, mcp_server_arguments(hub_release)
+        ) as server:
             tools = await server.list_tools()
             assert [tool.name for tool in tools] == ["route_ticket"]
             agent = mcp_agent.build_agent(tools, model)

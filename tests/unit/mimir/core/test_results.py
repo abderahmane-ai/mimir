@@ -1,5 +1,5 @@
 import pytest
-from pydantic import TypeAdapter, ValidationError
+from pydantic import TypeAdapter
 
 from mimir.core.decisions import (
     SPEC_TYPES,
@@ -15,7 +15,6 @@ from mimir.core.decisions import (
 from mimir.core.results import (
     RESULT_FOR_SPEC,
     DecisionResult,
-    Deferral,
     OptionSet,
     Status,
 )
@@ -53,12 +52,8 @@ def test_status_serialises_as_lowercase_strings() -> None:
     assert [status.value for status in Status] == ["decided", "abstained", "deferred"]
     result = result_for(YesNo("q"), Status.DEFERRED)
     assert result.model_dump(mode="json")["status"] == "deferred"
-
-
-def test_deferral_rejects_unknown_reasons() -> None:
-    assert Deferral(reason="below_threshold", threshold=0.9, gate_p_value=0.5).threshold == 0.9
-    with pytest.raises(ValidationError):
-        Deferral.model_validate({"reason": "tired", "threshold": None, "gate_p_value": 0.5})
+    assert result.model_dump(mode="json")["actionable"] is False
+    assert "deferral" not in result.model_dump(mode="json")
 
 
 def test_empty_estimate_interval_is_distinct_from_none() -> None:

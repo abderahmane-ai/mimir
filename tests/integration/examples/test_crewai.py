@@ -41,9 +41,9 @@ def _wait_listening(port: int) -> None:
     pytest.fail(f"mimir mcp --http did not listen on port {port} in {START_TIMEOUT_S} s")
 
 
-def test_the_crew_routes_a_ticket_through_the_server(release: Path) -> None:
+def test_the_crew_routes_a_ticket_through_the_server(hub_release: Path) -> None:
     port = _free_port()
-    arguments = [*mcp_server_arguments(release), "--http", "--port", str(port)]
+    arguments = [*mcp_server_arguments(hub_release), "--http", "--port", str(port)]
     process = subprocess.Popen([MIMIR_SERVER, *arguments])
     try:
         _wait_listening(port)

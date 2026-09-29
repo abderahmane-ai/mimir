@@ -25,7 +25,7 @@ from mimir.core.context import ContextInput, ContextLike
 from mimir.core.decisions import DecisionSpec
 from mimir.core.errors import ContextError, InputLimitError
 from mimir.core.results import RESULT_FOR_SPEC, DecisionResult
-from mimir.core.wire import DEFAULT_RISK
+from mimir.core.wire import DEFAULT_RISK, Mode, check_mode
 
 if TYPE_CHECKING:
     from mimir.core.decider import Decider
@@ -33,8 +33,9 @@ if TYPE_CHECKING:
 # The names OpenAI function tools and MCP tools both accept.
 TOOL_NAME: Final = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 GUIDANCE: Final = (
-    "Act on `answer` only when `status` is `decided` or `abstained`; when it is `deferred`, "
-    "escalate to a person and pass on `deferral.reason`."
+    "Act on `answer`; it always holds the model's prediction. When `status` is `deferred`, "
+    "the answer is below the operating floor: have a person review it before acting. "
+    "When `certified` is true, `certificate` carries the evidence."
 )
 # Errors in what the agent sent, which it can correct; adapters return these to the model.
 ARGUMENT_ERRORS: Final = (ValidationError, ContextError, InputLimitError)
@@ -56,6 +57,8 @@ class DecisionTool:
     spec: DecisionSpec
     description: str
     decider: "Decider" = field(repr=False)
+    mode: Mode
+    min_confidence: float | None
     risk: float
     alpha: float | None
 
@@ -68,10 +71,24 @@ class DecisionTool:
             raise ValueError(message)
 
     def __call__(self, context: ContextLike) -> DecisionResult:
-        return self.decider.decide(context, self.spec, risk=self.risk, alpha=self.alpha)
+        return self.decider.decide(
+            context,
+            self.spec,
+            mode=self.mode,
+            min_confidence=self.min_confidence,
+            risk=self.risk,
+            alpha=self.alpha,
+        )
 
     async def acall(self, context: ContextLike) -> DecisionResult:
-        return await self.decider.adecide(context, self.spec, risk=self.risk, alpha=self.alpha)
+        return await self.decider.adecide(
+            context,
+            self.spec,
+            mode=self.mode,
+            min_confidence=self.min_confidence,
+            risk=self.risk,
+            alpha=self.alpha,
+        )
 
     def call_with(self, arguments: Mapping[str, object]) -> DecisionResult:
         """Decide on a tool call's arguments, validated against `input_schema`."""
@@ -105,8 +122,15 @@ class ToolDefinition(BaseModel):
     name: Annotated[str, StringConstraints(pattern=TOOL_NAME.pattern)]
     description: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
     decision: DecisionSpec
+    mode: Mode = Mode.STANDARD
+    min_confidence: float | None = PydanticField(default=None, gt=0, lt=1)
     risk: float = DEFAULT_RISK
     alpha: float | None = PydanticField(default=None, gt=0, lt=1)
+
+    @model_validator(mode="after")
+    def _check_mode(self) -> Self:
+        check_mode(self.mode, self.min_confidence)
+        return self
 
 
 class ToolDefinitions(BaseModel):
@@ -129,7 +153,13 @@ class ToolDefinitions(BaseModel):
         """Return one `DecisionTool` per definition, answered by `decider`."""
         return tuple(
             decider.tool(
-                item.name, item.decision, item.description, risk=item.risk, alpha=item.alpha
+                item.name,
+                item.decision,
+                item.description,
+                mode=item.mode,
+                min_confidence=item.min_confidence,
+                risk=item.risk,
+                alpha=item.alpha,
             )
             for item in self.tools
         )

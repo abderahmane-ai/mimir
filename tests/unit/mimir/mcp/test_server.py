@@ -13,6 +13,7 @@ from mimir.client.http import MimirClient
 from mimir.core.decider import Decider
 from mimir.core.decisions import Choice, Estimate, Rate, YesNo
 from mimir.core.tools import DecisionTool
+from mimir.core.wire import Mode
 from mimir.mcp.server import create_server
 from mimir.runtime.engine import Mimir
 from mimir.server.app import create_app
@@ -85,14 +86,22 @@ def test_a_configured_tool_answers_as_the_engine(engine: Mimir, mode: str, versi
 
 
 def test_a_deferral_is_a_normal_result(engine: Mimir) -> None:
-    server = create_server(engine, _tools(engine))
-    result = _connected(
-        server, lambda client: client.call_tool("estimate_price", {"context": TEXT})
-    )
+    tools = [
+        engine.tool(
+            "strict_team",
+            TEAM,
+            "Route a support ticket strictly.",
+            mode=Mode.THRESHOLD,
+            min_confidence=0.99,
+        )
+    ]
+    server = create_server(engine, tools)
+    result = _connected(server, lambda client: client.call_tool("strict_team", {"context": TEXT}))
     assert result.is_error is False
     assert result.structured_content is not None
     assert result.structured_content["status"] == "deferred"
-    assert result.structured_content["deferral"]["reason"] == "no_certified_threshold"
+    assert result.structured_content["answer"] == "billing"
+    assert result.structured_content["actionable"] is False
 
 
 def test_generic_tools_build_their_specs_from_the_arguments(engine: Mimir) -> None:
@@ -144,16 +153,18 @@ def test_invalid_arguments_are_tool_errors_naming_the_field(engine: Mimir) -> No
     assert "options needs at least 2 entries; got 1: ['only']" in spec
 
 
-def test_a_loading_model_is_a_tool_error(release: Path) -> None:
-    served = ServedModel(lambda: load_engine(release))
+def test_a_loading_model_is_a_tool_error(release: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    served = ServedModel(lambda: load_engine(release, monkeypatch))
     server = create_server(served, _tools(served))
     result = _connected(server, lambda client: client.call_tool("route_ticket", {"context": TEXT}))
     assert result.is_error is True
     assert "the model is still loading" in str(getattr(result.content[0], "text", ""))
 
 
-def test_remote_tools_forward_to_a_mimir_server(release: Path, engine: Mimir) -> None:
-    served = ServedModel(lambda: load_engine(release))
+def test_remote_tools_forward_to_a_mimir_server(
+    release: Path, engine: Mimir, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    served = ServedModel(lambda: load_engine(release, monkeypatch))
     app = create_app(served, metrics=Metrics())
 
     async def main() -> object:

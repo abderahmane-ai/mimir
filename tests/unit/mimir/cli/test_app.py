@@ -5,6 +5,7 @@ import pytest
 from typer.testing import CliRunner
 
 from mimir.cli.app import app
+from mimir.runtime.session import torch_version
 
 RUNNER = CliRunner()
 
@@ -12,6 +13,17 @@ RUNNER = CliRunner()
 def run(*arguments: str, stdin: str | None = None) -> tuple[int, str, str]:
     result = RUNNER.invoke(app, list(arguments), input=stdin)
     return result.exit_code, result.stdout, result.stderr
+
+
+@pytest.fixture(autouse=True)
+def _scripted_engine(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Run the CLI's engines on scripted outputs instead of release weights."""
+    import mimir.runtime.engine as engine_module
+    import mimir.runtime.session as session_module
+    from tests.conftest import fake_run
+
+    monkeypatch.setattr(engine_module, "load_model", lambda *_: None)
+    monkeypatch.setattr(session_module, "run", fake_run)
 
 
 def test_schema_prints_every_schema_or_one() -> None:
@@ -29,8 +41,8 @@ def test_doctor_reports_the_environment() -> None:
     code, out, _ = run("doctor")
     report = json.loads(out)
     assert code == 0
-    assert report["onnxruntime"] == "1.30.0"
-    assert report["runtime_conflict"] is False
+    assert report["torch"] == torch_version()
+    assert report["cuda_available"] in (True, False)
     assert report["device"] in {"cpu", "cuda"}
 
 

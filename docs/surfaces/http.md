@@ -9,7 +9,7 @@ MIMIR_API_KEYS=key-one,key-two mimir serve --host 0.0.0.0 --tools tools.yaml
 
 | Route | Does |
 |---|---|
-| `POST /v1/decide` | one certified decision: `{context, decision, risk, alpha}` |
+| `POST /v1/decide` | one decision: `{context, decision, mode, min_confidence, risk, alpha}` |
 | `POST /v1/decide/uncertified` | the model's raw answer with no policy applied: `{context, decision}` |
 | `POST /v1/decide/batch` | up to 64 decisions in one call (`--max-batch-items`) |
 | `POST /v1/tools/{name}` | a named tool from `--tools`, given only `{context}` |
@@ -41,7 +41,7 @@ The same file configures the MCP server, so both servers expose the same tools w
 
 **Loading.** The server binds and starts accepting connections immediately, then loads the model in the background. Decision endpoints answer 503 `not_ready` with a `Retry-After` header until the model is ready. `/readyz` turns 200 at the same moment.
 
-**Batching.** Concurrent requests with the same risk level and alpha are batched into a single engine call. A batch is dispatched when its accumulated tokens fill the release's batch budget or when the oldest request has waited 5 ms. Both limits are tunable with `--batch-tokens` and `--batch-wait-ms`.
+**Batching.** Concurrent requests with the same mode, floor, risk level, and alpha are batched into a single engine call. A batch is dispatched when its accumulated tokens fill the release's batch budget or when the oldest request has waited 5 ms. Both limits are tunable with `--batch-tokens` and `--batch-wait-ms`.
 
 **Authentication.** Keys are read from `MIMIR_API_KEYS`, comma-separated. Every route except `/healthz` and `/readyz` requires `Authorization: Bearer <key>`. A server started without keys will only bind a loopback address (`127.0.0.1`, `::1`) unless started with `--allow-no-auth`.
 

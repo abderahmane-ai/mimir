@@ -23,10 +23,10 @@ answers = agent.predict(
 - Questions follow Jev's format, extended with list-valued choice criteria and `noul` `labels`.
 - `predict_batch(states, questions)` answers the same set of questions about each state in the batch.
 - Probability values are rounded to 4 decimal places, matching Laya's rounding.
-- MIMIR has no separate act head. `action.act_probability` is `1.0` when the certified decision may be acted on (`DECIDED` or `ABSTAINED`), and `0.0` when it defers — evaluated at the risk level passed to `load` (1% by default).
+- MIMIR has no separate act head. `action.act_probability` is `1.0` when the decision is actionable (`DECIDED` or `ABSTAINED`), and `0.0` when it defers — evaluated in the mode passed to `load` (`standard` by default).
 
 ## Limitations
 
 The shim makes no commitment to track later Laya versions. It provides a migration path, not a long-term compatibility guarantee.
 
-For access to the full MIMIR result — the certificate, the deferral reason, and the relevant context slices — call [`Mimir`](../surfaces/python.md) directly rather than going through the compat shim.
+For access to the full MIMIR result — the certificate and the relevant context slices — call [`Mimir`](../surfaces/python.md) directly rather than going through the compat shim.

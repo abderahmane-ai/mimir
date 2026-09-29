@@ -1,13 +1,20 @@
 """Decision results.
 
-`answer` is the model's prediction. `status` is the policy's verdict on it:
+`answer` is always the model's prediction. `status` says whether it cleared the operating
+floor:
 
-- `DECIDED`: the answer is an option and is certified.
-- `ABSTAINED`: the answer is "none of the options" and is certified.
-- `DEFERRED`: not certified; `deferral.reason` gives the cause.
+- `DECIDED`: the answer cleared it (in `standard` mode there is no floor).
+- `ABSTAINED`: the model found that no listed option applies.
+- `DEFERRED`: the answer is below the floor (`threshold` mode's `min_confidence`, or the
+  certified threshold in `certified` mode); review it before acting.
+
+`actionable` is true for `DECIDED` and `ABSTAINED`. `certified` is true when the loaded
+policy holds a threshold for this decision type at the requested risk and the score passes
+it; `certificate` then carries the evidence that certified it. `confidence` is the
+calibrated score the floor is compared with.
 
 Results from `decide_uncertified` have raw model probabilities, a status taken from the answer
-alone, and no certificate, deferral or prediction set.
+alone, and no certificate or prediction set.
 
 `relevant_context` is sorted by relevance, highest first. Relevance is the share of the
 model's evidence attention on each part of the context, not a causal attribution.
@@ -29,25 +36,11 @@ class Status(StrEnum):
     DEFERRED = "deferred"
 
 
-DeferralReason = Literal["below_threshold", "out_of_distribution", "no_certified_threshold"]
 ContextKind = Literal["passage", "table", "table_row", "field"]
 
 
 class _Frozen(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
-
-
-class Deferral(_Frozen):
-    """Reason a decision was deferred.
-
-    - `no_certified_threshold`: no threshold is certified for this decision type and risk.
-    - `out_of_distribution`: `gate_p_value` is at or below the policy's gate level.
-    - `below_threshold`: `confidence` is below `threshold`.
-    """
-
-    reason: DeferralReason
-    threshold: float | None
-    gate_p_value: float
 
 
 class Certificate(_Frozen):
@@ -98,11 +91,14 @@ class OptionSet(_Frozen):
 class _Result(_Frozen):
     schema_version: Literal[1] = SCHEMA_VERSION
     status: Status
+    actionable: bool = Field(description="Whether the answer cleared the operating floor.")
+    certified: bool = Field(
+        description="Whether the answer passed the policy's threshold at the requested risk."
+    )
     confidence: float | None = Field(
-        description="Calibrated probability of the answer, compared with the threshold."
+        description="Calibrated probability of the answer, compared with the floor."
     )
     relevant_context: tuple[ContextRelevance, ...]
-    deferral: Deferral | None
     certificate: Certificate | None
     latency_ms: float
 

@@ -1,5 +1,5 @@
-# The CUDA runtime image: the package and ONNX Runtime GPU, never the model. onnxruntime-gpu
-# 1.30.0 is built against CUDA 13.0 and cuDNN 9, which this base image provides.
+# The CUDA runtime image: the package and Torch with CUDA, never the model. The torch wheel
+# bundles its own CUDA libraries; this base image provides the driver-facing runtime.
 FROM nvidia/cuda:13.0.3-cudnn-runtime-ubuntu24.04 AS base
 RUN apt-get update \
     && apt-get install --yes --no-install-recommends python3.12 \
@@ -11,7 +11,7 @@ ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PYTHON_DOWNLOADS=never UV_PYTHON=
 WORKDIR /app
 COPY pyproject.toml uv.lock README.md LICENSE ./
 COPY src ./src
-RUN uv sync --locked --no-dev --no-editable --extra local-gpu --extra server --extra mcp
+RUN uv sync --locked --no-dev --no-editable --extra local --extra server --extra mcp
 
 FROM base
 LABEL io.modelcontextprotocol.server.name="io.github.abderahmane-ai/mimir" \

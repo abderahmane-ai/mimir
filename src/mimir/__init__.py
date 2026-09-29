@@ -17,7 +17,6 @@ from mimir.core.results import (
     Certificate,
     ChoiceResult,
     ContextRelevance,
-    Deferral,
     EstimateResult,
     MultiChoiceResult,
     OptionSet,
@@ -28,6 +27,7 @@ from mimir.core.results import (
     YesNoResult,
 )
 from mimir.core.tools import DecisionTool
+from mimir.core.wire import Mode
 
 # The Hub cache's shared blob store splits a graph and its external data across shard
 # directories, and ONNX Runtime refuses external data outside the model's resolved
@@ -51,7 +51,6 @@ __all__ = [
     "ContextRelevance",
     "Decider",
     "DecisionTool",
-    "Deferral",
     "Estimate",
     "EstimateResult",
     "Field",
@@ -59,6 +58,7 @@ __all__ = [
     "Mimir",
     "MimirClient",
     "MimirError",
+    "Mode",
     "MultiChoice",
     "MultiChoiceResult",
     "OptionSet",

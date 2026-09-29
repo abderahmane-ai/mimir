@@ -1,4 +1,4 @@
-# The CPU runtime image: the package and ONNX Runtime, never the model. The model is downloaded
+# The CPU runtime image: the package and Torch, never the model. The model is downloaded
 # at start into /models from the revision this package version pins.
 FROM python:3.12.14-slim-trixie AS build
 COPY --from=ghcr.io/astral-sh/uv:0.11.26 /uv /usr/local/bin/uv

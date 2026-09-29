@@ -1,10 +1,11 @@
-"""Accuracy, coverage and realised risk of results against labels (`mimir bench`).
+"""Accuracy, actionable and certified shares, and realised risk (`mimir bench`).
 
 Per spec type:
 
-- `accuracy`: correct answers among all records, ignoring the policy;
-- `coverage`: records not deferred;
-- `risk`: wrong answers among records not deferred.
+- `accuracy`: correct answers among all records;
+- `coverage`: actionable records;
+- `certified`: records passing the policy's threshold at the requested risk;
+- `risk`: wrong answers among actionable records.
 
 Each rate has a 95% Wilson interval. `estimate` also reports the mean absolute error.
 """
@@ -15,7 +16,7 @@ from pydantic import BaseModel, ConfigDict
 
 from mimir.core.intervals import wilson_interval
 from mimir.core.labels import Label, is_correct
-from mimir.core.results import DecisionResult, EstimateResult, Status
+from mimir.core.results import DecisionResult, EstimateResult
 
 
 class _Frozen(BaseModel):
@@ -33,6 +34,7 @@ class TypeReport(_Frozen):
     records: int
     accuracy: Rate
     coverage: Rate
+    certified: Rate
     risk: Rate
     mean_absolute_error: float | None
 
@@ -62,7 +64,8 @@ def bench(results: Sequence[DecisionResult], labels: Sequence[Label]) -> BenchRe
     types: dict[str, TypeReport] = {}
     for kind, members in sorted(groups.items()):
         correct = [is_correct(result, label) for result, label in members]
-        taken = [result.status != Status.DEFERRED for result, _ in members]
+        taken = [result.actionable for result, _ in members]
+        passed = [result.certified for result, _ in members]
         errors = sum(
             is_taken and not is_right for is_taken, is_right in zip(taken, correct, strict=True)
         )
@@ -75,6 +78,7 @@ def bench(results: Sequence[DecisionResult], labels: Sequence[Label]) -> BenchRe
             records=len(members),
             accuracy=rate(sum(correct), len(members)),
             coverage=rate(sum(taken), len(members)),
+            certified=rate(sum(passed), len(members)),
             risk=rate(errors, sum(taken)),
             mean_absolute_error=sum(absolute) / len(absolute) if absolute else None,
         )

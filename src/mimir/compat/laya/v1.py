@@ -2,8 +2,8 @@
 
 Requests use Laya's question format (Jev's, plus list-valued choice criteria and noul
 `labels`). Answers follow Laya 0.3.20's shape, with values rounded to 4 decimals. MIMIR has no
-separate act head, so `action.act_probability` is 1.0 when the certified decision may be acted
-on (`DECIDED` or `ABSTAINED`) and 0.0 when it is deferred.
+separate act head, so `action.act_probability` is 1.0 when the decision is actionable and 0.0
+when it is deferred.
 """
 
 import math
@@ -21,8 +21,8 @@ from mimir.compat.systemone.v1 import (
     state_context,
     translate_question,
 )
-from mimir.core.results import ChoiceResult, DecisionResult, RateResult, Status
-from mimir.core.wire import DEFAULT_RISK
+from mimir.core.results import ChoiceResult, DecisionResult, RateResult
+from mimir.core.wire import DEFAULT_RISK, Mode
 from mimir.extras import engine_class
 
 if TYPE_CHECKING:
@@ -89,9 +89,7 @@ def answer(translated: Translated, result: DecisionResult) -> dict[str, JsonValu
     probabilities = {key: value / total for key, value in result.probabilities.items()}
     values = list(probabilities.values())
     peak = max(values)
-    action: dict[str, JsonValue] = {
-        "act_probability": 0.0 if result.status == Status.DEFERRED else 1.0
-    }
+    action: dict[str, JsonValue] = {"act_probability": 1.0 if result.actionable else 0.0}
     if translated.kind == "noul":
         true = probabilities["true"]
         return {
@@ -121,8 +119,16 @@ def answer(translated: Translated, result: DecisionResult) -> dict[str, JsonValu
 class Agent:
     """Laya-compatible wrapper around a local `Mimir` engine."""
 
-    def __init__(self, engine: "Mimir", risk: float = DEFAULT_RISK) -> None:
+    def __init__(
+        self,
+        engine: "Mimir",
+        mode: Mode = Mode.STANDARD,
+        min_confidence: float | None = None,
+        risk: float = DEFAULT_RISK,
+    ) -> None:
         self.engine = engine
+        self.mode = mode
+        self.min_confidence = min_confidence
         self.risk = risk
 
     def predict(self, state: LayaState, questions: Mapping[str, JsonValue]) -> dict[str, JsonValue]:
@@ -137,7 +143,9 @@ class Agent:
         translated = {name: translate(question) for name, question in parsed.items()}
         contexts = [state_context(state) for state in states]
         items = [(context, item.spec) for context in contexts for item in translated.values()]
-        results = self.engine.decide_many(items, risk=self.risk)
+        results = self.engine.decide_many(
+            items, mode=self.mode, min_confidence=self.min_confidence, risk=self.risk
+        )
         model = self.engine.info().model
         responses: list[dict[str, JsonValue]] = []
         width = len(translated)
@@ -159,6 +167,8 @@ def load(
     model_id_or_path: str | Path = DEFAULT_REPOSITORY,
     device: str | None = None,
     *,
+    mode: Mode = Mode.STANDARD,
+    min_confidence: float | None = None,
     risk: float = DEFAULT_RISK,
     revision: str | None = None,
 ) -> Agent:
@@ -166,4 +176,4 @@ def load(
     engine = engine_class("mimir.compat.laya.v1").from_pretrained(
         str(model_id_or_path), revision=revision, device=device or "auto"
     )
-    return Agent(engine, risk)
+    return Agent(engine, mode, min_confidence, risk)

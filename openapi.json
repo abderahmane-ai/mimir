@@ -96,6 +96,23 @@
             "title": "Items",
             "type": "array"
           },
+          "min_confidence": {
+            "anyOf": [
+              {
+                "exclusiveMaximum": 1.0,
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Confidence"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/Mode",
+            "default": "standard"
+          },
           "risk": {
             "default": 0.01,
             "title": "Risk",
@@ -402,6 +419,11 @@
             "title": "Abstain Probability",
             "type": "number"
           },
+          "actionable": {
+            "description": "Whether the answer cleared the operating floor.",
+            "title": "Actionable",
+            "type": "boolean"
+          },
           "answer": {
             "anyOf": [
               {
@@ -424,6 +446,11 @@
               }
             ]
           },
+          "certified": {
+            "description": "Whether the answer passed the policy's threshold at the requested risk.",
+            "title": "Certified",
+            "type": "boolean"
+          },
           "confidence": {
             "anyOf": [
               {
@@ -433,18 +460,8 @@
                 "type": "null"
               }
             ],
-            "description": "Calibrated probability of the answer, compared with the threshold.",
+            "description": "Calibrated probability of the answer, compared with the floor.",
             "title": "Confidence"
-          },
-          "deferral": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/Deferral"
-              },
-              {
-                "type": "null"
-              }
-            ]
           },
           "latency_ms": {
             "title": "Latency Ms",
@@ -492,9 +509,10 @@
         },
         "required": [
           "status",
+          "actionable",
+          "certified",
           "confidence",
           "relevant_context",
-          "deferral",
           "certificate",
           "latency_ms",
           "answer",
@@ -661,6 +679,23 @@
             ],
             "title": "Decision"
           },
+          "min_confidence": {
+            "anyOf": [
+              {
+                "exclusiveMaximum": 1.0,
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Confidence"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/Mode",
+            "default": "standard"
+          },
           "risk": {
             "default": 0.01,
             "title": "Risk",
@@ -672,43 +707,6 @@
           "decision"
         ],
         "title": "DecideRequest",
-        "type": "object"
-      },
-      "Deferral": {
-        "additionalProperties": false,
-        "description": "Reason a decision was deferred.\n\n- `no_certified_threshold`: no threshold is certified for this decision type and risk.\n- `out_of_distribution`: `gate_p_value` is at or below the policy's gate level.\n- `below_threshold`: `confidence` is below `threshold`.",
-        "properties": {
-          "gate_p_value": {
-            "title": "Gate P Value",
-            "type": "number"
-          },
-          "reason": {
-            "enum": [
-              "below_threshold",
-              "out_of_distribution",
-              "no_certified_threshold"
-            ],
-            "title": "Reason",
-            "type": "string"
-          },
-          "threshold": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Threshold"
-          }
-        },
-        "required": [
-          "reason",
-          "threshold",
-          "gate_p_value"
-        ],
-        "title": "Deferral",
         "type": "object"
       },
       "ErrorBody": {
@@ -790,6 +788,11 @@
       "EstimateResult": {
         "additionalProperties": false,
         "properties": {
+          "actionable": {
+            "description": "Whether the answer cleared the operating floor.",
+            "title": "Actionable",
+            "type": "boolean"
+          },
           "answer": {
             "description": "The mean of the predicted distribution.",
             "title": "Answer",
@@ -805,6 +808,11 @@
               }
             ]
           },
+          "certified": {
+            "description": "Whether the answer passed the policy's threshold at the requested risk.",
+            "title": "Certified",
+            "type": "boolean"
+          },
           "confidence": {
             "anyOf": [
               {
@@ -814,18 +822,8 @@
                 "type": "null"
               }
             ],
-            "description": "Calibrated probability of the answer, compared with the threshold.",
+            "description": "Calibrated probability of the answer, compared with the floor.",
             "title": "Confidence"
-          },
-          "deferral": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/Deferral"
-              },
-              {
-                "type": "null"
-              }
-            ]
           },
           "interval": {
             "anyOf": [
@@ -894,9 +892,10 @@
         },
         "required": [
           "status",
+          "actionable",
+          "certified",
           "confidence",
           "relevant_context",
-          "deferral",
           "certificate",
           "latency_ms",
           "answer",
@@ -1005,6 +1004,15 @@
         "type": "object"
       },
       "JsonValue": {},
+      "Mode": {
+        "enum": [
+          "standard",
+          "threshold",
+          "certified"
+        ],
+        "title": "Mode",
+        "type": "string"
+      },
       "ModelInfo": {
         "additionalProperties": false,
         "description": "Response of `GET /v1/models` and `Decider.info()`.\n\n`certification` is one of:\n\n- `certified`: the policy's fingerprint lists this runtime and hardware;\n- `equivalent`: the hardware is not listed, but the equivalence check passed;\n- `none`: no policy is loaded; only `decide_uncertified` is available.",
@@ -1140,6 +1148,11 @@
       "MultiChoiceResult": {
         "additionalProperties": false,
         "properties": {
+          "actionable": {
+            "description": "Whether the answer cleared the operating floor.",
+            "title": "Actionable",
+            "type": "boolean"
+          },
           "answer": {
             "items": {
               "type": "string"
@@ -1157,6 +1170,11 @@
               }
             ]
           },
+          "certified": {
+            "description": "Whether the answer passed the policy's threshold at the requested risk.",
+            "title": "Certified",
+            "type": "boolean"
+          },
           "confidence": {
             "anyOf": [
               {
@@ -1166,18 +1184,8 @@
                 "type": "null"
               }
             ],
-            "description": "Calibrated probability of the answer, compared with the threshold.",
+            "description": "Calibrated probability of the answer, compared with the floor.",
             "title": "Confidence"
-          },
-          "deferral": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/Deferral"
-              },
-              {
-                "type": "null"
-              }
-            ]
           },
           "latency_ms": {
             "title": "Latency Ms",
@@ -1216,9 +1224,10 @@
         },
         "required": [
           "status",
+          "actionable",
+          "certified",
           "confidence",
           "relevant_context",
-          "deferral",
           "certificate",
           "latency_ms",
           "answer",
@@ -1407,6 +1416,11 @@
       "RankResult": {
         "additionalProperties": false,
         "properties": {
+          "actionable": {
+            "description": "Whether the answer cleared the operating floor.",
+            "title": "Actionable",
+            "type": "boolean"
+          },
           "answer": {
             "description": "Every candidate id, best first.",
             "items": {
@@ -1425,6 +1439,11 @@
               }
             ]
           },
+          "certified": {
+            "description": "Whether the answer passed the policy's threshold at the requested risk.",
+            "title": "Certified",
+            "type": "boolean"
+          },
           "confidence": {
             "anyOf": [
               {
@@ -1434,18 +1453,8 @@
                 "type": "null"
               }
             ],
-            "description": "Calibrated probability of the answer, compared with the threshold.",
+            "description": "Calibrated probability of the answer, compared with the floor.",
             "title": "Confidence"
-          },
-          "deferral": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/Deferral"
-              },
-              {
-                "type": "null"
-              }
-            ]
           },
           "latency_ms": {
             "title": "Latency Ms",
@@ -1484,9 +1493,10 @@
         },
         "required": [
           "status",
+          "actionable",
+          "certified",
           "confidence",
           "relevant_context",
-          "deferral",
           "certificate",
           "latency_ms",
           "answer",
@@ -1538,6 +1548,11 @@
       "RateResult": {
         "additionalProperties": false,
         "properties": {
+          "actionable": {
+            "description": "Whether the answer cleared the operating floor.",
+            "title": "Actionable",
+            "type": "boolean"
+          },
           "answer": {
             "title": "Answer",
             "type": "string"
@@ -1552,6 +1567,11 @@
               }
             ]
           },
+          "certified": {
+            "description": "Whether the answer passed the policy's threshold at the requested risk.",
+            "title": "Certified",
+            "type": "boolean"
+          },
           "confidence": {
             "anyOf": [
               {
@@ -1561,18 +1581,8 @@
                 "type": "null"
               }
             ],
-            "description": "Calibrated probability of the answer, compared with the threshold.",
+            "description": "Calibrated probability of the answer, compared with the floor.",
             "title": "Confidence"
-          },
-          "deferral": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/Deferral"
-              },
-              {
-                "type": "null"
-              }
-            ]
           },
           "latency_ms": {
             "title": "Latency Ms",
@@ -1625,9 +1635,10 @@
         },
         "required": [
           "status",
+          "actionable",
+          "certified",
           "confidence",
           "relevant_context",
-          "deferral",
           "certificate",
           "latency_ms",
           "answer",
@@ -1639,29 +1650,19 @@
       },
       "RuntimeInfo": {
         "additionalProperties": false,
-        "description": "The ONNX Runtime configuration in use.",
+        "description": "The Torch runtime in use.",
         "properties": {
           "hardware": {
             "title": "Hardware",
             "type": "string"
           },
-          "onnxruntime": {
-            "title": "Onnxruntime",
-            "type": "string"
-          },
-          "options_sha256": {
-            "title": "Options Sha256",
-            "type": "string"
-          },
-          "provider": {
-            "title": "Provider",
+          "torch": {
+            "title": "Torch",
             "type": "string"
           }
         },
         "required": [
-          "onnxruntime",
-          "provider",
-          "options_sha256",
+          "torch",
           "hardware"
         ],
         "title": "RuntimeInfo",
@@ -2036,6 +2037,11 @@
             "title": "Abstain Probability",
             "type": "number"
           },
+          "actionable": {
+            "description": "Whether the answer cleared the operating floor.",
+            "title": "Actionable",
+            "type": "boolean"
+          },
           "answer": {
             "anyOf": [
               {
@@ -2062,6 +2068,11 @@
               }
             ]
           },
+          "certified": {
+            "description": "Whether the answer passed the policy's threshold at the requested risk.",
+            "title": "Certified",
+            "type": "boolean"
+          },
           "confidence": {
             "anyOf": [
               {
@@ -2071,18 +2082,8 @@
                 "type": "null"
               }
             ],
-            "description": "Calibrated probability of the answer, compared with the threshold.",
+            "description": "Calibrated probability of the answer, compared with the floor.",
             "title": "Confidence"
-          },
-          "deferral": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/Deferral"
-              },
-              {
-                "type": "null"
-              }
-            ]
           },
           "latency_ms": {
             "title": "Latency Ms",
@@ -2130,9 +2131,10 @@
         },
         "required": [
           "status",
+          "actionable",
+          "certified",
           "confidence",
           "relevant_context",
-          "deferral",
           "certificate",
           "latency_ms",
           "answer",
@@ -2172,6 +2174,11 @@
             "title": "Abstain Probability",
             "type": "number"
           },
+          "actionable": {
+            "description": "Whether the answer cleared the operating floor.",
+            "title": "Actionable",
+            "type": "boolean"
+          },
           "answer": {
             "anyOf": [
               {
@@ -2193,6 +2200,11 @@
               }
             ]
           },
+          "certified": {
+            "description": "Whether the answer passed the policy's threshold at the requested risk.",
+            "title": "Certified",
+            "type": "boolean"
+          },
           "confidence": {
             "anyOf": [
               {
@@ -2202,18 +2214,8 @@
                 "type": "null"
               }
             ],
-            "description": "Calibrated probability of the answer, compared with the threshold.",
+            "description": "Calibrated probability of the answer, compared with the floor.",
             "title": "Confidence"
-          },
-          "deferral": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/Deferral"
-              },
-              {
-                "type": "null"
-              }
-            ]
           },
           "latency_ms": {
             "title": "Latency Ms",
@@ -2261,9 +2263,10 @@
         },
         "required": [
           "status",
+          "actionable",
+          "certified",
           "confidence",
           "relevant_context",
-          "deferral",
           "certificate",
           "latency_ms",
           "answer",
@@ -2279,7 +2282,7 @@
   "info": {
     "summary": "Typed, calibrated and certified decisions.",
     "title": "MIMIR",
-    "version": "1.0.2"
+    "version": "1.1.0"
   },
   "openapi": "3.1.0",
   "paths": {

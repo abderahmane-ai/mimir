@@ -76,15 +76,19 @@ def _wait_ready(url: str, headers: dict[str, str] | None = None) -> None:
 
 async def _call_over_http(url: str, name: str, arguments: dict[str, str]) -> object:
     """Call a tool with the secret key, retrying while the model loads."""
-    async with (
-        httpx2.AsyncClient(headers={"Authorization": "Bearer secret"}) as http,
-        Client(streamable_http_client(url, http_client=http)) as client,
-    ):
-        for _ in range(300):
-            found = await client.call_tool(name, arguments)
-            if not found.is_error:
-                return found.structured_content
-            await asyncio.sleep(0.1)
+    for _ in range(300):
+        try:
+            async with (
+                httpx2.AsyncClient(headers={"Authorization": "Bearer secret"}) as http,
+                Client(streamable_http_client(url, http_client=http)) as client,
+            ):
+                found = await client.call_tool(name, arguments)
+        except (httpx2.TransportError, TimeoutError, ExceptionGroup):
+            await asyncio.sleep(1.0)
+            continue
+        if not found.is_error:
+            return found.structured_content
+        await asyncio.sleep(0.1)
     pytest.fail(f"{url} never answered {name}")
 
 
@@ -92,16 +96,17 @@ def _model(release: Path) -> tuple[str, ...]:
     return ("--model", str(release), "--allow-unsigned", "--device", "cpu")
 
 
-def test_serve_answers_the_http_api_and_mcp_on_one_port(release: Path, tmp_path: Path) -> None:
+def test_serve_answers_the_http_api_and_mcp_on_one_port(hub_release: Path, tmp_path: Path) -> None:
     port = _free_port()
     url = f"http://127.0.0.1:{port}"
     arguments = ("serve", "--port", str(port), "--tools", str(_tools(tmp_path)), "--mcp")
-    with _process(*arguments, *_model(release), keys="secret") as process:
+    with _process(*arguments, *_model(hub_release), keys="secret") as process:
         _wait_ready(url)
         with MimirClient(url, api_key="secret") as client:
             result = client.decide(TEXT, Choice("which team", ["billing", "security"]))
-            assert result.certificate is not None
-            assert client.info().model == str(release.resolve())
+            assert result.type == "choice"
+            assert result.actionable is True
+            assert client.info().model == str(hub_release.resolve())
         tool = httpx.post(
             f"{url}/v1/tools/route_ticket",
             json={"context": TEXT},
@@ -114,17 +119,21 @@ def test_serve_answers_the_http_api_and_mcp_on_one_port(release: Path, tmp_path:
     assert process.returncode == 0
 
 
-def test_mcp_serves_stdio(release: Path, tmp_path: Path) -> None:
+def test_mcp_serves_stdio(hub_release: Path, tmp_path: Path) -> None:
     parameters = StdioServerParameters(
         command=str(MIMIR),
-        args=["mcp", "--tools", str(_tools(tmp_path)), "--generic-tools", *_model(release)],
+        args=["mcp", "--tools", str(_tools(tmp_path)), "--generic-tools", *_model(hub_release)],
     )
 
     async def main() -> tuple[list[str], object]:
         async with Client(parameters) as client:
             names = [tool.name for tool in (await client.list_tools()).tools]
             for _ in range(300):
-                result = await client.call_tool("route_ticket", {"context": TEXT})
+                try:
+                    result = await client.call_tool("route_ticket", {"context": TEXT})
+                except (httpx.TransportError, TimeoutError):
+                    await asyncio.sleep(1.0)
+                    continue
                 if not result.is_error:
                     return names, result.structured_content
                 await asyncio.sleep(0.1)
@@ -136,10 +145,10 @@ def test_mcp_serves_stdio(release: Path, tmp_path: Path) -> None:
     assert content["type"] == "choice"
 
 
-def test_mcp_serves_http_behind_a_key(release: Path) -> None:
+def test_mcp_serves_http_behind_a_key(hub_release: Path) -> None:
     port = _free_port()
     url = f"http://127.0.0.1:{port}/mcp"
-    arguments = ("mcp", "--http", "--port", str(port), "--generic-tools", *_model(release))
+    arguments = ("mcp", "--http", "--port", str(port), "--generic-tools", *_model(hub_release))
     with _process(*arguments, keys="secret") as process:
         deadline = time.monotonic() + START_TIMEOUT_S
         while time.monotonic() < deadline:

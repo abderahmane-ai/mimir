@@ -24,9 +24,11 @@ TEAM = {"type": "choice", "question": "which team", "options": ["billing", "secu
 OPENAPI_FILE = Path(__file__).parents[4] / "openapi.json"
 
 
-def _app(root: Path, **options: object) -> tuple[FastAPI, ServedModel, Metrics]:
+def _app(
+    root: Path, monkeypatch: pytest.MonkeyPatch, **options: object
+) -> tuple[FastAPI, ServedModel, Metrics]:
     metrics = Metrics()
-    served = ServedModel(lambda: load_engine(root), observer=metrics)
+    served = ServedModel(lambda: load_engine(root, monkeypatch), observer=metrics)
     route = served.tool("route_ticket", Choice("which team", ["billing", "security"]), "Route.")
     keys = options.get("api_keys", frozenset())
     app = create_app(
@@ -54,8 +56,8 @@ def _without_latency(body: dict[str, object]) -> dict[str, object]:
     return {key: value for key, value in body.items() if key != "latency_ms"}
 
 
-def test_probes_follow_the_load(release: Path) -> None:
-    app, _, _ = _app(release)
+def test_probes_follow_the_load(release: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    app, _, _ = _app(release, monkeypatch)
     with _serving(app) as client:
         assert client.get("/healthz").json() == {"status": "ready", "error": None}
         assert client.get("/readyz").status_code == 200
@@ -79,8 +81,10 @@ def test_a_failed_load_fails_liveness_and_every_decision(tmp_path: Path) -> None
         assert "failed to load" in refused.json()["error"]["message"]
 
 
-def test_decide_matches_the_engine(release: Path, engine: Mimir) -> None:
-    app, _, _ = _app(release)
+def test_decide_matches_the_engine(
+    release: Path, engine: Mimir, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    app, _, _ = _app(release, monkeypatch)
     with _serving(app) as client:
         response = client.post("/v1/decide", json={"context": TEXT, "decision": TEAM})
         uncertified = client.post(
@@ -95,8 +99,10 @@ def test_decide_matches_the_engine(release: Path, engine: Mimir) -> None:
     assert _without_latency(uncertified.json()) == _without_latency(raw)
 
 
-def test_batches_keep_order_and_their_item_limit(release: Path) -> None:
-    app, _, _ = _app(release)
+def test_batches_keep_order_and_their_item_limit(
+    release: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    app, _, _ = _app(release, monkeypatch)
     body = [
         {"context": TEXT, "decision": TEAM},
         {
@@ -123,8 +129,10 @@ def test_batches_keep_order_and_their_item_limit(release: Path) -> None:
     }
 
 
-def test_configured_tools_take_only_the_context(release: Path) -> None:
-    app, _, _ = _app(release)
+def test_configured_tools_take_only_the_context(
+    release: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    app, _, _ = _app(release, monkeypatch)
     with _serving(app) as client:
         response = client.post("/v1/tools/route_ticket", json={"context": TEXT})
         unknown = client.post("/v1/tools/nope", json={"context": TEXT})
@@ -140,8 +148,10 @@ def test_configured_tools_take_only_the_context(release: Path) -> None:
     assert "body.question: Extra inputs are not permitted" in extra.json()["error"]["message"]
 
 
-def test_systemone_answers_in_jev_format(release: Path, engine: Mimir) -> None:
-    app, _, _ = _app(release)
+def test_systemone_answers_in_jev_format(
+    release: Path, engine: Mimir, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    app, _, _ = _app(release, monkeypatch)
     request = {
         "state": TEXT,
         "model": "systemone",
@@ -169,8 +179,10 @@ def test_systemone_answers_in_jev_format(release: Path, engine: Mimir) -> None:
     assert body["usage"] == {"input_tokens": expected_tokens, "output_tokens": 0}
 
 
-def test_requests_the_release_cannot_take_are_refused_by_name(release: Path) -> None:
-    app, _, _ = _app(release)
+def test_requests_the_release_cannot_take_are_refused_by_name(
+    release: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    app, _, _ = _app(release, monkeypatch)
     options = [f"option {index}" for index in range(9)]
     with _serving(app) as client:
         limit = client.post(
@@ -190,11 +202,11 @@ def test_requests_the_release_cannot_take_are_refused_by_name(release: Path) -> 
 
 
 def test_a_release_without_a_policy_serves_only_uncertified_decisions(
-    release_builder: object,
+    release_builder: object, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     assert callable(release_builder)
     root = release_builder("bare", with_policy=False)
-    app, _, _ = _app(root)
+    app, _, _ = _app(root, monkeypatch)
     with _serving(app) as client:
         certified = client.post("/v1/decide", json={"context": TEXT, "decision": TEAM})
         uncertified = client.post(
@@ -206,8 +218,10 @@ def test_a_release_without_a_policy_serves_only_uncertified_decisions(
     assert (info["certification"], info["risk_levels"]) == ("none", [])
 
 
-def test_keys_guard_everything_but_the_probes(release: Path) -> None:
-    app, _, _ = _app(release, api_keys=frozenset({"secret"}))
+def test_keys_guard_everything_but_the_probes(
+    release: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    app, _, _ = _app(release, monkeypatch, api_keys=frozenset({"secret"}))
     with _serving(app) as client:
         assert client.get("/v1/models").status_code == 401
         assert client.get("/metrics").status_code == 401
@@ -216,16 +230,18 @@ def test_keys_guard_everything_but_the_probes(release: Path) -> None:
         assert authorized.status_code == 200
 
 
-def test_bodies_over_the_limit_are_refused(release: Path) -> None:
-    app, _, _ = _app(release, max_body_bytes=100)
+def test_bodies_over_the_limit_are_refused(release: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    app, _, _ = _app(release, monkeypatch, max_body_bytes=100)
     with _serving(app) as client:
         response = client.post("/v1/decide", json={"context": "x" * 200, "decision": TEAM})
     assert response.status_code == 413
     assert response.json()["error"]["type"] == "too_large"
 
 
-def test_metrics_count_requests_batches_and_statuses(release: Path) -> None:
-    app, _, metrics = _app(release)
+def test_metrics_count_requests_batches_and_statuses(
+    release: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    app, _, metrics = _app(release, monkeypatch)
     with _serving(app) as client:
         for _ in range(2):
             client.post("/v1/decide", json={"context": TEXT, "decision": TEAM})
@@ -238,14 +254,16 @@ def test_metrics_count_requests_batches_and_statuses(release: Path) -> None:
     assert metrics.registry.get_sample_value("mimir_batch_requests_sum") == 3
     assert (
         metrics.registry.get_sample_value(
-            "mimir_decisions_total", {"type": "estimate", "status": "deferred"}
+            "mimir_decisions_total", {"type": "estimate", "status": "decided"}
         )
         == 1
     )
 
 
-def test_the_client_round_trips_results_and_errors(release: Path, engine: Mimir) -> None:
-    app, served, _ = _app(release, api_keys=frozenset({"secret"}))
+def test_the_client_round_trips_results_and_errors(
+    release: Path, engine: Mimir, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    app, served, _ = _app(release, monkeypatch, api_keys=frozenset({"secret"}))
     spec = Choice("which team", ["billing", "security", "shipping"])
 
     async def main() -> None:

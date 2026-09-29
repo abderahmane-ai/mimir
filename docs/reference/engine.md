@@ -1,20 +1,17 @@
 # Local engine
 
-`Mimir` runs the ONNX graph on your machine. Create one with `from_pretrained`, which
+`Mimir` runs the model on your machine with Torch. Create one with `from_pretrained`, which
 downloads the release at the revision this package version pins, verifies the manifest's
-Sigstore signature and every file's SHA-256, checks the graph against its contract, and
-loads it — or raises `ArtifactError` before anything is read. Safe to share across
-threads. Needs `mimir-decisions[local]` (CPU) or `mimir-decisions[local-gpu]` (CUDA); the two install
-the same `onnxruntime` module, so keep one of them. The fp16 (CUDA) graph ships without a
-policy in this release, so `decide` raises `PolicyError` there; `decide_uncertified`
+Sigstore signature and every file's SHA-256, and loads the weights — or raises `ArtifactError` before anything is read. Safe to share across
+threads. Needs `mimir-decisions[local]`; the same install serves the CPU and CUDA. `decide_uncertified`
 returns the raw answer.
 
 | Argument | Default | Does |
 |---|---|---|
 | `model` | `Mythologic/MIMIR-1` | a Hub id or a local release directory |
 | `revision` | the pinned revision | a Hub revision |
-| `device` | `auto` | `cpu`, `cuda`, or CUDA when available |
-| `variant` | the variant listed for the device | `fp32` (CPU) or `fp16` (CUDA) |
+| `device` | `auto` | `cpu`, `cuda`, or CUDA when a GPU is visible |
+| `variant` | the variant listed for the device | `fp32` |
 | `policy` | the release policy | path to a custom policy JSON from `mimir calibrate` |
 | `cache_dir` | the Hub cache | where the model is stored |
 | `offline` | `False` | load only from the cache, with no network access |

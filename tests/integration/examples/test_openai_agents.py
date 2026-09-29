@@ -19,7 +19,7 @@ pytestmark = pytest.mark.integration
 TEXT: Final = "my card was charged twice"
 
 
-def test_the_agent_routes_a_ticket_through_the_server(release: Path) -> None:
+def test_the_agent_routes_a_ticket_through_the_server(hub_release: Path) -> None:
     model = ScriptedModel(
         [
             [scripted_call("route_ticket", {"context": TEXT}, call_id="call-1")],
@@ -28,7 +28,9 @@ def test_the_agent_routes_a_ticket_through_the_server(release: Path) -> None:
     )
 
     async def main() -> RunResult:
-        async with mcp_agent.mimir_server(MIMIR_SERVER, mcp_server_arguments(release)) as server:
+        async with mcp_agent.mimir_server(
+            MIMIR_SERVER, mcp_server_arguments(hub_release)
+        ) as server:
             agent = mcp_agent.build_agent(server, model)
             return await Runner.run(agent, "Route.", run_config=RunConfig(tracing_disabled=True))
 

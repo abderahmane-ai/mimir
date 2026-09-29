@@ -1,7 +1,7 @@
 """Models for a release's `config.json` and `manifest.json`.
 
-`config.json` lists the variants, decision types (in graph index order), certified risk levels,
-input limits, default alpha, input layout and graph contract. `manifest.json` lists the SHA-256
+`config.json` lists the variants, decision types (in model index order), certified risk levels,
+input limits, default alpha and input layout. `manifest.json` lists the SHA-256
 of every other file and the `mimir-decisions` versions that can load the release.
 """
 
@@ -23,9 +23,9 @@ class _Frozen(BaseModel):
 
 
 class Variant(_Frozen):
-    """A graph and its policy. `policy` is the path without the `.json`/`.npz` suffix."""
+    """Weights and policy of one precision. `policy` is the path without suffix."""
 
-    graph: str
+    weights: str
     policy: str
     devices: tuple[str, ...]
 
@@ -53,21 +53,6 @@ class Layout(_Frozen):
     special_tokens: SpecialTokens
 
 
-class TensorSpec(_Frozen):
-    name: str
-    dtype: str
-    rank: int = Field(ge=0)
-
-
-class GraphContract(_Frozen):
-    """Allowed opsets and operators (`domain::type`), and the expected inputs and outputs."""
-
-    opset: dict[str, int]
-    operators: tuple[str, ...]
-    inputs: tuple[TensorSpec, ...]
-    outputs: tuple[TensorSpec, ...]
-
-
 class ReleaseConfig(_Frozen):
     format_version: int
     variants: dict[str, Variant] = Field(min_length=1)
@@ -77,10 +62,9 @@ class ReleaseConfig(_Frozen):
     default_alpha: float = Field(gt=0, lt=1)
     limits: Limits
     layout: Layout
-    graph: GraphContract
 
     def type_index(self, model_type: ModelType) -> int:
-        """Return the graph's integer index for a decision type."""
+        """Return the model's integer index for a decision type."""
         return self.decision_types.index(model_type)
 
 
@@ -91,5 +75,5 @@ class Manifest(_Frozen):
 
 
 def is_known_type_order(config: ReleaseConfig) -> bool:
-    """Return whether the release uses exactly the decision types this package supports."""
-    return sorted(config.decision_types) == sorted(MODEL_TYPES)
+    """Return whether the release lists the decision types this package supports, in order."""
+    return config.decision_types == MODEL_TYPES

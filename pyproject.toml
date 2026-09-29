@@ -1,13 +1,13 @@
 [project]
 name = "mimir-decisions"
-version = "1.0.2"
+version = "1.1.0"
 description = "Typed, calibrated and certified decisions from MIMIR, a non-generative decision model"
 readme = "README.md"
 license = "Apache-2.0"
 license-files = ["LICENSE"]
 authors = [{ name = "Mythologic" }]
 requires-python = ">=3.11"
-keywords = ["decision-model", "classification", "abstention", "calibration", "onnx", "agents"]
+keywords = ["decision-model", "classification", "abstention", "calibration", "agents"]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
@@ -35,18 +35,11 @@ dependencies = [
 local = [
     "huggingface-hub>=1.0,<2",
     "numpy>=2.3,<3",
-    "onnx>=1.23,<2",
-    "onnxruntime==1.30.0",
+    "safetensors>=0.8,<1",
     "sigstore>=4.5,<5",
     "tokenizers>=0.23.2,<0.24",
-]
-local-gpu = [
-    "huggingface-hub>=1.0,<2",
-    "numpy>=2.3,<3",
-    "onnx>=1.23,<2",
-    "onnxruntime-gpu==1.30.0",
-    "sigstore>=4.5,<5",
-    "tokenizers>=0.23.2,<0.24",
+    "torch>=2.10,<3",
+    "transformers>=5.17,<6",
 ]
 server = [
     "fastapi>=0.141.1,<1",
@@ -111,15 +104,11 @@ requires = ["uv_build>=0.12.19,<0.13"]
 build-backend = "uv_build"
 
 [tool.uv]
-# `local` and `local-gpu` both install the module `onnxruntime`; an environment holds one of
-# them, and `all` includes `local`. CrewAI pins `mcp~=1.28` and `openai<3`, below the `mcp`
-# extra, the examples' MCP SDK 2 clients and the OpenAI Agents SDK, and `tomli<2.1`, below
-# Zensical's.
+# CrewAI pins `mcp~=1.28` and `openai<3`, below the `mcp` extra, the examples' MCP SDK 2
+# clients and the OpenAI Agents SDK, and `tomli<2.1`, below Zensical's.
 conflicts = [
     [{ extra = "crewai" }, { group = "docs" }],
     [{ group = "examples-mcp1" }, { group = "docs" }],
-    [{ extra = "local" }, { extra = "local-gpu" }],
-    [{ extra = "all" }, { extra = "local-gpu" }],
     [{ extra = "crewai" }, { extra = "mcp" }],
     [{ extra = "crewai" }, { extra = "all" }],
     [{ extra = "crewai" }, { extra = "openai-agents" }],
@@ -151,8 +140,8 @@ ban-relative-imports = "all"
 known-first-party = ["mimir", "tests", "banner", "examples"]
 
 [tool.ruff.lint.pylint]
-# The decision shortcuts take their spec's fields plus the context, risk and alpha.
-max-args = 8
+# The decision shortcuts take their spec's fields plus the context, mode, floor, risk and alpha.
+max-args = 10
 # Result construction matches on the seven spec types and returns from each case.
 max-returns = 8
 
@@ -161,8 +150,12 @@ max-returns = 8
 # that names the field.
 "src/mimir/core/**" = ["TRY004"]
 # Imports of optional extras are deferred into the functions that need them, so `import mimir`
-# and the base install never load ONNX Runtime, tokenizers or Sigstore.
+# and the base install never load Torch, tokenizers or Sigstore.
 "src/mimir/__init__.py" = ["PLC0415"]
+# The test session is patched per test, so the engine and session modules are imported where
+# the patch applies rather than at collection, when Torch may not be installed.
+"tests/conftest.py" = ["PLC0415"]
+"tests/unit/mimir/cli/test_app.py" = ["PLC0415"]
 "src/mimir/extras.py" = ["PLC0415"]
 # Examples are scripts that report to their console, and import a model provider's package
 # only in `main`, so their agents build without it.
@@ -239,8 +232,8 @@ module = ["mimir.integrations.smolagents"]
 disable_error_code = ["no-untyped-call", "arg-type"]
 
 [[tool.mypy.overrides]]
-# onnxruntime ships neither stubs nor py.typed; mimir.runtime.session types the surface it uses.
-module = ["onnxruntime", "onnxruntime.*"]
+# safetensors leaves its Rust-backed functions untyped; the session calls them directly.
+module = ["safetensors", "safetensors.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
@@ -282,24 +275,24 @@ markers = [
 paths = ["src", "tests", "tools", "examples"]
 min_confidence = 60
 # pytest reads pytestmark; Python calls a module's __getattr__; Pydantic reads model_config
-# and calls validators by decoration; ONNX Runtime reads use_deterministic_compute and
-# graph_optimization_level; tokenizers reads normalizer and pre_tokenizer; onnx writes
-# ir_version; the session protocol names its parameters output_names and input_feed. `mask`
+# and calls validators by decoration; tokenizers reads normalizer and pre_tokenizer. `mask`
 # and `output_tokens` are fields of external formats (config.json, Jev's usage), and
 # and `mimir_decisions` and `measured_at` fields of the load report, that are validated and serialised,
 # not read. The agent frameworks call the methods and read the attributes their adapters and
 # scripted models define (`wrap_tool_call` to `bind_tools`), and pass the parameters their
 # callbacks declare (`call_id`, `stop_sequences`, `tools_to_call_from`). Typer reads rich's
 # help-panel style globals when it renders help, so the module-level restyle reads as a write
-# that is never read.
+# that is never read. The inference path builds target payloads but reads only their decision
+# type, so the other `DecisionTargets` fields read as unused.
 ignore_names = [
-    "pytestmark", "__getattr__", "model_config", "use_deterministic_compute",
-    "graph_optimization_level", "normalizer", "pre_tokenizer", "ir_version", "output_names",
-    "input_feed", "_check_*", "mask", "output_tokens", "mimir_decisions", "measured_at",
+    "pytestmark", "__getattr__", "model_config",
+    "normalizer", "pre_tokenizer",
+    "_check_*", "mask", "output_tokens", "mimir_decisions", "measured_at",
     "STYLE_OPTIONS_PANEL_BORDER", "STYLE_COMMANDS_PANEL_BORDER",
     "wrap_tool_call", "awrap_tool_call", "forward", "skip_forward_signature_validation",
     "skip_summarization", "_inner_get_response", "generate_content_async", "generate",
     "bind_tools", "call_id", "stop_sequences", "tools_to_call_from",
+    "choice", "labels", "grades", "value", "low", "high",
 ]
 # Typer and FastAPI call the functions they register by decoration; pytest calls fixtures.
 ignore_decorators = ["@app.command", "@app.get", "@app.post", "@pytest.fixture"]

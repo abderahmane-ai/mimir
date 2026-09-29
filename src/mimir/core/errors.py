@@ -46,16 +46,8 @@ class SignatureError(ArtifactError):
     """The manifest signature is missing, invalid or from an untrusted identity."""
 
 
-class GraphContractError(ArtifactError):
-    """The graph violates its contract: opset, operators, external data or signature."""
-
-
 class FormatVersionError(ArtifactError):
     """The artifact or policy format is not supported by this package version."""
-
-
-class UncertifiedRuntimeError(MimirError):
-    """The ONNX Runtime version, provider or provider options are not certified."""
 
 
 class EquivalenceError(MimirError):
@@ -67,7 +59,7 @@ class PolicyError(MimirError):
 
 
 class PolicyMismatchError(PolicyError):
-    """The policy was certified for a different model, graph or runtime."""
+    """The policy was certified for different weights."""
 
 
 class ClientError(MimirError):

@@ -17,19 +17,16 @@ from mimir.policy.document import (
     risk_key,
     write_policy,
 )
+from mimir.runtime.session import torch_version
 from tests.conftest import build_policy
 
 FINGERPRINT = Fingerprint(
     model="m",
     revision="r",
     variant="fp32",
-    graph_sha256="a" * 64,
     weights_sha256="b" * 64,
-    opset=20,
-    onnxruntime="1.30.0",
-    configurations=(
-        Configuration(provider="CPUExecutionProvider", options_sha256="c" * 64, hardware="h"),
-    ),
+    torch=torch_version(),
+    configurations=(Configuration(device="cpu", hardware="h"),),
 )
 
 
@@ -52,20 +49,19 @@ def test_write_and_read_round_trip(tmp_path: Path) -> None:
 def test_arrays_must_match_the_document_exactly() -> None:
     policy = build_policy(FINGERPRINT)
     arrays = dict(policy.arrays)
-    arrays.pop("gate/binary/reference")
-    arrays["gate/extra/centroids"] = np.zeros((1, 4))
-    with pytest.raises(PolicyError, match=r"missing \['gate/binary/reference'\].*unexpected"):
+    arrays.pop("conformal/binary/0")
+    arrays["stray"] = np.zeros(4)
+    with pytest.raises(PolicyError, match=r"missing \['conformal/binary/0'\].*unexpected"):
         Policy(policy.document, arrays)
 
 
 @pytest.mark.parametrize(
     ("name", "value", "match"),
     [
-        ("gate/binary/reference", np.array([3.0, 1.0]), "not sorted"),
+        ("conformal/binary/0", np.array([3.0, 1.0]), "not sorted"),
         ("conformal/ordinal", np.array([[0.1]]), "not sorted and 1-D"),
-        ("gate/binary/precision", np.eye(3), "precision"),
-        ("gate/binary/centroids", np.array([0.0, np.nan, 0.0, 0.0])[None], "non-finite"),
-        ("gate/binary/centroids", np.zeros((1, 4), dtype=np.float32), "float32"),
+        ("conformal/binary/0", np.array([0.0, np.nan, 0.0])[None], "non-finite"),
+        ("conformal/binary/0", np.zeros(4, dtype=np.float32), "float32"),
     ],
 )
 def test_malformed_arrays_are_rejected(name: str, value: np.ndarray, match: str) -> None:
@@ -115,7 +111,7 @@ def test_risk_levels_and_conformal_lookup() -> None:
     assert policy.conformal_scores("binary", 0) is policy.arrays["conformal/binary/0"]
     assert policy.conformal_scores("ordinal", 3) is policy.arrays["conformal/ordinal"]
     assert policy.conformal_scores("ranking", 0) is None
-    assert "gate/ranking/centroids" in expected_arrays(policy.document)
+    assert "conformal/binary/0" in expected_arrays(policy.document)
 
 
 @pytest.mark.parametrize(("risk", "key"), [(0.01, "0.01"), (0.005, "0.005"), (0.05, "0.05")])

@@ -1,6 +1,6 @@
 """Custom policies certified on labelled decisions (`mimir calibrate`).
 
-A custom policy copies the release policy's calibration, gate and conformal scores and replaces
+A custom policy copies the release policy's calibration and conformal scores and replaces
 its thresholds with ones certified on the caller's data at a single risk level. Each decision
 type is one test, and the tests split `1 - confidence` equally (Bonferroni). The fingerprint is
 set to the local model, runtime and hardware, so the policy loads only in that configuration.
@@ -38,7 +38,6 @@ class TypeCalibration:
 
     model_type: ModelType
     records: int
-    passed_gate: int
     certified: CertifiedThreshold
     needed: int
 
@@ -56,14 +55,11 @@ def _fingerprint(engine: Mimir) -> Fingerprint:
         model=snapshot.model,
         revision=snapshot.revision,
         variant=runtime.variant,
-        graph_sha256=runtime.graph_sha256,
         weights_sha256=runtime.weights_sha256,
-        opset=runtime.opset,
-        onnxruntime=runtime.onnxruntime,
+        torch=runtime.torch,
         configurations=(
             Configuration(
-                provider=runtime.provider,
-                options_sha256=runtime.options_sha256,
+                device=runtime.device,
                 hardware=runtime.hardware,
             ),
         ),
@@ -113,7 +109,7 @@ def calibrate(
         outcomes: list[bool] = []
         for evaluation, item in rows:
             assessment = evaluation.assessment
-            if assessment is None or not assessment.passes_gate:
+            if assessment is None:
                 continue
             if assessment.decision.score is None:
                 message = f"{kind} decision without a score"
@@ -137,7 +133,6 @@ def calibrate(
             TypeCalibration(
                 model_type=kind,
                 records=len(rows),
-                passed_gate=len(scores),
                 certified=entry,
                 needed=fewest_trials(risk, delta),
             )
@@ -148,7 +143,6 @@ def calibrate(
         origin="custom",
         fingerprint=_fingerprint(engine),
         confidence=confidence,
-        gate_level=source.gate_level,
         label_taken=source.label_taken,
         decision_types={
             kind: policy.model_copy(update={"thresholds": thresholds.get(kind, {})})

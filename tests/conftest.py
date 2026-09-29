@@ -1,5 +1,5 @@
-"""Shared test builders: a word-level tokenizer, a small ONNX graph with the release contract,
-a complete release directory with a policy bound to this machine, and the engine on it."""
+"""Shared test builders: a word-level tokenizer, scripted model outputs, a complete release
+directory with a policy bound to this machine, and the engine on it."""
 
 import hashlib
 import os
@@ -11,9 +11,7 @@ from pathlib import Path
 from typing import Final, Literal
 
 import numpy as np
-import onnx
 import pytest
-from onnx import TensorProto, helper, numpy_helper
 from tokenizers import Tokenizer, models, normalizers, pre_tokenizers
 
 from mimir.core.context import Context
@@ -31,7 +29,6 @@ from mimir.core.decisions import (
 from mimir.core.results import (
     ChoiceResult,
     DecisionResult,
-    Deferral,
     EstimateResult,
     MultiChoiceResult,
     RankResult,
@@ -40,7 +37,7 @@ from mimir.core.results import (
     VerifyResult,
     YesNoResult,
 )
-from mimir.core.wire import InputLimits, ModelInfo, RuntimeInfo
+from mimir.core.wire import InputLimits, Mode, ModelInfo, RuntimeInfo
 from mimir.policy.document import (
     CertifiedThreshold,
     Configuration,
@@ -54,16 +51,14 @@ from mimir.policy.document import (
 from mimir.runtime.engine import Mimir
 from mimir.runtime.hardware import hardware_name
 from mimir.runtime.release import (
-    GraphContract,
     Layout,
     Limits,
     Manifest,
     ReleaseConfig,
     SpecialTokens,
-    TensorSpec,
     Variant,
 )
-from mimir.runtime.session import CPU, Array, options_sha256, runtime_version
+from mimir.runtime.session import Array, Floats, LoadedModel, torch_version
 
 SPECIAL: Final = SpecialTokens(cls=0, sep=1, pad=2, mask=3, newline=4)
 UNKNOWN: Final = "[UNK]"
@@ -157,38 +152,6 @@ WORDS: Final = [
 ]
 WORKSPACE_WIDTH: Final = 4
 HISTOGRAM_BINS: Final = 64
-INPUTS: Final = (
-    ("chunk_ids", TensorProto.INT64, 2),
-    ("chunk_mask", TensorProto.BOOL, 2),
-    ("chunk_record", TensorProto.INT64, 1),
-    ("question_length", TensorProto.INT64, 1),
-    ("key_chunk", TensorProto.INT64, 2),
-    ("key_position", TensorProto.INT64, 2),
-    ("key_mask", TensorProto.BOOL, 2),
-    ("candidate_ids", TensorProto.INT64, 2),
-    ("candidate_mask", TensorProto.BOOL, 2),
-    ("candidate_text_mask", TensorProto.BOOL, 2),
-    ("candidate_index", TensorProto.INT64, 2),
-    ("candidate_present", TensorProto.BOOL, 2),
-    ("decision_type", TensorProto.INT64, 1),
-    ("typed_kind", TensorProto.INT64, 1),
-    ("typed_number", TensorProto.FLOAT, 1),
-    ("typed_year", TensorProto.INT64, 1),
-    ("typed_month", TensorProto.INT64, 1),
-    ("typed_day", TensorProto.INT64, 1),
-    ("typed_second", TensorProto.INT64, 1),
-    ("typed_chunk", TensorProto.INT64, 1),
-    ("typed_position", TensorProto.INT64, 1),
-)
-OUTPUTS: Final = (
-    ("utilities", 2),
-    ("thresholds", 2),
-    ("abstain", 1),
-    ("ordinal_score", 1),
-    ("histogram_logits", 2),
-    ("evidence", 2),
-    ("workspace", 2),
-)
 MODEL_TYPES: Final = ("binary", "categorical", "multilabel", "ranking", "ordinal", "continuous")
 
 
@@ -203,78 +166,30 @@ def build_tokenizer() -> Tokenizer:
     return tokenizer
 
 
-def _tensor(name: str, element: int, rank: int) -> onnx.ValueInfoProto:
-    return helper.make_tensor_value_info(name, element, [f"{name}_{axis}" for axis in range(rank)])
-
-
-def build_graph(path: Path) -> None:
-    """Write a small graph with the release signature; its one large weight goes to
-    `model.onnx_data` beside it.
+def scripted_outputs(feed: Mapping[str, Array]) -> dict[str, Floats]:
+    """Deterministic model outputs for a collated feed.
 
     Utilities are 2 for present options, abstain is K / 4, the ordinal score K / 10, the
     histogram flat, evidence uniform over live keys, and the workspace constant K / 4.
     """
-    initializers = [
-        numpy_helper.from_array(np.full(256, 2.0, dtype=np.float32), "scale_table"),
-        numpy_helper.from_array(np.array([0.25], dtype=np.float32), "quarter"),
-        numpy_helper.from_array(np.array([0.1], dtype=np.float32), "tenth"),
-        numpy_helper.from_array(np.array([1], dtype=np.int64), "axis_one"),
-        numpy_helper.from_array(np.array([0], dtype=np.int64), "start"),
-        numpy_helper.from_array(np.array([-1], dtype=np.int64), "end"),
-        numpy_helper.from_array(np.array([HISTOGRAM_BINS], dtype=np.int64), "bins"),
-        numpy_helper.from_array(np.array([WORKSPACE_WIDTH], dtype=np.int64), "width"),
-    ]
-    nodes = [
-        helper.make_node("ReduceMax", ["scale_table"], ["scale"], keepdims=0),
-        helper.make_node("Cast", ["candidate_present"], ["present"], to=TensorProto.FLOAT),
-        helper.make_node("Mul", ["present", "scale"], ["utilities"]),
-        helper.make_node("Slice", ["utilities", "start", "end", "axis_one"], ["thresholds"]),
-        helper.make_node("ReduceSum", ["present", "axis_one"], ["count"], keepdims=0),
-        helper.make_node("Mul", ["count", "quarter"], ["abstain"]),
-        helper.make_node("Mul", ["count", "tenth"], ["ordinal_score"]),
-        helper.make_node("Unsqueeze", ["abstain", "axis_one"], ["column"]),
-        helper.make_node("Shape", ["abstain"], ["records"]),
-        helper.make_node("Concat", ["records", "bins"], ["histogram_shape"], axis=0),
-        helper.make_node("Expand", ["column", "histogram_shape"], ["histogram_logits"]),
-        helper.make_node("Concat", ["records", "width"], ["workspace_shape"], axis=0),
-        helper.make_node("Expand", ["column", "workspace_shape"], ["workspace"]),
-        helper.make_node("Cast", ["key_mask"], ["keys"], to=TensorProto.FLOAT),
-        helper.make_node("ReduceSum", ["keys", "axis_one"], ["key_total"], keepdims=1),
-        helper.make_node("Div", ["keys", "key_total"], ["evidence"]),
-    ]
-    graph = helper.make_graph(
-        nodes,
-        "release",
-        [_tensor(name, element, rank) for name, element, rank in INPUTS],
-        [_tensor(name, TensorProto.FLOAT, rank) for name, rank in OUTPUTS],
-        initializers,
-    )
-    model = helper.make_model(graph, opset_imports=[helper.make_opsetid("", 20)])
-    model.ir_version = 10
-    path.parent.mkdir(parents=True, exist_ok=True)
-    onnx.save_model(
-        model,
-        str(path),
-        save_as_external_data=True,
-        all_tensors_to_one_file=True,
-        location="model.onnx_data",
-        size_threshold=512,
-    )
-
-
-def graph_contract(path: Path) -> GraphContract:
-    model = onnx.load(str(path), load_external_data=False)
-    return GraphContract(
-        opset={"ai.onnx": 20},
-        operators=tuple(sorted({f"ai.onnx::{node.op_type}" for node in model.graph.node})),
-        inputs=tuple(
-            TensorSpec(
-                name=name, dtype=np.dtype(helper.tensor_dtype_to_np_dtype(kind)).name, rank=rank
-            )
-            for name, kind, rank in INPUTS
-        ),
-        outputs=tuple(TensorSpec(name=name, dtype="float32", rank=rank) for name, rank in OUTPUTS),
-    )
+    present = np.asarray(feed["candidate_present"], dtype=np.bool_)
+    count = present.sum(axis=1, keepdims=True).astype(np.float32)
+    utilities = (present * 2.0).astype(np.float32)
+    keys = np.asarray(feed["key_mask"], dtype=np.float32)
+    total = keys.sum(axis=1, keepdims=True)
+    return {
+        "utilities": utilities,
+        "thresholds": utilities[:, :-1].astype(np.float32),
+        "abstain": (count / 4).reshape(-1).astype(np.float32),
+        "ordinal_score": (count / 10).reshape(-1).astype(np.float32),
+        "histogram_logits": np.broadcast_to(
+            (count / 4).reshape(-1, 1), (count.shape[0], HISTOGRAM_BINS)
+        ).astype(np.float32),
+        "evidence": (keys / np.maximum(total, 1)).astype(np.float32),
+        "workspace": np.broadcast_to(
+            (count / 4).reshape(-1, 1), (count.shape[0], WORKSPACE_WIDTH)
+        ).astype(np.float32),
+    }
 
 
 def sha256(path: Path) -> str:
@@ -284,8 +199,8 @@ def sha256(path: Path) -> str:
 def build_policy(
     fingerprint: Fingerprint, *, threshold: float | None = 0.5, origin: str = "release"
 ) -> Policy:
-    """A policy over all six types: identity scaling, a one-centroid gate at the origin under an
-    identity precision, and a threshold at risk 0.01 for every type but continuous."""
+    """A policy over all six types: identity scaling and a threshold at risk 0.01 for every
+    type but continuous."""
     types: dict[str, TypePolicy] = {}
     arrays: dict[str, np.ndarray] = {}
     for name in MODEL_TYPES:
@@ -309,9 +224,6 @@ def build_policy(
             conformal=conformal,
             thresholds={} if name == "continuous" else {"0.01": entry},
         )
-        arrays[f"gate/{name}/centroids"] = np.zeros((1, WORKSPACE_WIDTH))
-        arrays[f"gate/{name}/precision"] = np.eye(WORKSPACE_WIDTH)
-        arrays[f"gate/{name}/reference"] = np.linspace(0.0, 100.0, 99)
         if conformal == "bucket":
             arrays[f"conformal/{name}/0"] = np.linspace(0.0, 1.0, 99)
         elif conformal == "type":
@@ -322,7 +234,6 @@ def build_policy(
             "origin": origin,
             "fingerprint": fingerprint.model_dump(),
             "confidence": 0.95,
-            "gate_level": 0.01,
             "label_taken": 0.5,
             "decision_types": {name: policy.model_dump() for name, policy in types.items()},
         }
@@ -335,14 +246,11 @@ def local_fingerprint(root: Path, *, hardware: str | None = None) -> Fingerprint
         model="mimir-test",
         revision="local",
         variant="fp32",
-        graph_sha256=sha256(root / "onnx" / "model.onnx"),
-        weights_sha256=sha256(root / "onnx" / "model.onnx_data"),
-        opset=20,
-        onnxruntime=runtime_version(),
+        weights_sha256=sha256(root / "weights" / "model.safetensors"),
+        torch=torch_version(),
         configurations=(
             Configuration(
-                provider=CPU,
-                options_sha256=options_sha256(CPU),
+                device="cpu",
                 hardware=hardware_name("cpu") if hardware is None else hardware,
             ),
         ),
@@ -367,13 +275,23 @@ def write_manifest(root: Path) -> None:
 
 
 def build_release(root: Path, *, with_policy: bool = True, hardware: str | None = None) -> Path:
-    """Write a complete, unsigned release directory for the fp32 variant on the CPU."""
-    graph = root / "onnx" / "model.onnx"
-    build_graph(graph)
+    """Write a complete, unsigned release directory for the fp32 variant on the CPU.
+
+    The weights are placeholder bytes: tests never load them, the engine runs scripted
+    outputs instead (see `load_engine`).
+    """
+    weights = root / "weights" / "model.safetensors"
+    weights.parent.mkdir(parents=True, exist_ok=True)
+    weights.write_bytes(b"placeholder weights")
+    (root / "encoder_config.json").write_text("{}", encoding="utf-8")
     build_tokenizer().save(str(root / "tokenizer.json"))
     config = ReleaseConfig(
         format_version=1,
-        variants={"fp32": Variant(graph="onnx/model.onnx", policy="policy/fp32", devices=("cpu",))},
+        variants={
+            "fp32": Variant(
+                weights="weights/model.safetensors", policy="policy/fp32", devices=("cpu",)
+            )
+        },
         tokenizer="tokenizer.json",
         decision_types=MODEL_TYPES,
         risk_levels=(0.005, 0.01, 0.02, 0.05),
@@ -382,7 +300,6 @@ def build_release(root: Path, *, with_policy: bool = True, hardware: str | None 
         layout=Layout(
             chunk_tokens=64, question_cap=16, crossing_tokens=256, special_tokens=SPECIAL
         ),
-        graph=graph_contract(graph),
     )
     (root / "config.json").write_text(config.model_dump_json(indent=2), encoding="utf-8")
     if with_policy:
@@ -400,9 +317,10 @@ def result_for(spec: DecisionSpec, status: Status = Status.DECIDED) -> DecisionR
     }
     common = {
         "status": status,
+        "actionable": status in (Status.DECIDED, Status.ABSTAINED),
+        "certified": False,
         "confidence": 0.9,
         "relevant_context": (),
-        "deferral": None,
         "certificate": None,
         "latency_ms": 1.0,
     }
@@ -463,6 +381,8 @@ def result_for(spec: DecisionSpec, status: Status = Status.DECIDED) -> DecisionR
 @dataclass(frozen=True, slots=True)
 class Call:
     requests: tuple[tuple[Context, DecisionSpec], ...]
+    mode: Mode
+    min_confidence: float | None
     risk: float | None
     alpha: float | None
     batch_size: int | None
@@ -478,11 +398,13 @@ class RecordingDecider(Decider):
         self,
         requests: Sequence[tuple[Context, DecisionSpec]],
         *,
+        mode: Mode,
+        min_confidence: float | None,
         risk: float | None,
         alpha: float | None,
         batch_size: int | None,
     ) -> list[DecisionResult]:
-        self.calls.append(Call(tuple(requests), risk, alpha, batch_size))
+        self.calls.append(Call(tuple(requests), mode, min_confidence, risk, alpha, batch_size))
         return [result_for(spec) for _, spec in requests]
 
     def info(self) -> ModelInfo:
@@ -491,9 +413,7 @@ class RecordingDecider(Decider):
             revision="r",
             variant="fp32",
             device="cpu",
-            runtime=RuntimeInfo(
-                onnxruntime="1.30.0", provider=CPU, options_sha256="0" * 64, hardware="test"
-            ),
+            runtime=RuntimeInfo(torch="0", hardware="test"),
             certification="certified",
             policy="release",
             risk_levels=(0.01,),
@@ -503,8 +423,7 @@ class RecordingDecider(Decider):
 
 
 class YesNoDecider(RecordingDecider):
-    """A `RecordingDecider` answering every `YesNo` with `answer` at `status`; a deferred
-    answer carries a `below_threshold` deferral."""
+    """A `RecordingDecider` answering every `YesNo` with `answer` at `status`."""
 
     def __init__(self, *, answer: bool | None, status: Status = Status.DECIDED) -> None:
         super().__init__()
@@ -515,17 +434,26 @@ class YesNoDecider(RecordingDecider):
         self,
         requests: Sequence[tuple[Context, DecisionSpec]],
         *,
+        mode: Mode,
+        min_confidence: float | None,
         risk: float | None,
         alpha: float | None,
         batch_size: int | None,
     ) -> list[DecisionResult]:
-        results = super()._run(requests, risk=risk, alpha=alpha, batch_size=batch_size)
-        deferral = (
-            Deferral(reason="below_threshold", threshold=0.97, gate_p_value=0.4)
-            if self.status is Status.DEFERRED
-            else None
+        results = super()._run(
+            requests,
+            mode=mode,
+            min_confidence=min_confidence,
+            risk=risk,
+            alpha=alpha,
+            batch_size=batch_size,
         )
-        update = {"answer": self.answer, "status": self.status, "deferral": deferral}
+        update = {
+            "answer": self.answer,
+            "status": self.status,
+            "actionable": self.status in (Status.DECIDED, Status.ABSTAINED),
+            "certified": False,
+        }
         return [
             YesNoResult.model_validate({**result.model_dump(), **update})
             if isinstance(result, YesNoResult)
@@ -542,6 +470,15 @@ def tokenizer() -> Tokenizer:
 @pytest.fixture
 def release(tmp_path: Path) -> Path:
     return build_release(tmp_path / "release")
+
+
+@pytest.fixture(scope="module")
+def hub_release() -> Path:
+    """The real release tree; subprocess servers load real weights, which no patch reaches."""
+    value = os.environ.get("MIMIR_RELEASE_DIR")
+    if not value or not Path(value).is_dir():
+        pytest.fail(f"set MIMIR_RELEASE_DIR to an existing directory; got {value!r}")
+    return Path(value)
 
 
 @pytest.fixture
@@ -568,28 +505,48 @@ class BatchRecorder:
         self.batches.append(list(results))
 
 
-def count_graph_runs(engine: Mimir, monkeypatch: pytest.MonkeyPatch) -> list[int]:
-    """A list that grows by one entry per graph run of `engine`."""
+def fake_run(
+    session: LoadedModel, feed: Mapping[str, Array], question_cap: int
+) -> dict[str, Floats]:
+    """Scripted model outputs, ignoring the session; `question_cap` is read by the engine."""
+    del session, question_cap
+    return {
+        name: np.asarray(value, dtype=np.float32) for name, value in scripted_outputs(feed).items()
+    }
+
+
+def count_model_runs(monkeypatch: pytest.MonkeyPatch) -> list[int]:
+    """A list that grows by one entry per model run through the session module."""
+    import mimir.runtime.session as session_module
+
     runs: list[int] = []
-    session = engine._session
-    original = session.run
+    original = session_module.run
 
-    def counted(output_names: Sequence[str] | None, input_feed: Mapping[str, Array]) -> list[Array]:
+    def counted(
+        session: LoadedModel, feed: Mapping[str, Array], question_cap: int
+    ) -> dict[str, Floats]:
         runs.append(1)
-        return original(output_names, input_feed)
+        return original(session, feed, question_cap)
 
-    monkeypatch.setattr(session, "run", counted)
+    monkeypatch.setattr(session_module, "run", counted)
     return runs
 
 
-def load_engine(root: Path) -> Mimir:
-    """The engine on a release directory from `build_release`."""
-    return Mimir.from_pretrained(str(root), device="cpu", allow_unsigned=True)
+def load_engine(
+    root: Path, monkeypatch: pytest.MonkeyPatch, *, policy: Path | None = None
+) -> Mimir:
+    """The engine on a release directory from `build_release`, running scripted outputs."""
+    import mimir.runtime.engine as engine_module
+    import mimir.runtime.session as session_module
+
+    monkeypatch.setattr(engine_module, "load_model", lambda *_: None)
+    monkeypatch.setattr(session_module, "run", fake_run)
+    return Mimir.from_pretrained(str(root), device="cpu", allow_unsigned=True, policy=policy)
 
 
 @pytest.fixture
-def engine(release: Path) -> Mimir:
-    return load_engine(release)
+def engine(release: Path, monkeypatch: pytest.MonkeyPatch) -> Mimir:
+    return load_engine(release, monkeypatch)
 
 
 @pytest.fixture

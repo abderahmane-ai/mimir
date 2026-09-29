@@ -11,7 +11,7 @@ import hashlib
 from collections.abc import Mapping
 from dataclasses import dataclass
 from importlib import metadata
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 from typing import Final, TypeVar
 
 from huggingface_hub import constants, snapshot_download
@@ -30,6 +30,7 @@ from mimir.runtime.release import (
     ReleaseConfig,
     is_known_type_order,
 )
+from mimir.runtime.session import ENCODER_CONFIG_FILE
 from mimir.runtime.signature import ManifestVerifier, SigstoreVerifier
 
 DEFAULT_MODEL: Final = "Mythologic/MIMIR-1"
@@ -131,18 +132,20 @@ def _verify_files(root: Path, manifest: Manifest, files: list[str]) -> dict[str,
 
 
 def variant_files(manifest: Manifest, config: ReleaseConfig, variant: str) -> list[str]:
-    """Return the files a variant uses: config, tokenizer, graph and external data, policy and
-    equivalence set."""
+    """Return the files a variant uses: config, tokenizer, encoder config, weights, the
+    policy when the release carries one, and the equivalence set."""
     chosen = config.variants[variant]
-    graph = PurePosixPath(chosen.graph)
-    files = {CONFIG_FILE, config.tokenizer, chosen.graph}
+    files = {
+        CONFIG_FILE,
+        config.tokenizer,
+        ENCODER_CONFIG_FILE,
+        chosen.weights,
+    }
+    for relative in (f"{chosen.policy}.json", f"{chosen.policy}.npz"):
+        if relative in manifest.files:
+            files.add(relative)
     for relative in manifest.files:
-        path = PurePosixPath(relative)
-        if path.parent == graph.parent and path.name.startswith(graph.name):
-            files.add(relative)
-        if relative in {f"{chosen.policy}.json", f"{chosen.policy}.npz"}:
-            files.add(relative)
-        if path.parts[0] == EQUIVALENCE_DIR:
+        if relative.split("/")[0] == EQUIVALENCE_DIR:
             files.add(relative)
     return sorted(files)
 

@@ -12,18 +12,18 @@ model = Mimir.from_pretrained("Mythologic/MIMIR-1")
 |---|---|---|
 | `model` | `Mythologic/MIMIR-1` | a Hugging Face Hub id or a path to a local release directory |
 | `revision` | the revision this package version pins | a specific Hub commit or tag |
-| `device` | `auto` | `cpu`, `cuda`, or CUDA when a compatible GPU is available |
-| `variant` | the variant listed for the device | `fp32` (CPU) or `fp16` (CUDA) |
+| `device` | `auto` | `cpu`, `cuda`, or CUDA when a GPU is visible to torch |
+| `variant` | the variant listed for the device | `fp32` |
 | `policy` | the release policy | path to a custom policy JSON from `mimir calibrate` |
 | `cache_dir` | the Hub cache | where the model files are stored |
 | `offline` | `False` | load only from the local cache, with no network access |
 | `allow_unsigned` | `False` | load a local release directory that has no Sigstore signature |
 
-`mimir.Mimir` requires `mimir-decisions[local]` (CPU) or `mimir-decisions[local-gpu]` (CUDA). Both extras install the same `onnxruntime` module, so keep only one in any given environment. `mimir doctor` reports the active runtime and names any conflict.
+`mimir.Mimir` requires `mimir-decisions[local]`, which installs Torch with CUDA support: the same install serves the CPU and the GPU. `mimir doctor` reports the Torch version, whether CUDA is visible, and the device in use.
 
-Certified decisions come from the fp32 graph with the release policy. The fp16 (CUDA) graph ships without a policy in this release, so `decide` raises `PolicyError` there and `decide_uncertified` is the only path. `device="auto"` falls back to the CPU release when no certified GPU configuration is available; `device="cuda"` loads the fp16 graph explicitly.
+`device="auto"` serves CUDA when torch sees a GPU, else the CPU. The same fp32 weights and release policy serve both; on hardware the certificate does not list, the first load runs the release's equivalence set once and caches the pass.
 
-Before loading the ONNX session, `from_pretrained` checks the pinned revision, verifies the manifest's Sigstore signature against the release identity of `abderahmane-ai/mimir`, verifies each file's SHA-256 against the manifest, and checks the ONNX graph against its operator allowlist and signature. Nothing is read until every check passes.
+Before loading the weights, `from_pretrained` checks the pinned revision, verifies the manifest's Sigstore signature against the release identity of `abderahmane-ai/mimir`, and verifies each file's SHA-256 against the manifest. Nothing is read until every check passes.
 
 For offline use, fetch once with `mimir download` and then load with `offline=True` (or set `HF_HUB_OFFLINE=1`).
 
@@ -55,7 +55,7 @@ with MimirClient("https://mimir.internal") as remote:
 
 Every method has an async counterpart: `adecide`, `adecide_many`, `achoose`, `ayes_no`, `averify`, `arank`, `arate`, `aestimate`.
 
-`decide_many` and `adecide_many` take a list of `(context, spec)` pairs and batch them by token length. On the local engine, requests that share the same risk level and alpha are grouped into a single engine call.
+`decide_many` and `adecide_many` take a list of `(context, spec)` pairs and batch them by token length. On the local engine, requests that share the same mode, floor, risk level, and alpha are grouped into a single engine call.
 
 ## Decision tools
 
@@ -75,4 +75,4 @@ A decision tool binds a spec to a name so the caller supplies only the context. 
 
 ## Types without the engine
 
-`from mimir import Choice, Context, ChoiceResult` loads only the data models, which depend on Pydantic alone. A project that constructs requests or reads results without running the model can depend on the base install and never touch ONNX Runtime.
+`from mimir import Choice, Context, ChoiceResult` loads only the data models, which depend on Pydantic alone. A project that constructs requests or reads results without running the model can depend on the base install and never touch Torch.

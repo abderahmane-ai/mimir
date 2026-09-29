@@ -4,10 +4,7 @@ The document contains, per model decision type, the scaling for each option-coun
 conformal score keying, and the certified threshold for each risk level. It also contains the
 fingerprint of the configuration it was certified on (see `mimir.policy.binding`).
 
-Array names:
-
-- `gate/<type>/centroids`, `gate/<type>/precision`, `gate/<type>/reference`;
-- `conformal/<type>/<bucket>` or `conformal/<type>`, sorted scores.
+Array names: `conformal/<type>/<bucket>` or `conformal/<type>`, sorted scores.
 """
 
 import json
@@ -28,7 +25,6 @@ from mimir.policy.distributions import LABEL_TAKEN
 Floats = npt.NDArray[np.float64]
 
 FORMAT_VERSION: Final = 1
-MATRIX_RANK: Final = 2
 
 
 class _Frozen(BaseModel):
@@ -78,21 +74,18 @@ class TypePolicy(_Frozen):
 class Configuration(_Frozen):
     """A certified execution configuration."""
 
-    provider: str
-    options_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    device: Literal["cpu", "cuda"]
     hardware: str
 
 
 class Fingerprint(_Frozen):
-    """Identifies the model, graph and runtime a policy was certified on."""
+    """Identifies the weights and runtime a policy was certified on."""
 
     model: str
     revision: str
     variant: str
-    graph_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     weights_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
-    opset: int
-    onnxruntime: str
+    torch: str
     configurations: tuple[Configuration, ...] = Field(min_length=1)
 
 
@@ -101,7 +94,6 @@ class PolicyDocument(_Frozen):
     origin: Literal["release", "custom"]
     fingerprint: Fingerprint
     confidence: float = Field(gt=0, lt=1)
-    gate_level: float = Field(gt=0, lt=1)
     label_taken: float
     decision_types: dict[ModelType, TypePolicy]
 
@@ -122,7 +114,6 @@ def expected_arrays(document: PolicyDocument) -> set[str]:
     """Return the array names required by a document."""
     keys: set[str] = set()
     for name, policy in document.decision_types.items():
-        keys |= {f"gate/{name}/{part}" for part in ("centroids", "precision", "reference")}
         if policy.conformal == "bucket":
             keys |= {f"conformal/{name}/{entry.bucket}" for entry in policy.scaling}
         elif policy.conformal == "type":
@@ -140,16 +131,8 @@ def _check_arrays(document: PolicyDocument, arrays: Mapping[str, Floats]) -> Non
         if value.dtype != np.float64 or not np.all(np.isfinite(value)):
             message = f"policy array {name} is {value.dtype} or holds a non-finite value"
             raise PolicyError(message)
-    for name in document.decision_types:
-        centroids = arrays[f"gate/{name}/centroids"]
-        precision = arrays[f"gate/{name}/precision"]
-        width = centroids.shape[-1]
-        if centroids.ndim != MATRIX_RANK or precision.shape != (width, width):
-            message = f"gate {name}: centroids {centroids.shape}, precision {precision.shape}"
-            raise PolicyError(message)
     for name, value in arrays.items():
-        is_sorted_scores = name.startswith("conformal/") or name.endswith("/reference")
-        if is_sorted_scores and (value.ndim != 1 or np.any(np.diff(value) < 0)):
+        if name.startswith("conformal/") and (value.ndim != 1 or np.any(np.diff(value) < 0)):
             message = f"policy array {name} of shape {value.shape} is not sorted and 1-D"
             raise PolicyError(message)
 

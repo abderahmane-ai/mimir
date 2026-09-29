@@ -1,6 +1,6 @@
 # Decisions
 
-A decision is a spec paired with a context. `model.decide(context, spec, risk=0.01)` returns the result type that matches the spec. Each spec also has a shortcut method on the model so you can skip the spec constructor for simple cases.
+A decision is a spec paired with a context. `model.decide(context, spec)` returns the result type that matches the spec. Each spec also has a shortcut method on the model so you can skip the spec constructor for simple cases.
 
 | Spec | Shortcut | Answer | Typical use |
 |---|---|---|---|
@@ -16,6 +16,18 @@ A decision is a spec paired with a context. `model.decide(context, spec, risk=0.
 
 Options, candidates, and levels are either a list of ids or a mapping from id to a description the model reads as context for that option.
 
+## Modes
+
+Every method takes `mode` and, for `threshold` mode, `min_confidence`:
+
+```python
+model.decide(context, spec)                                            # standard
+model.decide(context, spec, mode="threshold", min_confidence=0.7)
+model.decide(context, spec, mode="certified", risk=0.01)
+```
+
+`standard` answers every request. `threshold` defers answers below your floor but keeps them. `certified` defers answers below the release's threshold at `risk`, and attaches the certificate when the answer passes. The number that applies to you is in `result.certificate.coverage`, and `mimir bench` measures accuracy, coverage, certified share, and realised risk on your labels.
+
 ## Context
 
 A context is anything the model reads as the evidence for the decision. It can be:
@@ -26,14 +38,14 @@ A context is anything the model reads as the evidence for the decision. It can b
 - a `Context` — a structured combination of typed passages, tables, and fields.
 
 ```python
-from mimir import Context, Field, Passage, Rate, Table
+from mimir import Context, Field, Passage, Rate
 
 context = Context(
     passages=[Passage(title="Ticket #4412", text="The export has failed every night this week.")],
     tables=[Table.from_rows([["2026-03-02", "failed"]], header=["date", "status"])],
     fields=Field.from_json({"customer": {"plan": "enterprise", "seats": 240}}),
 )
-result = model.decide(context, Rate("How urgent is this?", ["low", "medium", "high"]), risk=0.01)
+result = model.decide(context, Rate("How urgent is this?", ["low", "medium", "high"]))
 ```
 
 - Numbers and dates in tables and fields are read as typed values, not as plain text.
@@ -51,33 +63,18 @@ The context is read as a sequence of units: a passage is one, a table's caption 
 
 Start with the simplest shape that carries the evidence. `decide_many` batches any mix of shapes.
 
-## Choosing a spec
-
-The decision types are not interchangeable under the shipped policy:
-
-| Spec | Certifies at | Coverage at risk 1% |
-|---|---|---|
-| `YesNo`, `Choice`, `Verify` | every risk level | about a third of held-out calls |
-| `Rank` | every risk level but 0.5% | about a third of held-out calls |
-| `Rate` | 5% only | 1.4% of held-out calls |
-| `MultiChoice`, `Estimate` | none; they defer at every level | — |
-
-A deferral is the designed outcome, not a failure: `DECIDED` at 1% risk means the release's threshold certified roughly the top third of calls on its held-out data, so build the escalation path for the rest. The table is the release's data; the number that applies to you is in `result.certificate.coverage`, and `mimir bench` measures it on your labels.
-
-`MultiChoice` and `Estimate` can still be used: their results carry probabilities and, for `Estimate`, an interval, but their status is always `DEFERRED` unless you load a policy calibrated for them (`mimir calibrate`). The fp16 (CUDA) graph ships without a policy at all: `decide` raises `PolicyError` there, and `decide_uncertified` returns the raw answer.
-
 ## Writing the question and options
 
 - One question per decision; it is read with every option.
 - The option text is what the model reads, and the id is what comes back, so give a mapping with descriptions when the ids alone are codes: `{"billing": "Billing: payments and refunds"}`.
 - `Verify` takes the claim, and its verdicts are fixed; `YesNo` fixes `yes` and `no`. A two-point scale belongs in `Choice` or `YesNo`, not `Rate`, which needs at least three levels.
-- `ABSTAINED` is a certified answer — "no listed option applies" — so an option only belongs in the list if it can genuinely apply.
+- `ABSTAINED` is a normal answer — "no listed option applies" — so an option only belongs in the list if it can genuinely apply.
 
-When a result is not what you expected, read `relevant_context` first: if the evidence is not listed, the context did not carry it. [Troubleshooting](troubleshooting.md) reads the deferral reasons.
+When a result is not what you expected, read `relevant_context` first: if the evidence is not listed, the context did not carry it.
 
 ## Results
 
-Every result carries: `status`, `answer`, `confidence`, `relevant_context`, `deferral`, `certificate`, and `latency_ms`.
+Every result carries: `status`, `actionable`, `certified`, `answer`, `confidence`, `relevant_context`, `certificate`, and `latency_ms`.
 
 All types except `Estimate` also carry `probabilities`. Choice, yes/no, and verify results add `abstain_probability` and a conformal `prediction_set`. A rating result includes the contiguous levels in its set. An estimate result includes its `interval` at `alpha`.
 
@@ -87,7 +84,7 @@ All types except `Estimate` also carry `probabilities`. Choice, yes/no, and veri
 
 `decide_many` takes a list of `(context, spec)` pairs and batches them by token length for efficiency. Every method has an async counterpart: `adecide`, `adecide_many`, `achoose`, `ayes_no`, `averify`, `arank`, `arate`, `aestimate`.
 
-`decide_uncertified` returns the raw model answer with no policy applied — no certificate, no deferral. Use it when you want the model's view without any threshold enforcement.
+`decide_uncertified` returns the raw model answer with no policy applied — no calibration, no certificate. Use it when you want the model's view without any of the release's numbers.
 
 ## Limits
 

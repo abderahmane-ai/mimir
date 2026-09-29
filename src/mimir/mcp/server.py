@@ -31,7 +31,7 @@ from mimir.core.results import (
     VerifyResult,
 )
 from mimir.core.tools import GUIDANCE, DecisionTool, ToolArguments
-from mimir.core.wire import DEFAULT_RISK
+from mimir.core.wire import DEFAULT_RISK, Mode
 
 SERVER_NAME: Final = "mimir"
 ANNOTATIONS: Final = ToolAnnotations(
@@ -121,22 +121,44 @@ def configured_tool(tool: DecisionTool) -> Tool:
     return _tool(tool.name, tool.description, call, ConfiguredArguments, result, schemas)
 
 
-def generic_tools(decider: Decider, risk: float) -> list[Tool]:
-    """`mimir_choose`, `mimir_verify`, `mimir_rank` and `mimir_rate`, decided at `risk`."""
+def generic_tools(
+    decider: Decider,
+    *,
+    mode: Mode = Mode.STANDARD,
+    min_confidence: float | None = None,
+    risk: float = DEFAULT_RISK,
+) -> list[Tool]:
+    """`mimir_choose`, `mimir_verify`, `mimir_rank` and `mimir_rate` in `mode`."""
 
     async def choose(
         context: ContextInput, question: str, options: OptionsArgument
     ) -> ChoiceResult:
-        return await decider.adecide(context, Choice(question, options), risk=risk)
+        return await decider.adecide(
+            context,
+            Choice(question, options),
+            mode=mode,
+            min_confidence=min_confidence,
+            risk=risk,
+        )
 
     async def verify(context: ContextInput, claim: str) -> VerifyResult:
-        return await decider.adecide(context, Verify(claim), risk=risk)
+        return await decider.adecide(
+            context, Verify(claim), mode=mode, min_confidence=min_confidence, risk=risk
+        )
 
     async def rank(context: ContextInput, question: str, candidates: OptionsArgument) -> RankResult:
-        return await decider.adecide(context, Rank(question, candidates), risk=risk)
+        return await decider.adecide(
+            context,
+            Rank(question, candidates),
+            mode=mode,
+            min_confidence=min_confidence,
+            risk=risk,
+        )
 
     async def rate(context: ContextInput, question: str, levels: OptionsArgument) -> RateResult:
-        return await decider.adecide(context, Rate(question, levels), risk=risk)
+        return await decider.adecide(
+            context, Rate(question, levels), mode=mode, min_confidence=min_confidence, risk=risk
+        )
 
     return [
         _tool(
@@ -179,10 +201,12 @@ def create_server(
     tools: Sequence[DecisionTool],
     *,
     with_generic_tools: bool = False,
+    mode: Mode = Mode.STANDARD,
+    min_confidence: float | None = None,
     risk: float = DEFAULT_RISK,
 ) -> MCPServer:
-    """An MCP server with `tools`, then the generic tools if asked. `risk` is the generic
-    tools' risk level.
+    """An MCP server with `tools`, then the generic tools if asked. `mode` is the generic
+    tools' operating mode.
 
     Raises:
         ValueError: neither tools nor generic tools, or two tools with one name.
@@ -192,7 +216,7 @@ def create_server(
         raise ValueError(message)
     listed = [configured_tool(tool) for tool in tools]
     if with_generic_tools:
-        listed.extend(generic_tools(decider, risk))
+        listed.extend(generic_tools(decider, mode=mode, min_confidence=min_confidence, risk=risk))
     names = [tool.name for tool in listed]
     repeated = sorted({name for name in names if names.count(name) > 1})
     if repeated:

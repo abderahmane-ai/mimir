@@ -6,7 +6,7 @@ pip install "mimir-decisions[local,crewai]"
 
 `mimir.integrations.crewai.as_crewai_tool` converts a decision tool into a `BaseTool` whose `result_schema` is the typed result, for use in a CrewAI `Agent`'s tool list.
 
-`tool_call_hook(check, approve=...)` returns a hook for `register_before_tool_call_hook`: a certified denial blocks the call, and an escalated call is forwarded to your `approve` function, which receives the tool name and arguments and returns whether the call may run.
+`tool_call_hook(check, approve=...)` returns a hook for `register_before_tool_call_hook`: a confident denial blocks the call, and an escalated call is forwarded to your `approve` function, which receives the tool name and arguments and returns whether the call may run.
 
 Tested from `crewai` 1.15.
 

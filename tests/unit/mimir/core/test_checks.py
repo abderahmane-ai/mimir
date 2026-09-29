@@ -25,7 +25,7 @@ CALL: Final[dict[str, JsonValue]] = {"command": COMMAND, "timeout_s": 30}
         (None, Status.ABSTAINED, Permission.ESCALATE),
     ],
 )
-def test_only_a_certified_answer_allows_or_denies(
+def test_only_an_actionable_answer_allows_or_denies(
     answer: bool | None, status: Status, permission: Permission
 ) -> None:
     check = YesNoDecider(answer=answer, status=status).tool_call_check(RULE)
@@ -67,7 +67,7 @@ def test_calls_to_other_tools_are_allowed_without_a_decision() -> None:
     assert check("run_shell", CALL).permission is Permission.DENY
 
 
-def test_reasons_name_the_tool_the_confidence_and_the_deferral() -> None:
+def test_reasons_name_the_tool_the_confidence_and_the_cause() -> None:
     allowed = YesNoDecider(answer=True).tool_call_check(RULE)("run_shell", CALL)
     denied = YesNoDecider(answer=False).tool_call_check(RULE)("run_shell", CALL)
     deferred = YesNoDecider(answer=True, status=Status.DEFERRED).tool_call_check(RULE)
@@ -77,7 +77,7 @@ def test_reasons_name_the_tool_the_confidence_and_the_deferral() -> None:
         denied.reason == "The call to run_shell is not allowed under the rules (confidence 0.90)."
     )
     assert deferred("run_shell", CALL).reason == (
-        "The call to run_shell needs a person's approval; the check was deferred: below_threshold."
+        "The call to run_shell needs a person's approval; the check is below its operating floor."
     )
     assert abstained("run_shell", CALL).reason == (
         "The call to run_shell needs a person's approval; the check abstained."

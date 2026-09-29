@@ -15,11 +15,13 @@ from tests.unit.mimir.integrations.test_agent_framework import ScriptedChatClien
 pytestmark = pytest.mark.integration
 
 
-def test_the_agent_routes_a_ticket_through_the_server(release: Path) -> None:
+def test_the_agent_routes_a_ticket_through_the_server(hub_release: Path) -> None:
     client = ScriptedChatClient("route_ticket", {"context": "my card was charged twice"})
 
     async def main() -> AgentResponse:
-        async with mcp_agent.mimir_server(MIMIR_SERVER, mcp_server_arguments(release)) as server:
+        async with mcp_agent.mimir_server(
+            MIMIR_SERVER, mcp_server_arguments(hub_release)
+        ) as server:
             return await mcp_agent.build_agent(server, client).run("Route.")
 
     result = ChoiceResult.model_validate(json.loads(asyncio.run(main()).text))

@@ -22,9 +22,16 @@ export const INSTRUCTIONS =
   "Route the customer's ticket with route_ticket, then tell the customer which team will " +
   "answer. If the decision is deferred, say that a person will review the ticket.";
 
-/** MIMIR's MCP server, started as `command` with `args`. */
+/** MIMIR's MCP server, started as `command` with `args`.
+ *
+ * Discovery is off: it times out in a second while a cold server loads its weights, and the
+ * client's fallback then reuses the poisoned connection. The legacy handshake waits instead.
+ */
 export async function mimirClient(command: string, args: string[]): Promise<MCPClient> {
-  return createMCPClient({ transport: new StdioMCPTransport({ command, args }) });
+  return createMCPClient({
+    transport: new StdioMCPTransport({ command, args }),
+    protocolVersionDiscovery: false,
+  });
 }
 
 /** The model's reply to `ticket`, after it routes the ticket with the server's tools. */

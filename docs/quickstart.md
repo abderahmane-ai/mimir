@@ -17,21 +17,21 @@ result = model.choose(
 
 The first call downloads the model from the Hugging Face Hub at the revision this package version pins, verifies the manifest's Sigstore signature, checks every file against the SHA-256 in the manifest, and loads it. Nothing is read until every check passes.
 
-On a machine with a CUDA GPU, `device="auto"` serves the certified CPU release unless the GPU variant carries a policy — in this release fp16 ships without one. Pass `device="cuda"` to load the fp16 graph explicitly (its decisions are uncertified), or use `decide_uncertified` for the raw answer.
+On a machine with a CUDA GPU, `device="auto"` serves the GPU; pass `device="cpu"` to stay on the CPU. The same weights serve both.
 
 ```python
 result.status            # Status.DECIDED, Status.ABSTAINED or Status.DEFERRED
 result.answer            # "billing", or None when no option applies
 result.probabilities     # calibrated probability of each option id
 result.relevant_context  # the parts of the context the answer relied on, most relevant first
-result.certificate       # the certified threshold the decision was checked against
+result.certificate       # the evidence, when the answer is certified
 ```
 
-`answer` is what the model thinks. `status` is what you may do with it:
+`answer` is always what the model thinks. `status` says whether it cleared the operating floor:
 
-- `DECIDED` — act on `answer`; it is certified at the requested risk level.
-- `ABSTAINED` — no listed option applies, and that conclusion is certified.
-- `DEFERRED` — do not act; escalate. `result.deferral.reason` says why: `below_threshold`, `out_of_distribution`, or `no_certified_threshold`.
+- `DECIDED` — act on `answer`.
+- `ABSTAINED` — no listed option applies.
+- `DEFERRED` — the answer came in below the floor (`threshold` or `certified` mode); have a person review it. The answer is still there.
 
 ## Next
 

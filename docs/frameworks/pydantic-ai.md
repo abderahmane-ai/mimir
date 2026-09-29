@@ -6,7 +6,7 @@ pip install "mimir-decisions[local,pydantic-ai]"
 
 `mimir.integrations.pydantic_ai.as_toolset` converts a collection of decision tools into a `FunctionToolset` with typed return values for use in a PydanticAI agent.
 
-`guard(toolset, check)` wraps any toolset with a tool-call check: a certified denial fails the tool call with the check's reason, and an escalated call ends the run by raising `DeferredToolRequests`. Declare `DeferredToolRequests` in the agent's `output_type` to handle escalations cleanly.
+`guard(toolset, check)` wraps any toolset with a tool-call check: a confident denial fails the tool call with the check's reason, and an escalated call ends the run by raising `DeferredToolRequests`. Declare `DeferredToolRequests` in the agent's `output_type` to handle escalations cleanly.
 
 Tested from `pydantic-ai-slim` 2.16.
 

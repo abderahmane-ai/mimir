@@ -99,7 +99,12 @@ def create_app(
     @app.post("/v1/decide")
     async def decide(request: DecideRequest) -> DecisionResult:
         return await served.adecide(
-            request.context, request.decision, risk=request.risk, alpha=request.alpha
+            request.context,
+            request.decision,
+            mode=request.mode,
+            min_confidence=request.min_confidence,
+            risk=request.risk,
+            alpha=request.alpha,
         )
 
     @app.post("/v1/decide/uncertified")
@@ -113,7 +118,13 @@ def create_app(
                 limit="batch items", value=len(request.items), maximum=max_batch_items
             )
         items = [(item.context, item.decision) for item in request.items]
-        results = await served.adecide_many(items, risk=request.risk, alpha=request.alpha)
+        results = await served.adecide_many(
+            items,
+            mode=request.mode,
+            min_confidence=request.min_confidence,
+            risk=request.risk,
+            alpha=request.alpha,
+        )
         return BatchResponse(results=results)
 
     @app.post("/v1/tools/{name}")

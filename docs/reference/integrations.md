@@ -12,7 +12,7 @@ has a native, an MCP and a checked agent for each one.
 | PydanticAI | `mimir-decisions[pydantic-ai]` | `as_toolset` | `guard`: escalations end the run with `DeferredToolRequests` |
 | CrewAI | `mimir-decisions[crewai]` | `as_crewai_tool` | `tool_call_hook`: escalations go to your approver |
 | Google ADK | `mimir-decisions[adk]` | `as_adk_tool` | `tool_call_callback`: escalations ask for ADK confirmation |
-| Microsoft Agent Framework | `mimir-decisions[agent-framework]` | `as_function_tool` | `ToolCallCheckMiddleware`: only certified calls run |
+| Microsoft Agent Framework | `mimir-decisions[agent-framework]` | `as_function_tool` | `ToolCallCheckMiddleware`: only confident calls run |
 | LlamaIndex | `mimir-decisions[llamaindex]` | `as_llamaindex_tool` | none: no hook before a tool call |
 | smolagents | `mimir-decisions[smolagents]` | `as_smolagents_tool` | none: no hook before a tool call |
 

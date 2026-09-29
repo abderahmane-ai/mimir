@@ -10,7 +10,7 @@ from mimir.compat.laya.v1 import QUESTIONS, Agent, answer, entropy_confidence, l
 from mimir.core.decisions import Choice, Rate
 from mimir.core.errors import SignatureError
 from mimir.core.results import ChoiceResult, RateResult, Status
-from mimir.runtime.engine import Mimir
+from tests.conftest import load_engine
 
 FIXTURE: Final = json.loads(
     (Path(__file__).parent / "fixtures" / "laya_0_3_20.json").read_text(encoding="utf-8")
@@ -34,9 +34,10 @@ def test_laya_questions_translate_including_lists_and_labels() -> None:
 def _result(status: Status) -> ChoiceResult:
     return ChoiceResult(
         status=status,
+        actionable=status is not Status.DEFERRED,
+        certified=False,
         confidence=0.8,
         relevant_context=(),
-        deferral=None,
         certificate=None,
         latency_ms=1.0,
         answer="billing",
@@ -59,9 +60,10 @@ def test_answers_have_laya_keys_for_every_type() -> None:
         translated["urgency"],
         RateResult(
             status=Status.DEFERRED,
+            actionable=False,
+            certified=False,
             confidence=0.6,
             relevant_context=(),
-            deferral=None,
             certificate=None,
             latency_ms=1.0,
             answer="0",
@@ -76,9 +78,10 @@ def test_answers_have_laya_keys_for_every_type() -> None:
         translated["refund"],
         ChoiceResult(
             status=Status.DEFERRED,
+            actionable=False,
+            certified=False,
             confidence=0.7,
             relevant_context=(),
-            deferral=None,
             certificate=None,
             latency_ms=1.0,
             answer="false",
@@ -109,8 +112,8 @@ def test_invalid_laya_questions_are_rejected() -> None:
         )
 
 
-def test_agent_predicts_in_laya_shape(release: Path) -> None:
-    engine = Mimir.from_pretrained(str(release), device="cpu", allow_unsigned=True)
+def test_agent_predicts_in_laya_shape(release: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    engine = load_engine(release, monkeypatch)
     agent = Agent(engine)
     documented = FIXTURE["response"]
     response = agent.predict(FIXTURE["request"]["state"], FIXTURE["request"]["questions"])

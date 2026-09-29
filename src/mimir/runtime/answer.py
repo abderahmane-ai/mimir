@@ -22,8 +22,6 @@ from mimir.core.results import (
     ChoiceResult,
     ContextRelevance,
     DecisionResult,
-    Deferral,
-    DeferralReason,
     EstimateResult,
     MultiChoiceResult,
     OptionSet,
@@ -33,6 +31,7 @@ from mimir.core.results import (
     VerifyResult,
     YesNoResult,
 )
+from mimir.core.wire import Mode
 from mimir.policy.assessment import Assessment
 from mimir.policy.distributions import CHOICE_TYPES, Decision
 from mimir.runtime.rendering import Segment
@@ -44,9 +43,10 @@ YES: Final = "yes"
 
 class _Common(TypedDict):
     status: Status
+    actionable: bool
+    certified: bool
     confidence: float | None
     relevant_context: tuple[ContextRelevance, ...]
-    deferral: Deferral | None
     certificate: Certificate | None
     latency_ms: float
 
@@ -89,25 +89,19 @@ def relevant_context(state: tuple[Segment, ...], relevance: Floats) -> tuple[Con
     )
 
 
-def _status(outcome: Outcome, is_abstain: bool) -> tuple[Status, Deferral | None]:
-    assessment = outcome.assessment
-    decided = Status.ABSTAINED if is_abstain else Status.DECIDED
-    if assessment is None:
-        return decided, None
-    entry = assessment.certificate
-    threshold = None if entry is None else entry.threshold
-    reason: DeferralReason
-    if threshold is None:
-        reason = "no_certified_threshold"
-    elif not assessment.passes_gate:
-        reason = "out_of_distribution"
-    elif not assessment.taken:
-        reason = "below_threshold"
+def _status(outcome: Outcome, is_abstain: bool, mode: Mode, min_confidence: float) -> Status:
+    if mode == Mode.THRESHOLD:
+        floor: float | None = min_confidence
+    elif mode == Mode.CERTIFIED:
+        assessment = outcome.assessment
+        entry = None if assessment is None else assessment.certificate
+        floor = None if entry is None else entry.threshold
     else:
-        return decided, None
-    return Status.DEFERRED, Deferral(
-        reason=reason, threshold=threshold, gate_p_value=assessment.gate_p_value
-    )
+        floor = None
+    score = outcome.decision.score
+    if floor is not None and score is not None and score < floor:
+        return Status.DEFERRED
+    return Status.ABSTAINED if is_abstain else Status.DECIDED
 
 
 def _certificate(
@@ -168,20 +162,25 @@ def build_result(
     risk: float | None,
     provenance: Provenance | None,
     latency_ms: float,
+    mode: Mode = Mode.STANDARD,
+    min_confidence: float = 0.0,
 ) -> DecisionResult:
     """Build the typed result for `spec`, with option indices mapped to the caller's ids."""
     probs = outcome.probabilities
     chosen = outcome.decision.chosen
     ids = spec.option_ids
     is_abstain = spec.model_type in CHOICE_TYPES and not chosen
-    status, deferral = _status(outcome, is_abstain)
-    prediction = None if outcome.assessment is None else outcome.assessment.prediction_set
+    status = _status(outcome, is_abstain, mode, min_confidence)
+    assessment = outcome.assessment
+    certified = assessment is not None and assessment.certified
+    prediction = None if assessment is None else assessment.prediction_set
     common = _Common(
         status=status,
+        actionable=status in (Status.DECIDED, Status.ABSTAINED),
+        certified=certified,
         confidence=outcome.decision.score,
         relevant_context=relevance,
-        deferral=deferral,
-        certificate=_certificate(outcome, risk, provenance),
+        certificate=_certificate(outcome, risk, provenance) if certified else None,
         latency_ms=latency_ms,
     )
     count = len(ids)

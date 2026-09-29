@@ -1,6 +1,6 @@
 """A CrewAI crew whose refunds MIMIR checks against the refund rules first.
 
-A certified yes runs the refund, a certified no blocks it, and anything else asks a person at
+A confident yes runs the refund, a confident no blocks it, and anything else asks a person at
 the console. The check is a global before-tool-call hook, registered while the crew runs.
 Install `mimir-decisions[local,crewai]`, set `OPENAI_API_KEY`, then run
 `make example NAME=crewai/guarded_agent`.

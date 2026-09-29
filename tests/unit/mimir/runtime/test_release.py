@@ -27,7 +27,11 @@ def test_config_parses_the_private_release_shape() -> None:
     raw = {
         "format_version": 1,
         "variants": {
-            "fp32": {"graph": "onnx/model.onnx", "policy": "policy/fp32", "devices": ["cpu"]}
+            "fp32": {
+                "weights": "transformers/model.safetensors",
+                "policy": "policy/fp32",
+                "devices": ["cpu"],
+            }
         },
         "tokenizer": "tokenizer.json",
         "decision_types": [
@@ -52,12 +56,6 @@ def test_config_parses_the_private_release_shape() -> None:
                 "mask": 50284,
                 "newline": 187,
             },
-        },
-        "graph": {
-            "opset": {"ai.onnx": 20},
-            "operators": ["ai.onnx::Add"],
-            "inputs": [{"name": "chunk_ids", "dtype": "int64", "rank": 2}],
-            "outputs": [{"name": "utilities", "dtype": "float32", "rank": 2}],
         },
     }
     config = ReleaseConfig.model_validate(raw)

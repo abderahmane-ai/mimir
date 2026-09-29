@@ -23,6 +23,7 @@ from mimir.core.results import (
     VerifyResult,
     YesNoResult,
 )
+from mimir.core.wire import Mode
 from mimir.policy.assessment import Assessment
 from mimir.policy.distributions import Decision
 from mimir.policy.document import CertifiedThreshold
@@ -45,8 +46,7 @@ def outcome(
     probs: list[float],
     decision: Decision,
     *,
-    passes_gate: bool = True,
-    taken: bool = True,
+    certified: bool = True,
     entry: CertifiedThreshold | None = ENTRY,
     prediction_set: tuple[int, ...] | None = None,
 ) -> Outcome:
@@ -54,17 +54,20 @@ def outcome(
     found = Assessment(
         probabilities=values,
         decision=decision,
-        gate_p_value=0.5 if passes_gate else 0.001,
-        passes_gate=passes_gate,
         certificate=entry,
-        taken=taken,
+        certified=certified,
         prediction_set=prediction_set,
     )
     return Outcome(values, decision, found)
 
 
-def build(spec: DecisionSpec, item: Outcome) -> DecisionResult:
-    return build_result(spec, item, (), 0.01, PROVENANCE, 3.0)
+def build(
+    spec: DecisionSpec,
+    item: Outcome,
+    mode: Mode = Mode.STANDARD,
+    min_confidence: float = 0.0,
+) -> DecisionResult:
+    return build_result(spec, item, (), 0.01, PROVENANCE, 3.0, mode, min_confidence)
 
 
 def test_decided_choice_carries_ids_certificate_and_prediction_set() -> None:
@@ -72,47 +75,90 @@ def test_decided_choice_carries_ids_certificate_and_prediction_set() -> None:
     result = build(spec, outcome([0.9, 0.05, 0.05], Decision((0,), 0.9), prediction_set=(0, 2)))
     assert isinstance(result, ChoiceResult)
     assert (result.status, result.answer, result.confidence) == (Status.DECIDED, "b", 0.9)
+    assert result.actionable is True
+    assert result.certified is True
     assert result.probabilities == {"b": 0.9, "s": 0.05}
     assert result.abstain_probability == 0.05
     assert result.prediction_set == OptionSet(options=("b",), abstain=True)
     assert result.certificate is not None
     assert (result.certificate.threshold, result.certificate.risk) == (0.8, 0.01)
-    assert result.deferral is None
     assert result.latency_ms == 3.0
 
 
-def test_abstention_taken_is_abstained() -> None:
+def test_abstention_is_abstained_and_actionable() -> None:
     result = build(Choice("q", ["a", "b"]), outcome([0.02, 0.03, 0.95], Decision((), 0.95)))
     assert isinstance(result, ChoiceResult)
     assert (result.status, result.answer) == (Status.ABSTAINED, None)
+    assert result.actionable is True
 
 
-DEFERRALS = [
-    (outcome([0.6, 0.4, 0.0], Decision((0,), 0.6), entry=None), "no_certified_threshold", None),
-    (
-        outcome(
-            [0.6, 0.4, 0.0], Decision((0,), 0.6), entry=ENTRY.model_copy(update={"threshold": None})
-        ),
-        "no_certified_threshold",
-        None,
-    ),
-    (
-        outcome([0.6, 0.4, 0.0], Decision((0,), 0.6), passes_gate=False, taken=False),
-        "out_of_distribution",
-        0.8,
-    ),
-    (outcome([0.6, 0.4, 0.0], Decision((0,), 0.6), taken=False), "below_threshold", 0.8),
-]
+def test_an_abstention_below_the_floor_defers() -> None:
+    item = outcome([0.2, 0.2, 0.6], Decision((), 0.6), certified=False)
+    result = build(Choice("q", ["a", "b"]), item, Mode.CERTIFIED)
+    assert result.status == Status.DEFERRED
+    assert result.actionable is False
 
 
-@pytest.mark.parametrize(("item", "reason", "threshold"), DEFERRALS)
-def test_deferral_reasons(item: Outcome, reason: str, threshold: float | None) -> None:
-    result = build(YesNo("q"), item)
+def test_standard_never_defers_and_keeps_uncertified_marks() -> None:
+    result = build(YesNo("q"), outcome([0.6, 0.4, 0.0], Decision((0,), 0.6), certified=False))
+    assert isinstance(result, YesNoResult)
+    assert result.status == Status.DECIDED
+    assert result.answer is False
+    assert result.actionable is True
+    assert result.certified is False
+    assert result.certificate is None
+
+
+def test_threshold_defers_below_the_floor_and_keeps_the_answer() -> None:
+    result = build(
+        YesNo("q"),
+        outcome([0.6, 0.4, 0.0], Decision((0,), 0.6)),
+        Mode.THRESHOLD,
+        0.75,
+    )
     assert isinstance(result, YesNoResult)
     assert result.status == Status.DEFERRED
     assert result.answer is False
-    assert result.deferral is not None
-    assert (result.deferral.reason, result.deferral.threshold) == (reason, threshold)
+    assert result.actionable is False
+    assert "deferral" not in result.model_dump(mode="json")
+
+
+def test_threshold_passes_at_and_above_the_floor() -> None:
+    item = outcome([0.6, 0.4, 0.0], Decision((0,), 0.6))
+    assert build(YesNo("q"), item, Mode.THRESHOLD, 0.6).status == Status.DECIDED
+    assert build(YesNo("q"), item, Mode.THRESHOLD, 0.5).status == Status.DECIDED
+
+
+def test_certified_defers_below_the_threshold_and_certifies_above() -> None:
+    low = outcome([0.6, 0.4, 0.0], Decision((0,), 0.6), certified=False)
+    result = build(YesNo("q"), low, Mode.CERTIFIED)
+    assert isinstance(result, YesNoResult)
+    assert (result.status, result.actionable, result.certified) == (
+        Status.DEFERRED,
+        False,
+        False,
+    )
+    assert result.answer is False
+    assert result.certificate is None
+    high = outcome([0.9, 0.05, 0.05], Decision((0,), 0.9), certified=True)
+    decided = build(YesNo("q"), high, Mode.CERTIFIED)
+    assert (decided.status, decided.certified) == (Status.DECIDED, True)
+    assert decided.certificate is not None
+
+
+def test_certified_without_a_threshold_behaves_as_standard() -> None:
+    item = outcome(
+        [0.6, 0.4, 0.0],
+        Decision((0,), 0.6),
+        certified=False,
+        entry=ENTRY.model_copy(update={"threshold": None}),
+    )
+    result = build(YesNo("q"), item, Mode.CERTIFIED)
+    assert (result.status, result.certified, result.certificate) == (
+        Status.DECIDED,
+        False,
+        None,
+    )
 
 
 def test_verify_answers_with_verdicts() -> None:
@@ -143,7 +189,7 @@ def test_estimate_value_is_the_mean_and_interval_spans_bins() -> None:
     probs = [0.0, 0.5, 0.5, 0.0]
     result = build(
         Estimate("q", 0.0, 8.0, "kg"),
-        outcome(probs, Decision((1,), None), entry=None, prediction_set=(1, 2)),
+        outcome(probs, Decision((1,), None), certified=False, entry=None, prediction_set=(1, 2)),
     )
     assert isinstance(result, EstimateResult)
     assert result.answer == pytest.approx(4.0)
@@ -151,7 +197,8 @@ def test_estimate_value_is_the_mean_and_interval_spans_bins() -> None:
     assert result.unit == "kg"
     assert result.confidence is None
     empty = build(
-        Estimate("q", 0.0, 8.0), outcome(probs, Decision((1,), None), entry=None, prediction_set=())
+        Estimate("q", 0.0, 8.0),
+        outcome(probs, Decision((1,), None), certified=False, entry=None, prediction_set=()),
     )
     assert isinstance(empty, EstimateResult)
     assert empty.interval == ()
@@ -163,9 +210,8 @@ def test_uncertified_results_have_no_policy_fields() -> None:
         Choice("q", ["a", "b"]), Outcome(values, Decision((0,), 0.7), None), (), None, None, 1.0
     )
     assert isinstance(result, ChoiceResult)
-    assert (result.status, result.certificate, result.deferral, result.prediction_set) == (
+    assert (result.status, result.certificate, result.prediction_set) == (
         Status.DECIDED,
-        None,
         None,
         None,
     )

@@ -1,8 +1,8 @@
 """Tool-call checks: whether an agent's pending tool call may run under written rules.
 
 The model reads each rule as a passage and the call as fields (`tool`, `arguments.<name>`),
-and answers a yes/no question about it. A certified yes allows the call, a certified no denies
-it, and a deferral or an abstention escalates it to a person.
+and answers a yes/no question about it. An actionable yes allows the call, an actionable no
+denies it, and anything else escalates it to a person.
 """
 
 from collections.abc import Mapping
@@ -15,7 +15,7 @@ from pydantic import JsonValue
 from mimir.core.context import Context, Field, Passage
 from mimir.core.decisions import YesNo
 from mimir.core.results import Status, YesNoResult
-from mimir.core.wire import DEFAULT_RISK
+from mimir.core.wire import DEFAULT_RISK, Mode, check_mode
 
 if TYPE_CHECKING:
     from mimir.core.decider import Decider
@@ -54,8 +54,8 @@ class CheckOutcome:
             case Permission.ESCALATE:
                 cause = (
                     "the check abstained"
-                    if self.result.deferral is None
-                    else f"the check was deferred: {self.result.deferral.reason}"
+                    if self.result.status is Status.ABSTAINED
+                    else "the check is below its operating floor"
                 )
                 return f"The call to {self.tool} needs a person's approval; {cause}."
 
@@ -72,6 +72,8 @@ class ToolCallCheck:
     rules: tuple[str, ...]
     question: str = DEFAULT_QUESTION
     tools: frozenset[str] | None = None
+    mode: Mode = Mode.THRESHOLD
+    min_confidence: float | None = 0.5
     risk: float = DEFAULT_RISK
 
     def __post_init__(self) -> None:
@@ -83,6 +85,7 @@ class ToolCallCheck:
             message = f"rules {blank} are blank"
             raise ValueError(message)
         YesNo(self.question)
+        check_mode(self.mode, self.min_confidence)
 
     def applies_to(self, tool: str) -> bool:
         """Whether calls to `tool` are decided rather than allowed outright."""
@@ -99,14 +102,26 @@ class ToolCallCheck:
         if not self.applies_to(tool):
             return _unchecked(tool)
         spec = YesNo(self.question)
-        result = self.decider.decide(self.context(tool, arguments), spec, risk=self.risk)
+        result = self.decider.decide(
+            self.context(tool, arguments),
+            spec,
+            mode=self.mode,
+            min_confidence=self.min_confidence,
+            risk=self.risk,
+        )
         return _outcome(tool, result)
 
     async def acall(self, tool: str, arguments: Mapping[str, JsonValue]) -> CheckOutcome:
         if not self.applies_to(tool):
             return _unchecked(tool)
         spec = YesNo(self.question)
-        result = await self.decider.adecide(self.context(tool, arguments), spec, risk=self.risk)
+        result = await self.decider.adecide(
+            self.context(tool, arguments),
+            spec,
+            mode=self.mode,
+            min_confidence=self.min_confidence,
+            risk=self.risk,
+        )
         return _outcome(tool, result)
 
 
@@ -115,7 +130,7 @@ def _unchecked(tool: str) -> CheckOutcome:
 
 
 def _outcome(tool: str, result: YesNoResult) -> CheckOutcome:
-    if result.status is Status.DECIDED and result.answer is not None:
+    if result.actionable and result.answer is not None:
         permission = Permission.ALLOW if result.answer else Permission.DENY
     else:
         permission = Permission.ESCALATE

@@ -9,7 +9,7 @@ from mimir.core.errors import ArtifactError
 from mimir.core.results import ChoiceResult
 from mimir.runtime.engine import Mimir
 from mimir.server.model import NotReadyError, ServedModel
-from tests.conftest import BatchRecorder, count_graph_runs, load_engine
+from tests.conftest import BatchRecorder, count_model_runs, load_engine
 
 TEXT = "my card was charged twice"
 TEAM = Choice("which team", ["billing", "security", "shipping"])
@@ -23,13 +23,15 @@ async def _until_settled(served: ServedModel) -> None:
     pytest.fail("the model neither loaded nor failed")
 
 
-def test_decisions_wait_for_the_load_and_then_run_in_batches(release: Path) -> None:
+def test_decisions_wait_for_the_load_and_then_run_in_batches(
+    release: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     gate = threading.Event()
     recorder = BatchRecorder()
 
     def load() -> Mimir:
         gate.wait(10)
-        return load_engine(release)
+        return load_engine(release, monkeypatch)
 
     served = ServedModel(load, wait_s=0.02, observer=recorder)
 
@@ -53,12 +55,13 @@ def test_decisions_wait_for_the_load_and_then_run_in_batches(release: Path) -> N
 
 def test_with_a_load_wait_a_decision_made_while_loading_waits_for_the_model(
     release: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     gate = threading.Event()
 
     def load() -> Mimir:
         gate.wait(10)
-        return load_engine(release)
+        return load_engine(release, monkeypatch)
 
     served = ServedModel(load, load_wait_s=10.0)
 
@@ -74,12 +77,14 @@ def test_with_a_load_wait_a_decision_made_while_loading_waits_for_the_model(
     assert served.state == "ready"
 
 
-def test_a_load_wait_ends_with_not_ready_when_it_runs_out(release: Path) -> None:
+def test_a_load_wait_ends_with_not_ready_when_it_runs_out(
+    release: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     gate = threading.Event()
 
     def load() -> Mimir:
         gate.wait(10)
-        return load_engine(release)
+        return load_engine(release, monkeypatch)
 
     served = ServedModel(load, load_wait_s=0.05)
 
@@ -109,11 +114,11 @@ def test_a_load_wait_ends_as_soon_as_the_load_fails(tmp_path: Path) -> None:
     assert asyncio.run(main()) < 5.0
 
 
-def test_on_cpu_each_request_runs_the_graph_alone(
+def test_on_cpu_each_request_runs_the_model_alone(
     release: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    engine = load_engine(release)
-    runs = count_graph_runs(engine, monkeypatch)
+    engine = load_engine(release, monkeypatch)
+    runs = count_model_runs(monkeypatch)
     recorder = BatchRecorder()
     served = ServedModel(lambda: engine, wait_s=0.05, observer=recorder)
 
@@ -128,8 +133,10 @@ def test_on_cpu_each_request_runs_the_graph_alone(
     assert len(runs) == 4
 
 
-def test_the_ready_model_answers_sync_calls_and_reports_its_engine(release: Path) -> None:
-    served = ServedModel(lambda: load_engine(release))
+def test_the_ready_model_answers_sync_calls_and_reports_its_engine(
+    release: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    served = ServedModel(lambda: load_engine(release, monkeypatch))
 
     async def main() -> None:
         async with served.running():

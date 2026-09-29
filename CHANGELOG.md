@@ -4,6 +4,19 @@ All notable changes to `mimir-decisions` are documented here. The format follows
 
 ---
 
+## 1.1.0
+
+### Added
+
+- **Operating modes.** Every decision method, tool, HTTP route, and MCP server takes `mode`: `standard` answers every request and never defers; `threshold` defers answers below `min_confidence` while keeping the answer; `certified` defers answers below the release's threshold at `risk` and attaches the certificate when the answer passes. `ToolCallCheck` runs in `threshold` mode at 0.5 by default.
+- **`actionable` and `certified` on every result.** `actionable` is true for `decided` and `abstained`; `certified` is true when the answer passes the policy's threshold at the requested risk.
+- **Torch engine.** The local engine runs the model with Torch on safetensors weights: the same install serves CPU and CUDA, replacing the `local-gpu` extra. The release ships one fp32 weights file with its policy; the policy fingerprint names the weights, Torch version, device, and hardware.
+- **`mimir bench`** reports the certified share alongside accuracy, coverage, and realised risk.
+
+### Fixed
+
+- The Vercel AI example pins the MCP handshake to the legacy era: the client's modern discovery times out while a cold server loads its weights, and its fallback then reuses the poisoned connection.
+
 ## 1.0.2
 
 ### Fixed

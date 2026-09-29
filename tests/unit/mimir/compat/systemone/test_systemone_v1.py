@@ -29,9 +29,10 @@ FIXTURE: Final = json.loads(
 def choice_result(probabilities: dict[str, float], abstain: float = 0.0) -> ChoiceResult:
     return ChoiceResult(
         status=Status.DEFERRED,
+        actionable=False,
+        certified=False,
         confidence=max(probabilities.values()),
         relevant_context=(),
-        deferral=None,
         certificate=None,
         latency_ms=1.0,
         answer=max(probabilities, key=lambda key: probabilities[key]),
@@ -44,9 +45,10 @@ def choice_result(probabilities: dict[str, float], abstain: float = 0.0) -> Choi
 def rate_result(probabilities: dict[str, float]) -> RateResult:
     return RateResult(
         status=Status.DEFERRED,
+        actionable=False,
+        certified=False,
         confidence=max(probabilities.values()),
         relevant_context=(),
-        deferral=None,
         certificate=None,
         latency_ms=1.0,
         answer=max(probabilities, key=lambda key: probabilities[key]),

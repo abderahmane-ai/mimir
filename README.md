@@ -10,24 +10,21 @@ Banking77, 42.3 on MASSIVE, 36.3 on typed decisions — and where it cannot back
 answer, it abstains instead of guessing.
 
 ```bash
-pip install "mimir-decisions[local]"        # CPU engine
-pip install "mimir-decisions[local-gpu]"    # CUDA engine
+pip install "mimir-decisions[local]"        # the local engine (CPU and CUDA)
 pip install mimir-decisions                  # data models and HTTP client only
 ```
 
 Python 3.11+. Documentation: <https://abderahmane-ai.github.io/mimir/>
 
-The shipped policy certifies the fp32 CPU configuration; the CUDA (fp16) graph ships without a policy in this release.
-
 ---
 
 ## Why MIMIR
 
-Most agents route, classify, and verify using a general-purpose language model: slow, expensive, and impossible to audit. MIMIR is built for structured decisions. It runs on ONNX Runtime in milliseconds, returns calibrated probabilities with every answer, and issues a mathematical certificate — a formal guarantee that its realised error rate stays at or below the risk level you ask for, measured on held-out data.
+Most agents route, classify, and verify using a general-purpose language model: slow, expensive, and impossible to audit. MIMIR is built for structured decisions. It runs on Torch in milliseconds, returns calibrated probabilities with every answer, and issues a certificate — measured evidence that answers passing its threshold stayed at or below the risk level you ask for, on held-out data.
 
 - **No generation.** Answers are drawn from the options you supply, not synthesised. The model cannot hallucinate an answer that wasn't on the list.
 - **Calibrated confidence.** Probabilities are not softmax scores; they are calibrated to match realised accuracy on held-out data.
-- **Certified deferral.** When confidence falls short of the certified threshold, the decision defers rather than guessing. The coverage and the error rate of taken decisions are proven.
+- **Answers, always.** Every decision returns the model's prediction with its probabilities. In `threshold` and `certified` modes, answers below the floor come back `deferred` for review — never withheld.
 - **One typed contract.** Seven decision types — choice, multi-choice, yes/no, verify, rank, rate, estimate — all returning the same result shape, over any context.
 - **Portable.** The same Python interface works locally on CPU or GPU, over HTTP, and over MCP. Framework adapters exist for eight agent SDKs.
 
@@ -48,14 +45,14 @@ result = model.choose(
 result.status         # Status.DECIDED, Status.ABSTAINED or Status.DEFERRED
 result.answer         # an option id, or None when no option applies
 result.probabilities  # calibrated probability of each option id
-result.certificate    # the certified threshold the decision was checked against
+result.certificate    # the evidence, when the answer is certified
 ```
 
-`answer` is the model's prediction. `status` is the policy's verdict:
+`answer` is always the model's prediction. `status` says whether it cleared the operating floor:
 
-- `DECIDED` — the answer is an option and is certified at the requested risk level.
-- `ABSTAINED` — no listed option applies, and that is certified.
-- `DEFERRED` — not certified; `result.deferral.reason` is `below_threshold`, `out_of_distribution`, or `no_certified_threshold`.
+- `DECIDED` — act on `answer`.
+- `ABSTAINED` — no listed option applies.
+- `DEFERRED` — the answer came in below the floor; have a person review it. The answer is still there.
 
 The first call downloads the model from the Hugging Face Hub at the revision this package version pins, verifies its Sigstore signature, checks every file against the manifest's SHA-256, and loads it.
 
@@ -90,9 +87,9 @@ A context can be a string, a list of strings, a dict read as a JSON state, or a 
 
 ## Certification
 
-`decide` takes a risk level certified by the loaded policy (`model.info().risk_levels`). A decision is taken only when its calibrated confidence clears a threshold certified on held-out data to keep the realised error rate at or below that risk with 95% confidence, and when the context passes the out-of-distribution gate. `decide_uncertified` returns the raw model answer with no policy applied.
+`decide` answers every request in `standard` mode. `threshold` mode defers answers below your `min_confidence`; `certified` mode defers answers below the release's threshold at `risk` (`model.info().risk_levels`), and attaches the certificate when the answer passes. `decide_uncertified` returns the raw model answer with no policy applied.
 
-A certificate covers one exact configuration: model files, variant, ONNX Runtime version, execution provider, and options. On hardware not listed in the certificate, the first load runs the release's equivalence set and requires every decision to match. To certify thresholds on your own labelled data:
+A certificate covers one exact configuration: weights, Torch version, device, and hardware. On hardware not listed in the certificate, the first load runs the release's equivalence set and requires every decision to match. To certify thresholds on your own labelled data:
 
 ```bash
 mimir calibrate labelled.jsonl --risk 0.01 --confidence 0.95 --out policy.json
@@ -147,7 +144,7 @@ tools:
 
 ## Tool-call checks
 
-A tool-call check decides, against rules you write, whether an agent's pending tool call may run. A certified yes allows it, a certified no denies it, and anything else escalates to a person.
+A tool-call check decides, against rules you write, whether an agent's pending tool call may run. A confident yes allows it, a confident no denies it, and anything else escalates to a person.
 
 ```python
 check = model.tool_call_check(
@@ -171,7 +168,7 @@ Each adapter turns decision tools into the framework's native tool type and wire
 | PydanticAI | `mimir-decisions[pydantic-ai]` | `as_toolset` | `guard`: escalations end the run with `DeferredToolRequests` |
 | CrewAI | `mimir-decisions[crewai]` | `as_crewai_tool` | `tool_call_hook`: escalations go to your approver |
 | Google ADK | `mimir-decisions[adk]` | `as_adk_tool` | `tool_call_callback`: escalations ask for ADK confirmation |
-| Microsoft Agent Framework | `mimir-decisions[agent-framework]` | `as_function_tool` | `ToolCallCheckMiddleware`: only certified calls run |
+| Microsoft Agent Framework | `mimir-decisions[agent-framework]` | `as_function_tool` | `ToolCallCheckMiddleware`: only confident calls run |
 | LlamaIndex | `mimir-decisions[llamaindex]` | `as_llamaindex_tool` | none |
 | smolagents | `mimir-decisions[smolagents]` | `as_smolagents_tool` | none |
 
@@ -195,7 +192,7 @@ MIMIR_API_KEYS=key-one,key-two mimir serve --host 0.0.0.0 --tools tools.yaml
 
 | Route | Does |
 |---|---|
-| `POST /v1/decide` | one certified decision: `{context, decision, risk, alpha}` |
+| `POST /v1/decide` | one decision: `{context, decision, mode, min_confidence, risk, alpha}` |
 | `POST /v1/decide/uncertified` | the model's raw answer: `{context, decision}` |
 | `POST /v1/decide/batch` | up to 64 decisions in one call |
 | `POST /v1/tools/{name}` | a tool from `--tools`, given only `{context}` |
@@ -235,8 +232,8 @@ Claude Desktop, Cursor, and VS Code take the same command or the same URL and he
 ## Containers
 
 ```bash
-docker run -p 8000:8000 -e MIMIR_API_KEYS=... -v mimir-models:/models ghcr.io/abderahmane-ai/mimir:1.0.2-cpu
-docker run --gpus all -p 8000:8000 -e MIMIR_API_KEYS=... -v mimir-models:/models ghcr.io/abderahmane-ai/mimir:1.0.2-cuda
+docker run -p 8000:8000 -e MIMIR_API_KEYS=... -v mimir-models:/models ghcr.io/abderahmane-ai/mimir:1.1.0-cpu
+docker run --gpus all -p 8000:8000 -e MIMIR_API_KEYS=... -v mimir-models:/models ghcr.io/abderahmane-ai/mimir:1.1.0-cuda
 ```
 
 Images carry the runtime, never the model weights. On first start, the model is downloaded at the revision the package version pins, verified, and cached in `/models`. To run from that cache with no network access, append `serve --host 0.0.0.0 --model-cache /models --offline`.
@@ -244,7 +241,7 @@ Images carry the runtime, never the model weights. On first start, the model is 
 Images are signed with Sigstore by the release workflow:
 
 ```bash
-cosign verify ghcr.io/abderahmane-ai/mimir:1.0.2-cpu \
+cosign verify ghcr.io/abderahmane-ai/mimir:1.1.0-cpu \
   --certificate-identity https://github.com/abderahmane-ai/mimir/.github/workflows/release.yml@refs/heads/main \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
@@ -258,7 +255,7 @@ cosign verify ghcr.io/abderahmane-ai/mimir:1.0.2-cpu \
 | `mimir serve` | the HTTP server; `--mcp` also serves MCP at `/mcp` |
 | `mimir mcp` | the MCP server, over stdio or `--http` |
 | `mimir decide` | one decision from flags, or a JSON request on stdin |
-| `mimir bench FILE` | accuracy, coverage and realised risk on labelled decisions |
+| `mimir bench FILE` | accuracy, coverage, certified share and realised risk on labelled decisions |
 | `mimir calibrate FILE` | certify thresholds on labelled decisions |
 | `mimir schema` | JSON Schemas of every spec, result and request |
 | `mimir download` | download and verify a release for offline use |
@@ -268,7 +265,7 @@ cosign verify ghcr.io/abderahmane-ai/mimir:1.0.2-cpu \
 
 ## Integrity
 
-Releases are loaded from a pinned Hugging Face revision. Before any model file is read, the manifest's Sigstore signature is verified against the `abderahmane-ai/mimir` release workflow, every file is checked against the manifest's SHA-256, and the ONNX graph is checked against its operator allowlist and signature. No pickle is used anywhere.
+Releases are loaded from a pinned Hugging Face revision. Before any model file is read, the manifest's Sigstore signature is verified against the `abderahmane-ai/mimir` release workflow and every file is checked against the manifest's SHA-256. No pickle is used anywhere.
 
 ---
 

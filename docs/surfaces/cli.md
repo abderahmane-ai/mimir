@@ -7,7 +7,7 @@
 | `mimir decide` | one decision from flags, or a `DecideRequest` JSON on stdin; prints the result as JSON |
 | `mimir serve` | the HTTP server; `--mcp` also serves MCP at `/mcp` |
 | `mimir mcp` | the MCP server, over stdio or `--http` |
-| `mimir bench FILE` | accuracy, coverage, and realised risk on labelled decisions |
+| `mimir bench FILE` | accuracy, coverage, certified share, and realised risk on labelled decisions |
 | `mimir calibrate FILE` | certify thresholds on labelled decisions and write a custom policy |
 | `mimir schema [NAME]` | JSON Schemas of every spec, result, and request type |
 | `mimir download` | download and verify a release for offline use |
@@ -19,6 +19,10 @@
 # One decision from flags
 mimir decide --type choice --question "Which team?" --option billing --option security \
   --text "My card was charged twice"
+
+# One decision with a confidence floor
+mimir decide --type choice --question "Which team?" --option billing --option security \
+  --text "My card was charged twice" --mode threshold --min-confidence 0.7
 
 # One decision from stdin
 echo '{"context": "...", "decision": {"type": "yes_no", "question": "Is this urgent?"}}' | mimir decide

@@ -1,4 +1,4 @@
-"""`Mimir`, the local decision engine on ONNX Runtime."""
+"""`Mimir`, the local decision engine on Torch."""
 
 import logging
 import time
@@ -12,36 +12,29 @@ from tokenizers import Tokenizer
 from mimir.core.context import Context, ContextLike
 from mimir.core.decider import Decider, Items
 from mimir.core.decisions import DecisionSpec
-from mimir.core.errors import (
-    EquivalenceError,
-    PolicyError,
-    RiskLevelError,
-    UncertifiedRuntimeError,
-)
+from mimir.core.errors import PolicyError, RiskLevelError
 from mimir.core.results import DecisionResult
-from mimir.core.wire import InputLimits, ModelInfo, RuntimeInfo
+from mimir.core.wire import InputLimits, Mode, ModelInfo, RuntimeInfo, check_mode
 from mimir.policy.assessment import Assessment, assess
 from mimir.policy.binding import LoadedRuntime, bind
 from mimir.policy.distributions import Readout, decide, identity, probabilities
 from mimir.policy.document import Policy, read_policy
+from mimir.runtime import session as session_module
 from mimir.runtime.answer import Outcome, Provenance, build_result, relevant_context
 from mimir.runtime.artifact import DEFAULT_MODEL, Snapshot, load_snapshot
 from mimir.runtime.batching import pack
 from mimir.runtime.equivalence import check_equivalence, equivalence_key, is_cached, record_pass
-from mimir.runtime.graph import check_graph, weights_path
 from mimir.runtime.hardware import hardware_name
 from mimir.runtime.layout import Tokenized, collate, tokenize
-from mimir.runtime.readout import OUTPUTS, split_outputs
+from mimir.runtime.readout import split_outputs
 from mimir.runtime.rendering import render
 from mimir.runtime.session import (
-    PROVIDERS,
+    ENCODER_CONFIG_FILE,
     Device,
-    GraphSession,
-    check_single_runtime,
-    open_session,
-    options_sha256,
+    LoadedModel,
+    load_model,
     resolve_device,
-    runtime_version,
+    torch_version,
 )
 from mimir.runtime.signature import ManifestVerifier
 
@@ -64,34 +57,25 @@ class LoadedPolicy:
     certification: Literal["certified", "equivalent"]
 
 
-def _relative(snapshot: Snapshot, path: Path) -> str:
-    return path.relative_to(snapshot.root).as_posix()
-
-
 def loaded_runtime(snapshot: Snapshot, device: Device) -> LoadedRuntime:
-    """Describe the loaded graph and runtime for policy binding."""
-    graph = snapshot.path(snapshot.config.variants[snapshot.variant].graph)
-    weights = weights_path(graph)
-    provider = PROVIDERS[device]
+    """Describe the loaded weights and runtime for policy binding."""
+    weights = snapshot.path(snapshot.config.variants[snapshot.variant].weights)
     return LoadedRuntime(
         variant=snapshot.variant,
-        graph_sha256=snapshot.digests[_relative(snapshot, graph)],
-        weights_sha256=snapshot.digests[_relative(snapshot, weights)],
-        opset=snapshot.config.graph.opset.get("ai.onnx", 0),
-        onnxruntime=runtime_version(),
-        provider=provider,
-        options_sha256=options_sha256(provider),
+        weights_sha256=snapshot.digests[weights.relative_to(snapshot.root).as_posix()],
+        torch=torch_version(),
+        device=device,
         hardware=hardware_name(device),
     )
 
 
 def load_policy(
-    snapshot: Snapshot, session: GraphSession, runtime: LoadedRuntime, custom: Path | None
+    snapshot: Snapshot, session: LoadedModel, runtime: LoadedRuntime, custom: Path | None
 ) -> LoadedPolicy | None:
     """Load the custom or release policy and bind it to the runtime.
 
     Runs the equivalence check (once per configuration, then cached) when the policy does not
-    list this hardware. Returns None when the release has no policy for the variant.
+    list this configuration. Returns None when the release has no policy for the variant.
     """
     if custom is not None:
         policy = read_policy(custom, custom.with_suffix(".npz"))
@@ -120,8 +104,8 @@ def _load_session(
     verifier: ManifestVerifier | None,
     allow_unsigned: bool,
     offline: bool,
-) -> tuple[Snapshot, GraphSession]:
-    """Load and verify one variant for a device, and open its session."""
+) -> tuple[Snapshot, LoadedModel]:
+    """Load and verify one variant for a device, and load its weights."""
     snapshot = load_snapshot(
         model,
         revision=revision,
@@ -132,10 +116,9 @@ def _load_session(
         allow_unsigned=allow_unsigned,
         offline=offline,
     )
-    graph = snapshot.path(snapshot.config.variants[snapshot.variant].graph)
-    authenticated = {snapshot.path(relative).resolve() for relative in snapshot.digests}
-    check_graph(graph, snapshot.config.graph, authenticated)
-    return snapshot, open_session(graph, device)
+    weights = snapshot.path(snapshot.config.variants[snapshot.variant].weights)
+    encoder_config = snapshot.root / ENCODER_CONFIG_FILE
+    return snapshot, load_model(weights, encoder_config, device)
 
 
 def _prepare(
@@ -149,7 +132,7 @@ def _prepare(
     allow_unsigned: bool,
     offline: bool,
     custom: Path | None,
-) -> tuple[Snapshot, GraphSession, LoadedRuntime, LoadedPolicy | None]:
+) -> tuple[Snapshot, LoadedModel, LoadedRuntime, LoadedPolicy | None]:
     """Load one variant, open its session, and bind its policy."""
     snapshot, session = _load_session(
         model,
@@ -176,7 +159,7 @@ class Mimir(Decider):
         self,
         *,
         snapshot: Snapshot,
-        session: GraphSession,
+        session: LoadedModel,
         tokenizer: Tokenizer,
         device: Device,
         runtime: LoadedRuntime,
@@ -208,9 +191,8 @@ class Mimir(Decider):
         Args:
             model: Hub repository id or local directory.
             revision: Hub revision; defaults to the revision pinned by this package version.
-            device: `auto`, `cpu` or `cuda`. `auto` serves the best configuration that can
-                decide: the device's variant when it carries a policy, else the CPU release.
-            variant: Graph variant; defaults to the variant listed for the device.
+            device: `auto`, `cpu` or `cuda`. `auto` serves CUDA when torch sees a GPU.
+            variant: Weights variant; defaults to the variant listed for the device.
             policy: Path to a custom policy JSON from `mimir calibrate` (its `.npz` alongside).
             cache_dir: Hub cache directory.
             allow_unsigned: Load a local directory that has no manifest signature.
@@ -218,69 +200,23 @@ class Mimir(Decider):
             offline: Load only from `cache_dir`, with no network access.
 
         Raises:
-            ArtifactError: download, signature, integrity or graph contract failure.
-            UncertifiedRuntimeError: the runtime does not match the policy's certification.
+            ArtifactError: download, signature, integrity or weights failure.
             EquivalenceError: the equivalence check failed on unlisted hardware.
         """
-        check_single_runtime()
         cache = None if cache_dir is None else Path(cache_dir)
         custom = None if policy is None else Path(policy)
         resolved = resolve_device(device)
-        try:
-            snapshot, session, runtime, loaded = _prepare(
-                model,
-                revision=revision,
-                cache_dir=cache,
-                variant=variant,
-                device=resolved,
-                verifier=verifier,
-                allow_unsigned=allow_unsigned,
-                offline=offline,
-                custom=custom,
-            )
-        except (UncertifiedRuntimeError, EquivalenceError):
-            if device != "auto" or resolved != "cuda":
-                raise
-            logger.warning(
-                "device 'auto': the CUDA release cannot serve this machine; loading the "
-                "CPU release instead"
-            )
-            resolved = "cpu"
-            snapshot, session, runtime, loaded = _prepare(
-                model,
-                revision=revision,
-                cache_dir=cache,
-                variant=variant,
-                device=resolved,
-                verifier=verifier,
-                allow_unsigned=allow_unsigned,
-                offline=offline,
-                custom=custom,
-            )
-        else:
-            if (
-                loaded is None
-                and custom is None
-                and variant is None
-                and device == "auto"
-                and resolved == "cuda"
-            ):
-                logger.warning(
-                    "device 'auto': the CUDA variant ships without a policy; loading the "
-                    "certified CPU release instead"
-                )
-                resolved = "cpu"
-                snapshot, session, runtime, loaded = _prepare(
-                    model,
-                    revision=revision,
-                    cache_dir=cache,
-                    variant=variant,
-                    device=resolved,
-                    verifier=verifier,
-                    allow_unsigned=allow_unsigned,
-                    offline=offline,
-                    custom=custom,
-                )
+        snapshot, session, runtime, loaded = _prepare(
+            model,
+            revision=revision,
+            cache_dir=cache,
+            variant=variant,
+            device=resolved,
+            verifier=verifier,
+            allow_unsigned=allow_unsigned,
+            offline=offline,
+            custom=custom,
+        )
         tokenizer = Tokenizer.from_file(str(snapshot.path(snapshot.config.tokenizer)))
         return cls(
             snapshot=snapshot,
@@ -300,12 +236,7 @@ class Mimir(Decider):
             revision=self._snapshot.revision,
             variant=self._snapshot.variant,
             device=self._device,
-            runtime=RuntimeInfo(
-                onnxruntime=runtime.onnxruntime,
-                provider=runtime.provider,
-                options_sha256=runtime.options_sha256,
-                hardware=runtime.hardware,
-            ),
+            runtime=RuntimeInfo(torch=runtime.torch, hardware=runtime.hardware),
             certification="none" if loaded is None else loaded.certification,
             policy=None if loaded is None else loaded.policy.document.origin,
             risk_levels=() if loaded is None else loaded.policy.risk_levels,
@@ -317,7 +248,10 @@ class Mimir(Decider):
             ),
         )
 
-    def _check_request(self, risk: float | None, alpha: float | None) -> float:
+    def _check_request(
+        self, mode: Mode, min_confidence: float | None, risk: float | None, alpha: float | None
+    ) -> float:
+        check_mode(mode, min_confidence)
         config = self._snapshot.config
         chosen = config.default_alpha if alpha is None else alpha
         if not 0 < chosen < 1:
@@ -362,22 +296,25 @@ class Mimir(Decider):
         self,
         requests: Sequence[tuple[Context, DecisionSpec]],
         *,
+        mode: Mode,
+        min_confidence: float | None,
         risk: float | None,
         alpha: float | None,
         batch_size: int | None,
     ) -> list[Evaluation]:
         started = time.perf_counter()
-        chosen_alpha = self._check_request(risk, alpha)
+        chosen_alpha = self._check_request(mode, min_confidence, risk, alpha)
         config = self._snapshot.config
         tokenized = [
             tokenize(render(context, spec), self._tokenizer, config) for context, spec in requests
         ]
         provenance = self._provenance()
+        floor = 0.0 if min_confidence is None else min_confidence
         found: dict[int, Evaluation] = {}
         for indices in pack(tokenized, config.layout.crossing_tokens, batch_size):
             members = [tokenized[index] for index in indices]
             batch = collate(members, config.layout.special_tokens)
-            outputs = dict(zip(OUTPUTS, self._session.run(list(OUTPUTS), batch.feed), strict=True))
+            outputs = session_module.run(self._session, batch.feed, config.layout.question_cap)
             split = split_outputs(
                 outputs,
                 batch,
@@ -394,6 +331,8 @@ class Mimir(Decider):
                     risk,
                     provenance,
                     latency_ms,
+                    mode,
+                    floor,
                 )
                 found[index] = Evaluation(result, outcome.assessment)
         return [found[index] for index in range(len(requests))]
@@ -402,11 +341,20 @@ class Mimir(Decider):
         self,
         requests: Sequence[tuple[Context, DecisionSpec]],
         *,
+        mode: Mode,
+        min_confidence: float | None,
         risk: float | None,
         alpha: float | None,
         batch_size: int | None,
     ) -> list[DecisionResult]:
-        evaluations = self._evaluate(requests, risk=risk, alpha=alpha, batch_size=batch_size)
+        evaluations = self._evaluate(
+            requests,
+            mode=mode,
+            min_confidence=min_confidence,
+            risk=risk,
+            alpha=alpha,
+            batch_size=batch_size,
+        )
         return [evaluation.result for evaluation in evaluations]
 
     def assess_many(
@@ -415,7 +363,7 @@ class Mimir(Decider):
         """Return results with their policy assessments, as `mimir calibrate` needs.
 
         Assessments are computed at the loaded policy's first risk level; their calibrated
-        scores, decisions and gate outcomes do not depend on the risk level.
+        scores, decisions and thresholds do not depend on the risk level.
         """
         levels = () if self._policy is None else self._policy.policy.risk_levels
         if not levels:
@@ -423,7 +371,14 @@ class Mimir(Decider):
             raise PolicyError(message)
         requests = [(Context.coerce(context), spec) for context, spec in items]
         risk = levels[0]
-        return self._evaluate(requests, risk=risk, alpha=alpha, batch_size=batch_size)
+        return self._evaluate(
+            requests,
+            mode=Mode.STANDARD,
+            min_confidence=None,
+            risk=risk,
+            alpha=alpha,
+            batch_size=batch_size,
+        )
 
     def count_tokens(self, context: ContextLike, spec: DecisionSpec) -> int:
         """Return the encoder tokens a request uses, before batch padding."""
@@ -437,7 +392,7 @@ class Mimir(Decider):
 
     @property
     def runtime(self) -> LoadedRuntime:
-        """The loaded graph and runtime, as policy fingerprints describe them."""
+        """The loaded weights and runtime, as policy fingerprints describe them."""
         return self._runtime
 
     @property

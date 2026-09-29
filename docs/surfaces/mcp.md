@@ -5,9 +5,9 @@ pip install "mimir-decisions[local,mcp]"
 mimir mcp --tools tools.yaml
 ```
 
-Each tool in the [tools file](http.md#tools-file) becomes an MCP tool whose only argument is a context. The server owns the question and the options, so the agent cannot invent them at call time. `--generic-tools` adds `mimir_choose`, `mimir_verify`, `mimir_rank`, and `mimir_rate`, which take the question and options as arguments and decide at `--risk`.
+Each tool in the [tools file](http.md#tools-file) becomes an MCP tool whose only argument is a context. The server owns the question and the options, so the agent cannot invent them at call time. `--generic-tools` adds `mimir_choose`, `mimir_verify`, `mimir_rank`, and `mimir_rate`, which take the question and options as arguments and decide in `--mode` (`standard` by default).
 
-Every tool declares its full output schema, returns structured content, and is annotated read-only, idempotent, and closed-world. Its description instructs the agent to act only on `decided` or `abstained` and to escalate `deferred`. A deferral is a normal result, not an error. Invalid arguments, a model still loading, and engine failures are tool errors that name the cause.
+Every tool declares its full output schema, returns structured content, and is annotated read-only, idempotent, and closed-world. Its description tells the agent that `answer` always holds the prediction, and that a `deferred` status means the answer is below the operating floor and needs review. A deferral is a normal result, not an error. Invalid arguments, a model still loading, and engine failures are tool errors that name the cause.
 
 ## Transports
 
