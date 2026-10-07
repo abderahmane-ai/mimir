@@ -33,11 +33,28 @@ Most agents route, classify, and verify using a general-purpose language model: 
 ## Quickstart
 
 ```python
-from mimir import Mimir
+from mimir import Context, Field, Mimir, Passage
 
 model = Mimir.from_pretrained("Mythologic/MIMIR-1")
+
+# Context pairs prose passages with typed structured fields (amounts, IDs, metadata)
+context = Context(
+    passages=[
+        Passage(
+            title="Ticket #4091",
+            text="Hi, we were billed twice ($2,400 total) on invoice INV-8821. Please refund the $1,200 duplicate today or we will cancel our plan.",
+        )
+    ],
+    fields=Field.from_json({
+        "invoice_id": "INV-8821",
+        "duplicate_amount": 1200,
+        "customer_plan": "enterprise",
+    }),
+)
+
+# Choose with risk dial: 0.05 for high-throughput agents, 0.01 for mission-critical SLA
 result = model.choose(
-    "Hi, we were billed twice for March. Please refund the duplicate today or we will cancel our plan.",
+    context,
     "Which department should handle this request?",
     options={
         "billing": "Billing: invoices, payments, refunds",
@@ -45,21 +62,30 @@ result = model.choose(
         "sales": "Sales: pricing, new contracts",
         "other": "Other: everything else",
     },
+    risk=0.05,  # 5% risk floor (95% SLA) for high-throughput automated execution
 )
 
 result.status         # Status.DECIDED, Status.ABSTAINED or Status.DEFERRED
-result.answer         # an option id, or None when no option applies
+result.answer         # "billing", or None when no option applies
 result.probabilities  # calibrated probability of each option id
-result.certificate    # the evidence, when the answer is certified
+result.certificate    # mathematical proof of risk bound on held-out data
 ```
 
 `answer` is always the model's prediction. `status` says whether it cleared the operating floor:
 
 - `DECIDED` — act on `answer`.
-- `ABSTAINED` — no listed option applies.
-- `DEFERRED` — the answer came in below the floor; have a person review it. The answer is still there.
+- `ABSTAINED` — no listed option applies (clean OOD rejection).
+- `DEFERRED` — the answer came in below the certificate floor; route to a human reviewer.
 
-Give the model the ticket as a person wrote it — the same options over a one-line summary can come back `ABSTAINED`. The [Decisions guide](https://abderahmane-ai.github.io/mimir/guide/decisions/) covers the question and option shapes that decide.
+### The Risk Dial: From Mission-Critical SLA to High-Throughput Agents
+
+The release certifies thresholds across four finite-sample risk levels (`model.info().risk_levels = (0.005, 0.01, 0.02, 0.05)`):
+
+- **`risk=0.01` (99.0% SLA)** — **Mission-critical aerospace / financial SLA**: Sets an ultra-strict statistical floor. Only near-certain answers execute automatically; anything uncertain is deferred for human review rather than risked.
+- **`risk=0.05` (95.0% SLA)** — **High-throughput web agent / customer workflow**: The sweet spot for autonomous agents, unlocking automated execution on legitimate requests while still mathematically bounding error rates on held-out data.
+- **`mode="standard"`** — Returns the calibrated argmax without finite-sample risk deferral.
+
+Give the model the ticket as a person wrote it paired with typed fields — the same options over a one-line summary can come back `ABSTAINED`. The [Decisions guide](https://abderahmane-ai.github.io/mimir/guide/decisions/) covers the question and option shapes that decide.
 
 The first call downloads the model from the Hugging Face Hub at the revision this package version pins, verifies its Sigstore signature, checks every file against the manifest's SHA-256, and loads it.
 
@@ -94,7 +120,7 @@ A context can be a string, a list of strings, a dict read as a JSON state, or a 
 
 ## Certification
 
-`decide` answers every request in `standard` mode. `threshold` mode defers answers below your `min_confidence`; `certified` mode defers answers below the release's threshold at `risk` (`model.info().risk_levels`), and attaches the certificate when the answer passes. `decide_uncertified` returns the raw model answer with no policy applied.
+`decide` answers every request in `standard` mode. `threshold` mode defers answers below your `min_confidence`; `certified` mode defers answers below the release's threshold at `risk` (`model.info().risk_levels`), and attaches the certificate when the answer passes. Dial `risk=0.01` (99% SLA) for mission-critical operations where false actions carry heavy penalties, or `risk=0.05` (95% SLA) for high-throughput autonomous agents. `decide_uncertified` returns the raw model answer with no policy applied.
 
 A certificate covers one exact configuration: weights, Torch version, device, and hardware. On hardware not listed in the certificate, the first load runs the release's equivalence set and requires every decision to match. To certify thresholds on your own labelled data:
 

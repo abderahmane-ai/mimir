@@ -27,7 +27,8 @@ teams = {
 
 model.choose(ticket, question, teams)                                     # standard
 model.choose(ticket, question, teams, mode="threshold", min_confidence=0.7)
-model.choose(ticket, question, teams, mode="certified", risk=0.01)
+model.choose(ticket, question, teams, mode="certified", risk=0.05)        # 95% SLA (agents)
+model.choose(ticket, question, teams, mode="certified", risk=0.01)        # 99% SLA (mission-critical)
 ```
 
 - `standard` (the default) answers every request: the calibrated argmax, never deferred
@@ -35,7 +36,7 @@ model.choose(ticket, question, teams, mode="certified", risk=0.01)
 - `threshold` defers answers below `min_confidence`, keeping the answer. Pick the floor
   your pipeline can defend; 0.5 asks for a majority, 0.9 for near-certainty.
 - `certified` defers answers below the threshold the release certified at `risk` for this
-  decision type. A type with no certified threshold at the risk behaves as `standard` for
+  decision type (`risk=0.01` for strict aerospace/financial SLAs, `risk=0.05` for high-throughput autonomous agents). A type with no certified threshold at the risk behaves as `standard` for
   the status, with `certified` false and no certificate.
 
 ## What a certificate records

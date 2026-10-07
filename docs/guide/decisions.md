@@ -21,12 +21,17 @@ Options, candidates, and levels are either a list of ids or a mapping from id to
 Every method takes `mode` and, for `threshold` mode, `min_confidence`:
 
 ```python
-model.decide(context, spec)                                            # standard
-model.decide(context, spec, mode="threshold", min_confidence=0.7)
-model.decide(context, spec, mode="certified", risk=0.01)
+model.decide(context, spec)                                            # standard (argmax, no deferral)
+model.decide(context, spec, mode="threshold", min_confidence=0.7)      # confidence floor
+model.decide(context, spec, mode="certified", risk=0.05)               # high-throughput agent (95% SLA)
+model.decide(context, spec, mode="certified", risk=0.01)               # mission-critical SLA (99% SLA)
 ```
 
-`standard` answers every request. `threshold` defers answers below your floor but keeps them. `certified` defers answers below the release's threshold at `risk`, and attaches the certificate when the answer passes. The number that applies to you is in `result.certificate.coverage`, and `mimir bench` measures accuracy, coverage, certified share, and realised risk on your labels.
+`standard` answers every request. `threshold` defers answers below your floor but keeps them. `certified` defers answers below the release's threshold at `risk` (`model.info().risk_levels = (0.005, 0.01, 0.02, 0.05)`), and attaches the certificate when the answer passes:
+- `risk=0.01` (99% SLA) is intended for mission-critical operations where automated false actions carry severe penalties; answers below the strict bound are safely deferred for human review.
+- `risk=0.05` (95% SLA) is the recommended dial for autonomous agents and high-throughput workflows, maximizing automated action throughput while still guaranteeing finite-sample risk bounds.
+
+The number that applies to you is in `result.certificate.coverage`, and `mimir bench` measures accuracy, coverage, certified share, and realised risk on your labels.
 
 ## Context
 
