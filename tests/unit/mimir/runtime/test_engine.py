@@ -66,7 +66,7 @@ def test_a_matching_release_policy_is_certified(engine: Mimir) -> None:
         "fp32",
         "cpu",
     )
-    assert info.risk_levels == (0.01,)
+    assert info.risk_levels == (0.01, 0.05)
     assert info.revision == "local"
     assert info.runtime.hardware != "unknown"
 
@@ -124,7 +124,7 @@ def test_certified_mode_defers_below_the_threshold(engine: Mimir) -> None:
 
 
 def test_risk_alpha_and_mode_are_validated(engine: Mimir) -> None:
-    with pytest.raises(RiskLevelError, match=r"choose one of \[0\.01\]"):
+    with pytest.raises(RiskLevelError, match=r"choose one of \[0\.01, 0\.05\]"):
         engine.decide(TEXT, YesNo("q"), risk=0.02)
     with pytest.raises(ValueError, match="alpha"):
         engine.decide(TEXT, YesNo("q"), alpha=1.0)

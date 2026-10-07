@@ -83,7 +83,7 @@ def test_definitions_bind_in_order_with_their_risk_and_alpha() -> None:
                     "name": "is_late",
                     "description": "Check lateness.",
                     "decision": {"type": "yes_no", "question": "Is it late?"},
-                    "risk": 0.05,
+                    "risk": 0.02,
                     "alpha": 0.2,
                 },
             ]
@@ -93,8 +93,8 @@ def test_definitions_bind_in_order_with_their_risk_and_alpha() -> None:
     tools = definitions.bind(decider)
     assert [tool.name for tool in tools] == ["route_ticket", "is_late"]
     assert tools[0].spec == Choice("Which team?", ["billing", "security"])
-    assert (tools[0].risk, tools[0].alpha) == (0.01, None)
-    assert (tools[1].spec, tools[1].risk, tools[1].alpha) == (YesNo("Is it late?"), 0.05, 0.2)
+    assert (tools[0].risk, tools[0].alpha) == (0.05, None)
+    assert (tools[1].spec, tools[1].risk, tools[1].alpha) == (YesNo("Is it late?"), 0.02, 0.2)
     assert all(tool.decider is decider for tool in tools)
 
 

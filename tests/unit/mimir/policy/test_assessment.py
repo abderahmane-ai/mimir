@@ -46,7 +46,7 @@ def test_a_low_score_is_not_certified() -> None:
 
 def test_no_threshold_at_the_risk_means_no_certificate() -> None:
     policy = build_policy(FINGERPRINT)
-    assert assess(readout("categorical", [5.0, 0.0]), policy, 0.05, 0.1).certificate is None
+    assert assess(readout("categorical", [5.0, 0.0]), policy, 0.02, 0.1).certificate is None
     uncertified = build_policy(FINGERPRINT, threshold=None)
     found = assess(readout("categorical", [5.0, 0.0]), uncertified, 0.01, 0.1)
     assert found.certificate is not None

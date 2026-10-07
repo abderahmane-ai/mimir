@@ -196,7 +196,7 @@ def test_requests_the_release_cannot_take_are_refused_by_name(
     assert (limit.status_code, limit.json()["error"]["type"]) == (422, "input_limit")
     assert limit.json()["error"]["message"] == "options is 9; the release is tested up to 8"
     assert (risk.status_code, risk.json()["error"]["type"]) == (422, "risk_level")
-    assert "choose one of [0.01]" in risk.json()["error"]["message"]
+    assert "choose one of [0.01, 0.05]" in risk.json()["error"]["message"]
     assert (spec.status_code, spec.json()["error"]["type"]) == (422, "invalid_request")
     assert "options needs at least 2 entries" in spec.json()["error"]["message"]
 

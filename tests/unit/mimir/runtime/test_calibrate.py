@@ -38,7 +38,7 @@ def test_correct_decisions_certify_a_threshold_that_loads_back(
     assert document.decision_types["categorical"].thresholds == {}
     write_policy(found.policy, tmp_path / "custom.json", tmp_path / "custom.npz")
     custom = load_engine(release, monkeypatch, policy=tmp_path / "custom.json")
-    result = custom.decide("card", SPEC)
+    result = custom.decide("card", SPEC, risk=0.01)
     assert result.status == Status.DECIDED
     assert result.certificate is not None
     assert result.certificate.origin == "custom"

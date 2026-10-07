@@ -10,7 +10,7 @@ def test_decide_request_defaults_and_parsing() -> None:
     request = DecideRequest.model_validate(
         {"context": "text", "decision": {"type": "yes_no", "question": "q"}}
     )
-    assert request.risk == 0.01
+    assert request.risk == 0.05
     assert request.alpha is None
     assert request.decision == YesNo("q")
     assert request.context == "text"

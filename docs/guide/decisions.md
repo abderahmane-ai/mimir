@@ -16,6 +16,15 @@ A decision is a spec paired with a context. `model.decide(context, spec)` return
 
 Options, candidates, and levels are either a list of ids or a mapping from id to a description the model reads as context for that option.
 
+`choose` takes the question as an optional argument. `model.choose(context, options)` asks "Which option applies to this context?"; `model.choose(context, question, options)` asks yours. `model.pick(context, options)` returns the chosen option id, or `None` when the result is `ABSTAINED` or `DEFERRED`; it takes `question`, `mode`, `min_confidence` and `risk` as keywords. `achoose` and `apick` are the async forms.
+
+```python
+model.pick("Hi, invoice INV-8821 was billed twice. Please refund the duplicate.", ["billing", "technical", "sales"])
+# "billing"
+```
+
+The model abstains by itself when no option applies: the result is `ABSTAINED` with `answer` set to `None`, so a catch-all option is not required, and one only shifts confidence. A one-line summary over bare option names can also abstain, so pass the ticket as written.
+
 ## Modes
 
 Every method takes `mode` and, for `threshold` mode, `min_confidence`:
@@ -29,7 +38,7 @@ model.decide(context, spec, mode="certified", risk=0.01)               # mission
 
 `standard` answers every request. `threshold` defers answers below your floor but keeps them. `certified` defers answers below the release's threshold at `risk` (`model.info().risk_levels = (0.005, 0.01, 0.02, 0.05)`), and attaches the certificate when the answer passes:
 - `risk=0.01` (99% SLA) is intended for mission-critical operations where automated false actions carry severe penalties; answers below the strict bound are safely deferred for human review.
-- `risk=0.05` (95% SLA) is the recommended dial for autonomous agents and high-throughput workflows, maximizing automated action throughput while still guaranteeing finite-sample risk bounds.
+- `risk=0.05` (95% SLA, the default) is the recommended dial for autonomous agents and high-throughput workflows, maximizing automated action throughput while still guaranteeing finite-sample risk bounds.
 
 The number that applies to you is in `result.certificate.coverage`, and `mimir bench` measures accuracy, coverage, certified share, and realised risk on your labels.
 

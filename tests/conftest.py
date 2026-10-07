@@ -199,8 +199,8 @@ def sha256(path: Path) -> str:
 def build_policy(
     fingerprint: Fingerprint, *, threshold: float | None = 0.5, origin: str = "release"
 ) -> Policy:
-    """A policy over all six types: identity scaling and a threshold at risk 0.01 for every
-    type but continuous."""
+    """A policy over all six types: identity scaling and one threshold at risks 0.01 and 0.05
+    for every type but continuous."""
     types: dict[str, TypePolicy] = {}
     arrays: dict[str, np.ndarray] = {}
     for name in MODEL_TYPES:
@@ -222,7 +222,7 @@ def build_policy(
         types[name] = TypePolicy(
             scaling=(Scaling(bucket=0, parameters=parameters),),
             conformal=conformal,
-            thresholds={} if name == "continuous" else {"0.01": entry},
+            thresholds={} if name == "continuous" else {"0.01": entry, "0.05": entry},
         )
         if conformal == "bucket":
             arrays[f"conformal/{name}/0"] = np.linspace(0.0, 1.0, 99)

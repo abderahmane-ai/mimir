@@ -12,6 +12,7 @@ from typing import overload
 from mimir.core.checks import DEFAULT_QUESTION, ToolCallCheck
 from mimir.core.context import Context, ContextLike
 from mimir.core.decisions import (
+    DEFAULT_CHOICE_QUESTION,
     Choice,
     DecisionSpec,
     Estimate,
@@ -29,6 +30,7 @@ from mimir.core.results import (
     MultiChoiceResult,
     RankResult,
     RateResult,
+    Status,
     VerifyResult,
     YesNoResult,
 )
@@ -37,6 +39,26 @@ from mimir.core.wire import DEFAULT_RISK, Mode, ModelInfo, check_mode
 
 Items = Sequence[tuple[ContextLike, DecisionSpec]]
 Requests = Sequence[tuple[Context, DecisionSpec]]
+ChoiceOptions = Sequence[str] | Mapping[str, str]
+
+
+def _question_and_options(
+    question: str | ChoiceOptions | None, options: ChoiceOptions | None
+) -> tuple[str, ChoiceOptions]:
+    """Read `choose`'s second argument as the question, or as the options when it is not text."""
+    if question is None or isinstance(question, str):
+        if options is None:
+            message = f"choose needs options; got question={question!r} and options=None"
+            raise TypeError(message)
+        return (DEFAULT_CHOICE_QUESTION if question is None else question), options
+    if options is not None:
+        message = f"choose got options twice: {question!r} as the second argument and {options!r}"
+        raise TypeError(message)
+    return DEFAULT_CHOICE_QUESTION, question
+
+
+def _picked(result: ChoiceResult) -> str | None:
+    return result.answer if result.status == Status.DECIDED else None
 
 
 def _certified_risk(risk: float | None) -> float:
@@ -423,24 +445,84 @@ class Decider(abc.ABC):
             batch_size=batch_size,
         )
 
+    @overload
     def choose(
         self,
         context: ContextLike,
         question: str,
-        options: Sequence[str] | Mapping[str, str],
+        options: ChoiceOptions,
+        *,
+        mode: Mode = ...,
+        min_confidence: float | None = ...,
+        risk: float = ...,
+        alpha: float | None = ...,
+    ) -> ChoiceResult: ...
+    @overload
+    def choose(
+        self,
+        context: ContextLike,
+        options: ChoiceOptions,
+        /,
+        *,
+        mode: Mode = ...,
+        min_confidence: float | None = ...,
+        risk: float = ...,
+        alpha: float | None = ...,
+    ) -> ChoiceResult: ...
+    @overload
+    def choose(
+        self,
+        context: ContextLike,
+        *,
+        options: ChoiceOptions,
+        mode: Mode = ...,
+        min_confidence: float | None = ...,
+        risk: float = ...,
+        alpha: float | None = ...,
+    ) -> ChoiceResult: ...
+    def choose(
+        self,
+        context: ContextLike,
+        question: str | ChoiceOptions | None = None,
+        options: ChoiceOptions | None = None,
         *,
         mode: Mode = Mode.STANDARD,
         min_confidence: float | None = None,
         risk: float = DEFAULT_RISK,
         alpha: float | None = None,
     ) -> ChoiceResult:
+        """Pick one option, or none. Without a question, `choose(context, options)` asks
+        `DEFAULT_CHOICE_QUESTION`."""
+        text, found = _question_and_options(question, options)
         return self.decide(
             context,
-            Choice(question, options),
+            Choice(text, found),
             mode=mode,
             min_confidence=min_confidence,
             risk=risk,
             alpha=alpha,
+        )
+
+    def pick(
+        self,
+        context: ContextLike,
+        options: ChoiceOptions,
+        *,
+        question: str | None = None,
+        mode: Mode = Mode.STANDARD,
+        min_confidence: float | None = None,
+        risk: float = DEFAULT_RISK,
+    ) -> str | None:
+        """Return the chosen option id, or None when the result is not `DECIDED`."""
+        return _picked(
+            self.choose(
+                context,
+                DEFAULT_CHOICE_QUESTION if question is None else question,
+                options,
+                mode=mode,
+                min_confidence=min_confidence,
+                risk=risk,
+            )
         )
 
     def yes_no(
@@ -529,24 +611,83 @@ class Decider(abc.ABC):
             alpha=alpha,
         )
 
+    @overload
     async def achoose(
         self,
         context: ContextLike,
         question: str,
-        options: Sequence[str] | Mapping[str, str],
+        options: ChoiceOptions,
+        *,
+        mode: Mode = ...,
+        min_confidence: float | None = ...,
+        risk: float = ...,
+        alpha: float | None = ...,
+    ) -> ChoiceResult: ...
+    @overload
+    async def achoose(
+        self,
+        context: ContextLike,
+        options: ChoiceOptions,
+        /,
+        *,
+        mode: Mode = ...,
+        min_confidence: float | None = ...,
+        risk: float = ...,
+        alpha: float | None = ...,
+    ) -> ChoiceResult: ...
+    @overload
+    async def achoose(
+        self,
+        context: ContextLike,
+        *,
+        options: ChoiceOptions,
+        mode: Mode = ...,
+        min_confidence: float | None = ...,
+        risk: float = ...,
+        alpha: float | None = ...,
+    ) -> ChoiceResult: ...
+    async def achoose(
+        self,
+        context: ContextLike,
+        question: str | ChoiceOptions | None = None,
+        options: ChoiceOptions | None = None,
         *,
         mode: Mode = Mode.STANDARD,
         min_confidence: float | None = None,
         risk: float = DEFAULT_RISK,
         alpha: float | None = None,
     ) -> ChoiceResult:
+        """Async version of `choose`."""
+        text, found = _question_and_options(question, options)
         return await self.adecide(
             context,
-            Choice(question, options),
+            Choice(text, found),
             mode=mode,
             min_confidence=min_confidence,
             risk=risk,
             alpha=alpha,
+        )
+
+    async def apick(
+        self,
+        context: ContextLike,
+        options: ChoiceOptions,
+        *,
+        question: str | None = None,
+        mode: Mode = Mode.STANDARD,
+        min_confidence: float | None = None,
+        risk: float = DEFAULT_RISK,
+    ) -> str | None:
+        """Async version of `pick`."""
+        return _picked(
+            await self.achoose(
+                context,
+                DEFAULT_CHOICE_QUESTION if question is None else question,
+                options,
+                mode=mode,
+                min_confidence=min_confidence,
+                risk=risk,
+            )
         )
 
     async def ayes_no(

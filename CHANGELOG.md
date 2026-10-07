@@ -4,6 +4,19 @@ All notable changes to `mimir-decisions` are documented here. The format follows
 
 ---
 
+## 1.2.0
+
+### Changed
+
+- **`risk` defaults to 0.05 (95% SLA) everywhere** (Python methods, tools, HTTP routes, CLI, MCP). Pass `risk=0.01` for the 99% SLA. In `certified` mode this lowers the floor: the measured example is a billing ticket scored 0.895, deferred at 0.01 and decided at 0.05. In `standard` and `threshold` mode the answer is unchanged and only the certificate's `risk` differs. `mimir calibrate` and `mimir bench` default to 0.05 too.
+
+### Added
+
+- **`choose(context, options)`** and `achoose` take the question as an optional argument; without one the question is "Which option applies to this context?".
+- **`pick(context, options)`** and `apick` return the chosen option id, or `None` unless the result is `decided`.
+
+---
+
 ## 1.1.0
 
 ### Added

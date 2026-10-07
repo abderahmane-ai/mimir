@@ -9,7 +9,7 @@ from mimir.core.context import ContextInput
 from mimir.core.decisions import DecisionSpec, ModelType
 from mimir.core.results import DecisionResult
 
-DEFAULT_RISK: Final = 0.01
+DEFAULT_RISK: Final = 0.05
 MAX_BODY_BYTES: Final = 4 * 1024 * 1024
 MAX_BATCH_ITEMS: Final = 64
 

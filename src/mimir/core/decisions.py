@@ -43,6 +43,7 @@ VERDICT_TEXTS: Final = (
     "the evidence contradicts the statement",
     "the evidence neither supports nor contradicts the statement",
 )
+DEFAULT_CHOICE_QUESTION: Final = "Which option applies to this context?"
 VERIFY_QUESTION: Final = "Judge this statement against the evidence: {claim}"
 YES_NO_IDS: Final = ("no", "yes")
 MIN_OPTIONS: Final = 2

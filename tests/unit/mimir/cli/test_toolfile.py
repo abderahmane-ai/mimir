@@ -43,7 +43,7 @@ def test_a_tools_file_reads_in_order(tmp_path: Path) -> None:
             "security": "Security: account access and fraud",
         },
     )
-    assert (route.risk, route.alpha) == (0.01, None)
+    assert (route.risk, route.alpha) == (0.05, None)
     assert (late.decision, late.risk, late.alpha) == (YesNo("Is the invoice late?"), 0.05, 0.2)
 
 

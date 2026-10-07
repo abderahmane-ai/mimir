@@ -107,7 +107,7 @@ def test_scaling_buckets_must_ascend() -> None:
 
 def test_risk_levels_and_conformal_lookup() -> None:
     policy = build_policy(FINGERPRINT)
-    assert policy.risk_levels == (0.01,)
+    assert policy.risk_levels == (0.01, 0.05)
     assert policy.conformal_scores("binary", 0) is policy.arrays["conformal/binary/0"]
     assert policy.conformal_scores("ordinal", 3) is policy.arrays["conformal/ordinal"]
     assert policy.conformal_scores("ranking", 0) is None

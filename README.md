@@ -37,6 +37,12 @@ from mimir import Context, Field, Mimir, Passage
 
 model = Mimir.from_pretrained("Mythologic/MIMIR-1")
 
+# The short form: the chosen option id, or None when the model abstains or defers
+team = model.pick(
+    "Hi, invoice INV-8821 was billed twice. Please refund the duplicate.",
+    ["billing", "technical", "sales"],
+)  # "billing"
+
 # Context pairs prose passages with typed structured fields (amounts, IDs, metadata)
 context = Context(
     passages=[
@@ -52,7 +58,7 @@ context = Context(
     }),
 )
 
-# Choose with risk dial: 0.05 for high-throughput agents, 0.01 for mission-critical SLA
+# The question is optional: model.choose(context, options) asks "Which option applies to this context?"
 result = model.choose(
     context,
     "Which department should handle this request?",
@@ -62,7 +68,6 @@ result = model.choose(
         "sales": "Sales: pricing, new contracts",
         "other": "Other: everything else",
     },
-    risk=0.05,  # 5% risk floor (95% SLA) for high-throughput automated execution
 )
 
 result.status         # Status.DECIDED, Status.ABSTAINED or Status.DEFERRED
@@ -82,8 +87,8 @@ result.certificate    # mathematical proof of risk bound on held-out data
 The release certifies thresholds across four finite-sample risk levels (`model.info().risk_levels = (0.005, 0.01, 0.02, 0.05)`):
 
 - **`risk=0.01` (99.0% SLA)** — **Mission-critical aerospace / financial SLA**: Sets an ultra-strict statistical floor. Only near-certain answers execute automatically; anything uncertain is deferred for human review rather than risked.
-- **`risk=0.05` (95.0% SLA)** — **High-throughput web agent / customer workflow**: The sweet spot for autonomous agents, unlocking automated execution on legitimate requests while still mathematically bounding error rates on held-out data.
-- **`mode="standard"`** — Returns the calibrated argmax without finite-sample risk deferral.
+- **`risk=0.05` (95.0% SLA, the default)** — **High-throughput web agent / customer workflow**: The sweet spot for autonomous agents, unlocking automated execution on legitimate requests while still mathematically bounding error rates on held-out data.
+- **`mode="standard"`** — Returns the calibrated argmax without finite-sample risk deferral; `risk` then only selects the certificate attached to the result. `mode="certified"` also defers below the threshold certified at `risk`.
 
 Give the model the ticket as a person wrote it paired with typed fields — the same options over a one-line summary can come back `ABSTAINED`. The [Decisions guide](https://abderahmane-ai.github.io/mimir/guide/decisions/) covers the question and option shapes that decide.
 
@@ -288,8 +293,8 @@ Claude Desktop, Cursor, and VS Code take the same command or the same URL and he
 ## Containers
 
 ```bash
-docker run -p 8000:8000 -e MIMIR_API_KEYS=... -v mimir-models:/models ghcr.io/abderahmane-ai/mimir:1.1.0-cpu
-docker run --gpus all -p 8000:8000 -e MIMIR_API_KEYS=... -v mimir-models:/models ghcr.io/abderahmane-ai/mimir:1.1.0-cuda
+docker run -p 8000:8000 -e MIMIR_API_KEYS=... -v mimir-models:/models ghcr.io/abderahmane-ai/mimir:1.2.0-cpu
+docker run --gpus all -p 8000:8000 -e MIMIR_API_KEYS=... -v mimir-models:/models ghcr.io/abderahmane-ai/mimir:1.2.0-cuda
 ```
 
 Images carry the runtime, never the model weights. On first start, the model is downloaded at the revision the package version pins, verified, and cached in `/models`. To run from that cache with no network access, append `serve --host 0.0.0.0 --model-cache /models --offline`.
@@ -297,7 +302,7 @@ Images carry the runtime, never the model weights. On first start, the model is 
 Images are signed with Sigstore by the release workflow:
 
 ```bash
-cosign verify ghcr.io/abderahmane-ai/mimir:1.1.0-cpu \
+cosign verify ghcr.io/abderahmane-ai/mimir:1.2.0-cpu \
   --certificate-identity https://github.com/abderahmane-ai/mimir/.github/workflows/release.yml@refs/heads/main \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```

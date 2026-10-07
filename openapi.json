@@ -114,7 +114,7 @@
             "default": "standard"
           },
           "risk": {
-            "default": 0.01,
+            "default": 0.05,
             "title": "Risk",
             "type": "number"
           }
@@ -697,7 +697,7 @@
             "default": "standard"
           },
           "risk": {
-            "default": 0.01,
+            "default": 0.05,
             "title": "Risk",
             "type": "number"
           }
@@ -2282,7 +2282,7 @@
   "info": {
     "summary": "Typed, calibrated and certified decisions.",
     "title": "MIMIR",
-    "version": "1.1.0"
+    "version": "1.2.0"
   },
   "openapi": "3.1.0",
   "paths": {
