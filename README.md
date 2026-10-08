@@ -20,7 +20,7 @@ Python 3.11+. Documentation: <https://abderahmane-ai.github.io/mimir/>
 
 ## Why MIMIR
 
-Most agents route, classify, and verify using a general-purpose language model: slow, expensive, and impossible to audit. MIMIR is built for structured decisions. It runs on Torch in milliseconds, returns calibrated probabilities with every answer, and issues a certificate — measured evidence that answers passing its threshold stayed at or below the risk level you ask for, on held-out data.
+Most agents route, classify, and verify using a general-purpose language model: slow, expensive, and impossible to audit. MIMIR is built for structured decisions. It runs locally on Torch, on CPU or GPU, returns calibrated probabilities with every answer, and issues a certificate — measured evidence that answers passing its threshold stayed at or below the risk level you ask for, on held-out data.
 
 - **No generation.** Answers are drawn from the options you supply, not synthesised. The model cannot hallucinate an answer that wasn't on the list.
 - **Calibrated confidence.** Probabilities are not softmax scores; they are calibrated to match realised accuracy on held-out data.
@@ -215,6 +215,22 @@ outcome = check("issue_refund", {"order": "4412", "amount": 900})
 outcome.permission    # Permission.ALLOW, Permission.DENY or Permission.ESCALATE
 outcome.reason        # one sentence for the agent or the approver
 ```
+
+---
+
+## Benchmarks
+
+[`benchmarks/mimir_vs_laya_enterprise_benchmark.ipynb`](benchmarks/mimir_vs_laya_enterprise_benchmark.ipynb) ([run it in Colab](https://colab.research.google.com/github/abderahmane-ai/mimir/blob/main/benchmarks/mimir_vs_laya_enterprise_benchmark.ipynb)) runs ten scenarios, each a written policy plus a pending tool call: five legitimate and five that violate the policy. Every system sees the same prompts, tools, arguments and policy text. Recorded run: Colab CPU, `mimir-decisions` 1.2.0, `laya` 0.4.0.
+
+| System | Correct | Policy-violating call executed (of 5) | Legitimate call executed (of 5) | Median latency |
+|---|---|---|---|---|
+| Laya, router only | 4/10 | 5 | 4 | 1,988 ms |
+| Laya, router + `noul` gate | 6/10 | 1 | 2 | 4,556 ms |
+| MIMIR-1, `pick` + `tool_call_check` | 9/10 | 0 | 4 | 10,076 ms |
+
+The suite is ten scenarios written by the MIMIR authors, so the figures describe this suite rather than a general rate. MIMIR-1's four escalations came at the `pick` step; its policy check allowed or denied, and denied the two violating calls the router did route to their requested tool (4B and 5B). MIMIR-1 ran in `threshold` mode at 0.50. Latency is a Colab CPU runtime with two model passes per decision.
+
+[`benchmarks/sysone-bench`](benchmarks/sysone-bench) records the run on the independent sysone-bench suite.
 
 ---
 
