@@ -11,20 +11,30 @@
   "accuracy": 0.6596774193548387,
   "model": {
     "name": "Mythologic/MIMIR-1",
-    "release_commit": "cb3cfca6887c5ee5b23ea7c58f73249e1b961dc8",
+    "release_commit": "d2f5a66ea111adb8d3cd5f6c59d66974f073ab80",
     "variant": "fp32",
-    "certification": "certified",
+    "certification": "equivalent",
+    "mode": "certified",
     "risk": 0.01,
-    "projection": "deferred or abstained decisions projected to the argmax option"
+    "projection": "a choice with no applicable option is projected to the argmax option; a deferred decision keeps the model's answer"
   },
   "environment": {
     "device": "cpu",
-    "provider": "CPUExecutionProvider",
-    "onnxruntime": "1.30.0",
+    "torch": "2.14.0",
     "hardware": "arm64 Apple M4",
-    "mimir_decisions": "1.0.0"
+    "mimir_decisions": "1.2.0"
   },
-  "adapter_version": "1",
+  "adapter_version": "2",
+  "run_id": "mimir-1.2.0-20261009",
+  "evaluation_status": {
+    "decisions": 1240,
+    "decided": 200,
+    "deferred": 1040,
+    "abstained": 0,
+    "projected_to_argmax": 169,
+    "source": "count_decisions.py on the run's predictions.jsonl"
+  },
+  "earlier_run": "mimir-1.0.0-20260929 (mimir-decisions 1.0.0, ONNX, revision cb3cfca6887c5ee5b23ea7c58f73249e1b961dc8): same accuracy, 0.6596774193548387, and the same per-suite values",
   "suites": {
     "agnews": 0.85,
     "banking77_12": 0.8125,

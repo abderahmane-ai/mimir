@@ -15,7 +15,8 @@ def progress(model: str, suite: str, split: str, decisions: int) -> None:
 
 
 def main() -> int:
-    clone = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else Path(__file__).parent / "work"
+    clone = Path(sys.argv[1]).resolve()
+    run_id = sys.argv[2]
     sys.path.insert(0, str(clone))
     from benchmark.orchestrator import run_all_v2
 
@@ -25,7 +26,7 @@ def main() -> int:
         clone / "results/v2/runs",
         runner_factory=factory,
         manifest_checksum_path=clone / "datasets/v2/manifest.sha256",
-        run_id="mimir-1.0.0-20260929",
+        run_id=run_id,
         progress=progress,
     )
     for path in paths:
