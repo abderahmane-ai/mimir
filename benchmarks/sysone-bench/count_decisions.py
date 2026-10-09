@@ -1,15 +1,16 @@
-"""Recount a MIMIR run from its predictions: accuracy and decision statuses per split.
+"""Recount a MIMIR run from its predictions: decisions and accuracy by status, per split.
 
 Usage: count_decisions.py <run directory>
 
-Reads only `predictions.jsonl` and shares no code with the adapter or the orchestrator. Exits
-non-zero when a row has no status for one of its questions.
+Reads only `predictions.jsonl` and shares no code with the adapter or the orchestrator, so it
+checks the `decision_statuses` block in `metadata.json`. Exits non-zero when a row has no status
+for one of its questions.
 """
 
 import json
 import math
 import sys
-from collections import Counter
+from collections import defaultdict
 from pathlib import Path
 
 
@@ -29,9 +30,8 @@ def main() -> int:
     ]
     report: dict[str, dict] = {}
     for split in ("calibration", "evaluation"):
-        decisions = correct = 0
-        status: Counter[str] = Counter()
-        projected = 0
+        statuses: dict[str, dict[str, int]] = defaultdict(lambda: {"correct": 0, "decisions": 0})
+        no_option_applied = 0
         for row in (row for row in rows if row["split"] == split):
             recorded = row["_raw_model"]["decisions"]
             if len(recorded) != len(row["question_ids"]):
@@ -40,16 +40,20 @@ def main() -> int:
                 return 1
             for question, entry in zip(row["questions"], recorded, strict=True):
                 qid = question["qid"]
-                decisions += 1
-                correct += is_correct(question, row["answers"][qid], row["expected"][qid])
-                status[entry["status"]] += 1
-                projected += entry["projected_to_argmax"]
+                slot = statuses[entry["status"]]
+                slot["decisions"] += 1
+                slot["correct"] += is_correct(question, row["answers"][qid], row["expected"][qid])
+                no_option_applied += entry["no_option_applied"]
+        decisions = sum(slot["decisions"] for slot in statuses.values())
+        correct = sum(slot["correct"] for slot in statuses.values())
         report[split] = {
-            "decisions": decisions,
             "accuracy": None if decisions == 0 else correct / decisions,
-            "status": dict(status),
-            "non_decided": decisions - status["decided"],
-            "projected_to_argmax": projected,
+            "decisions": decisions,
+            "no_option_applied": no_option_applied,
+            "statuses": {
+                status: {**slot, "accuracy": slot["correct"] / slot["decisions"]}
+                for status, slot in sorted(statuses.items())
+            },
         }
     print(json.dumps(report, indent=2, sort_keys=True))
     return 0

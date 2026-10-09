@@ -18,5 +18,5 @@ python3 -m venv "$work/.venv"
 "$work/.venv/bin/pip" install --quiet numpy "mimir-decisions[local]==1.2.0"
 
 run_id="mimir-1.2.0-$(date +%Y%m%d)"
-PYTHONPATH="$work" "$work/.venv/bin/python" "$here/run_mimir.py" "$work" "$run_id"
-"$work/.venv/bin/python" "$here/count_decisions.py" "$work/results/v2/runs/$run_id"
+PYTHONPATH="$work" "$work/.venv/bin/python" "$here/run_mimir.py" "$work" "$run_id" manifest.jsonl
+"$work/.venv/bin/python" "$here/count_decisions.py" "$work/results/raw/$run_id"

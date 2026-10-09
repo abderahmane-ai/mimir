@@ -1,9 +1,16 @@
 """MIMIR adapter: local inference through the mimir-decisions package.
 
-Decisions run in `certified` mode at risk 0.01. The contract has no abstention, so a choice whose
-answer is None (the model found no option applies) is projected to the argmax option. A deferred
-decision keeps the model's own answer. Every decision's status is recorded per prediction row in
-`_raw_model`, so non-decided counts can be recomputed for any split from `predictions.jsonl`.
+Decisions run in `certified` mode at risk 0.01. The contract has no abstention, so every decision
+is scored as an answer, whatever its status:
+
+* `decided`: the answer cleared the certified floor.
+* `deferred`: the answer is below the floor. A choice keeps the model's own answer; a noul and a
+  score use the model's probabilities.
+* A choice whose answer is None (the model found no option applies) is projected to the argmax
+  option, and its `no_option_applied` flag is true. Noul and score decisions never carry it.
+
+Each prediction row records `status` and `no_option_applied` per decision in `_raw_model`; the
+orchestrator aggregates them into the run's `metadata.json`.
 """
 
 import os
@@ -90,8 +97,8 @@ class MimirRunner(BaseRunner):
             answer = {"type": "score", "score": score, "confidence": max(probabilities.values())}
             return answer, False
         choice = result.answer
-        projected = choice is None
-        if projected:
+        no_option_applied = choice is None
+        if no_option_applied:
             choice = max(probabilities, key=lambda key: probabilities[key])
         answer = {
             "type": "choice",
@@ -99,7 +106,7 @@ class MimirRunner(BaseRunner):
             "probabilities": renormalize_choice_probabilities(probabilities, qid),
             "confidence": max(probabilities.values()),
         }
-        return answer, projected
+        return answer, no_option_applied
 
     def predict(
         self,
@@ -123,8 +130,8 @@ class MimirRunner(BaseRunner):
             question_type = question.get("type")
             spec = self._spec(question, qid)
             result = self.engine.decide(context, spec, mode=Mode.CERTIFIED, risk=DEFAULT_RISK)
-            answers[qid], projected = self._project(_text(question_type), result, qid)
-            decisions.append({"status": str(result.status), "projected_to_argmax": projected})
+            answers[qid], no_option_applied = self._project(_text(question_type), result, qid)
+            decisions.append({"status": str(result.status), "no_option_applied": no_option_applied})
             input_tokens += self.engine.count_tokens(context, spec)
         return {
             "answers": self._validate_answer_ids(copied_questions, answers),

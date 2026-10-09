@@ -17,15 +17,16 @@ def progress(model: str, suite: str, split: str, decisions: int) -> None:
 def main() -> int:
     clone = Path(sys.argv[1]).resolve()
     run_id = sys.argv[2]
+    manifest = clone / "datasets/v2" / sys.argv[3]
     sys.path.insert(0, str(clone))
     from benchmark.orchestrator import run_all_v2
 
     paths = run_all_v2(
         ["mimir"],
-        clone / "datasets/v2/manifest.jsonl",
-        clone / "results/v2/runs",
+        manifest,
+        clone / "results/raw",
         runner_factory=factory,
-        manifest_checksum_path=clone / "datasets/v2/manifest.sha256",
+        manifest_checksum_path=manifest.with_suffix(".sha256"),
         run_id=run_id,
         progress=progress,
     )

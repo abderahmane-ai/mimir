@@ -28,11 +28,26 @@
   "run_id": "mimir-1.2.0-20261009",
   "evaluation_status": {
     "decisions": 1240,
-    "decided": 200,
-    "deferred": 1040,
-    "abstained": 0,
-    "projected_to_argmax": 169,
-    "source": "count_decisions.py on the run's predictions.jsonl"
+    "decided": {"decisions": 200, "correct": 130, "accuracy": 0.65},
+    "deferred": {"decisions": 1040, "correct": 688, "accuracy": 0.6615384615384615},
+    "no_option_applied": 169,
+    "source": "decision_statuses in the run's metadata.json, recounted by count_decisions.py"
+  },
+  "rescored_dataset_2_1_0": {
+    "manifest_raw_sha256": "0d21a64c6b61b6be7b49050dbd89f89f934912a7b586734e475308e9c9422ea2",
+    "accuracy": 0.6717741935483871,
+    "suites": {
+      "agnews": 0.9,
+      "banking77_12": 0.8020833333333334,
+      "emotion": 0.625,
+      "guardrails": 0.84375,
+      "mnli": 0.7166666666666667,
+      "moderation": 0.7777777777777778,
+      "multilingual_intent": 0.11666666666666667,
+      "sst5": 0.425,
+      "triage": 0.7708333333333334
+    },
+    "note": "The stored answers rescored against the corrected gold with the benchmark's tools/rescore_v210.py scoring function; no inference. The fields above and `suites` below are scored against dataset 2.0.0."
   },
   "earlier_run": "mimir-1.0.0-20260929 (mimir-decisions 1.0.0, ONNX, revision cb3cfca6887c5ee5b23ea7c58f73249e1b961dc8): same accuracy, 0.6596774193548387, and the same per-suite values",
   "suites": {
