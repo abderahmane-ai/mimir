@@ -30,8 +30,8 @@
     "decisions": 1240,
     "decided": {"decisions": 200, "correct": 130, "accuracy": 0.65},
     "deferred": {"decisions": 1040, "correct": 688, "accuracy": 0.6615384615384615},
-    "no_option_applied": 169,
-    "source": "decision_statuses in the run's metadata.json, recounted by count_decisions.py"
+    "projected_to_argmax": 169,
+    "source": "count_decisions.py on the run's predictions.jsonl"
   },
   "rescored_dataset_2_1_0": {
     "manifest_raw_sha256": "0d21a64c6b61b6be7b49050dbd89f89f934912a7b586734e475308e9c9422ea2",

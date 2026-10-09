@@ -2,9 +2,8 @@
 
 Usage: count_decisions.py <run directory>
 
-Reads only `predictions.jsonl` and shares no code with the adapter or the orchestrator, so it
-checks the `decision_statuses` block in `metadata.json`. Exits non-zero when a row has no status
-for one of its questions.
+Reads only `predictions.jsonl` and shares no code with the adapter or the orchestrator. Exits
+non-zero when a row has no status for one of its questions.
 """
 
 import json
@@ -31,7 +30,7 @@ def main() -> int:
     report: dict[str, dict] = {}
     for split in ("calibration", "evaluation"):
         statuses: dict[str, dict[str, int]] = defaultdict(lambda: {"correct": 0, "decisions": 0})
-        no_option_applied = 0
+        projected_to_argmax = 0
         for row in (row for row in rows if row["split"] == split):
             recorded = row["_raw_model"]["decisions"]
             if len(recorded) != len(row["question_ids"]):
@@ -43,13 +42,13 @@ def main() -> int:
                 slot = statuses[entry["status"]]
                 slot["decisions"] += 1
                 slot["correct"] += is_correct(question, row["answers"][qid], row["expected"][qid])
-                no_option_applied += entry["no_option_applied"]
+                projected_to_argmax += entry["projected_to_argmax"]
         decisions = sum(slot["decisions"] for slot in statuses.values())
         correct = sum(slot["correct"] for slot in statuses.values())
         report[split] = {
             "accuracy": None if decisions == 0 else correct / decisions,
             "decisions": decisions,
-            "no_option_applied": no_option_applied,
+            "projected_to_argmax": projected_to_argmax,
             "statuses": {
                 status: {**slot, "accuracy": slot["correct"] / slot["decisions"]}
                 for status, slot in sorted(statuses.items())
